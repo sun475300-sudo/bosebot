@@ -1,0 +1,65 @@
+{
+  "references": [
+    {
+      "id": "customs_act_190",
+      "law_name": "관세법",
+      "article": "제190조",
+      "title": "보세전시장",
+      "summary": "박람회, 전람회, 견본품 전시회 등의 운영을 위해 외국물품을 장치·전시·사용할 수 있는 보세구역",
+      "url": "https://www.law.go.kr/lsLinkProc.do?lsNm=관세법&joNo=019000000",
+      "keywords": ["보세전시장", "정의", "개념", "보세구역", "박람회", "전람회"]
+    },
+    {
+      "id": "customs_act_161",
+      "law_name": "관세법",
+      "article": "제161조",
+      "title": "견본품의 반출",
+      "summary": "보세구역에 장치된 외국물품의 전부 또는 일부를 견본품으로 반출하려면 세관장의 허가가 필요하며, 세관장은 신청일부터 10일 이내에 허가 여부를 통지해야 함",
+      "url": "https://www.law.go.kr/lsLawLinkInfo.do?lsJoLnkSeq=900016690",
+      "keywords": ["견본품", "반출", "허가", "세관장", "샘플"]
+    },
+    {
+      "id": "customs_decree_101",
+      "law_name": "관세법 시행령",
+      "article": "제101조",
+      "title": "판매용품의 면허전 사용금지",
+      "summary": "보세전시장에 장치된 판매용 외국물품은 수입면허를 받기 전에는 사용할 수 없음",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=10996",
+      "keywords": ["판매용", "면허전", "사용금지", "수입면허"]
+    },
+    {
+      "id": "customs_decree_102",
+      "law_name": "관세법 시행령",
+      "article": "제102조",
+      "title": "직매된 전시용품의 통관전 반출금지",
+      "summary": "전시용 외국물품을 현장에서 직매하는 경우에도 수입면허를 받기 전에는 인도할 수 없음",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=10850",
+      "keywords": ["직매", "전시용품", "통관전", "반출금지", "인도"]
+    },
+    {
+      "id": "customs_act_226",
+      "law_name": "관세법",
+      "article": "제226조",
+      "title": "허가·승인 등의 증명 및 확인",
+      "summary": "세관장확인 대상 물품의 수출입 요건 확인에 관한 규정",
+      "url": "",
+      "keywords": ["세관장확인", "요건확인", "허가", "승인"]
+    },
+    {
+      "id": "bonded_exhibition_notice",
+      "law_name": "보세전시장 운영에 관한 고시",
+      "article": "관세청고시 제2026-15호",
+      "title": "보세전시장 운영에 관한 고시",
+      "summary": "보세전시장의 특허, 운영, 반출입, 물품검사 등 전반에 관한 세부 규정",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000092944",
+      "keywords": ["고시", "특허", "운영", "반출입", "물품검사"],
+      "sub_articles": {
+        "제4조": "특허장소",
+        "제5조": "특허기간",
+        "제6조": "특허신청",
+        "제10조": "반출입의 신고",
+        "제11조": "물품검사"
+      }
+    }
+  ]
+}
