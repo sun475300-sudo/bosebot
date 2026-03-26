@@ -36,9 +36,11 @@ class BondedExhibitionChatbot:
         query_lower = normalize_query(query)
         best_match = None
         best_score = 0
+        best_keyword_hits = 0
 
         for item in self.faq_items:
             score = 0
+            keyword_hits = 0
 
             if item.get("category") == category:
                 score += 2
@@ -47,10 +49,13 @@ class BondedExhibitionChatbot:
             for kw in keywords:
                 if kw in query_lower:
                     score += 1
+                    keyword_hits += 1
 
-            if score > best_score:
+            # 동점일 때 키워드 매칭 수가 더 많은 항목을 우선 선택
+            if score > best_score or (score == best_score and keyword_hits > best_keyword_hits):
                 best_score = score
                 best_match = item
+                best_keyword_hits = keyword_hits
 
         if best_score >= 1:
             return best_match

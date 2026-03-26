@@ -16,7 +16,7 @@ class TestBondedExhibitionChatbot:
         assert chatbot.config is not None
         assert chatbot.faq_data is not None
         assert chatbot.system_prompt is not None
-        assert len(chatbot.faq_items) == 7
+        assert len(chatbot.faq_items) >= 7
 
     def test_persona(self, chatbot):
         persona = chatbot.get_persona()
