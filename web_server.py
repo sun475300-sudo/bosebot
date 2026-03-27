@@ -18,9 +18,13 @@ from flask import Flask, request, jsonify, send_from_directory
 from src.chatbot import BondedExhibitionChatbot
 from src.classifier import classify_query
 from src.escalation import check_escalation
+from src.logger_db import ChatLogger
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MAX_QUERY_LENGTH = 2000
+
+# logs 디렉토리 자동 생성
+os.makedirs(os.path.join(BASE_DIR, "logs"), exist_ok=True)
 
 app = Flask(__name__, static_folder=os.path.join(BASE_DIR, "web"), static_url_path="/static")
 
@@ -32,6 +36,7 @@ logging.basicConfig(
 logger = logging.getLogger("chatbot")
 
 chatbot = BondedExhibitionChatbot()
+chat_logger = ChatLogger(db_path=os.path.join(BASE_DIR, "logs", "chat_logs.db"))
 
 
 @app.errorhandler(400)
@@ -76,19 +81,62 @@ def chat():
 
     categories = classify_query(query)
     escalation = check_escalation(query)
-    answer = chatbot.process_query(query)
+    # 세션 ID 처리 (선택적)
+    session_id = data.get("session_id")
+    answer = chatbot.process_query(query, session_id=session_id)
 
     logger.info(f"질문: {query[:50]}... | 분류: {categories[0]} | 에스컬레이션: {escalation is not None}")
 
+    primary_category = categories[0] if categories else "GENERAL"
+    is_escalation = escalation is not None
+
+    # FAQ 매칭 결과에서 faq_id 추출
+    faq_match = chatbot.find_matching_faq(query, primary_category)
+    faq_id = faq_match.get("id") if faq_match else None
+
+    # 로그 저장
+    try:
+        chat_logger.log_query(
+            query=query,
+            category=primary_category,
+            faq_id=faq_id,
+            is_escalation=is_escalation,
+            response_preview=answer,
+        )
+    except Exception as e:
+        logger.error(f"로그 저장 실패: {e}")
+
     response = {
         "answer": answer,
-        "category": categories[0] if categories else "GENERAL",
+        "category": primary_category,
         "categories": categories,
-        "is_escalation": escalation is not None,
+        "is_escalation": is_escalation,
         "escalation_target": escalation.get("target") if escalation else None,
     }
 
+    if session_id:
+        response["session_id"] = session_id
+
     return jsonify(response)
+
+
+@app.route("/api/session/new", methods=["POST"])
+def session_new():
+    """새 세션을 생성한다."""
+    session = chatbot.session_manager.create_session()
+    return jsonify({
+        "session_id": session.session_id,
+        "created_at": session.created_at,
+    }), 201
+
+
+@app.route("/api/session/<session_id>", methods=["GET"])
+def session_status(session_id):
+    """세션 상태를 조회한다."""
+    session = chatbot.session_manager.get_session(session_id)
+    if session is None:
+        return jsonify({"error": "세션을 찾을 수 없거나 만료되었습니다."}), 404
+    return jsonify(session.to_dict())
 
 
 @app.route("/api/faq", methods=["GET"])
@@ -118,6 +166,32 @@ def config():
 def health():
     """헬스 체크 엔드포인트."""
     return jsonify({"status": "ok", "faq_count": len(chatbot.faq_items)})
+
+
+@app.route("/admin")
+def admin():
+    """관리자 대시보드 페이지를 반환한다."""
+    return send_from_directory(os.path.join(BASE_DIR, "web"), "admin.html")
+
+
+@app.route("/api/admin/stats", methods=["GET"])
+def admin_stats():
+    """통계 JSON을 반환한다."""
+    return jsonify(chat_logger.get_stats())
+
+
+@app.route("/api/admin/logs", methods=["GET"])
+def admin_logs():
+    """최근 로그 JSON을 반환한다."""
+    limit = request.args.get("limit", 50, type=int)
+    return jsonify({"logs": chat_logger.get_recent_logs(limit=limit)})
+
+
+@app.route("/api/admin/unmatched", methods=["GET"])
+def admin_unmatched():
+    """미매칭 질문 JSON을 반환한다."""
+    limit = request.args.get("limit", 20, type=int)
+    return jsonify({"queries": chat_logger.get_unmatched_queries(limit=limit)})
 
 
 def main():
