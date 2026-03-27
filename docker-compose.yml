@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  chatbot:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - chatbot-logs:/app/logs
+      - chatbot-data:/app/data
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+
+volumes:
+  chatbot-logs:
+  chatbot-data:
