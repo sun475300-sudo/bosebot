@@ -7,12 +7,15 @@ from src.classifier import classify_query
 from src.escalation import check_escalation, get_escalation_contact
 from src.response_builder import build_response, build_unknown_response
 from src.session import SessionManager
+from src.similarity import TFIDFMatcher
 from src.validator import get_needed_confirmations
 from src.utils import load_json, load_text, normalize_query
 
 # 카테고리 보너스 및 매칭 임계값 설정
 CATEGORY_BONUS = 2
 MIN_KEYWORD_HITS = 1
+KEYWORD_SCORE_THRESHOLD = 3
+TFIDF_SCORE_THRESHOLD = 0.1
 
 
 class BondedExhibitionChatbot:
@@ -23,6 +26,7 @@ class BondedExhibitionChatbot:
         self.faq_data = load_json("data/faq.json")
         self.system_prompt = load_text("config/system_prompt.txt")
         self.faq_items = self.faq_data.get("items", [])
+        self.tfidf_matcher = TFIDFMatcher(self.faq_items)
         self.session_manager = SessionManager()
 
     def get_persona(self) -> str:
@@ -30,7 +34,10 @@ class BondedExhibitionChatbot:
         return self.config.get("persona", "")
 
     def find_matching_faq(self, query: str, category: str) -> dict | None:
-        """질문과 카테고리에 매칭되는 FAQ 항목을 찾는다."""
+        """질문과 카테고리에 매칭되는 FAQ 항목을 찾는다.
+
+        키워드 매칭을 우선 시도하고, 점수가 낮으면(< 3) TF-IDF 유사도로 폴백한다.
+        """
         query_lower = normalize_query(query)
         best_match = None
         best_score = 0
@@ -54,8 +61,28 @@ class BondedExhibitionChatbot:
                 best_match = item
                 best_keyword_hits = keyword_hits
 
+        if best_score >= KEYWORD_SCORE_THRESHOLD and best_keyword_hits >= MIN_KEYWORD_HITS:
+            return best_match
+
+        # 키워드 매칭 점수가 낮으면 TF-IDF 유사도로 폴백
+        tfidf_results = self.tfidf_matcher.find_best_match(
+            query, category=category, top_k=1
+        )
+        if tfidf_results and tfidf_results[0]["score"] >= TFIDF_SCORE_THRESHOLD:
+            return tfidf_results[0]["item"]
+
+        # 카테고리 필터 없이 전체 검색 폴백
+        if category:
+            tfidf_results = self.tfidf_matcher.find_best_match(
+                query, category=None, top_k=1
+            )
+            if tfidf_results and tfidf_results[0]["score"] >= TFIDF_SCORE_THRESHOLD:
+                return tfidf_results[0]["item"]
+
+        # 기존 키워드 매칭이라도 최소 기준을 충족하면 반환
         if best_score >= 1 and best_keyword_hits >= MIN_KEYWORD_HITS:
             return best_match
+
         return None
 
     def _extract_conclusion(self, answer: str) -> str:
