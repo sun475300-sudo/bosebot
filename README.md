@@ -11,12 +11,12 @@
 | FAQ | 50개 (v3.0.0) |
 | 질문 카테고리 | 10개 |
 | 에스컬레이션 규칙 | 5개 |
-| 테스트 | 469개 (전체 PASS) |
-| 소스 코드 | 5,756줄 (src/ + web_server + simulator) |
-| 테스트 코드 | 3,987줄 |
-| 소스 파일 | 33개 |
-| 테스트 파일 | 22개 |
-| 커밋 | 23개 |
+| 테스트 | 548개 (전체 PASS) |
+| 소스 코드 | 6,337줄 (src/ + web_server + simulator) |
+| 테스트 코드 | 4,835줄 |
+| 소스 파일 | 34개 |
+| 테스트 파일 | 25개 |
+| 커밋 | 28개 |
 
 ---
 
@@ -219,7 +219,7 @@ docker-compose up -d
 
 ### 테스트
 ```bash
-python -m pytest tests/ -v       # 469개 테스트 전체 PASS
+python -m pytest tests/ -v       # 548개 테스트 전체 PASS
 
 # 특정 모듈만
 python -m pytest tests/test_chatbot.py -v
@@ -275,7 +275,7 @@ bonded-exhibition-chatbot-data/
 │   ├── conversation_export.py     # 대화 내보내기 (Text/JSON/CSV/HTML)
 │   ├── plugin_system.py           # 플러그인 시스템 (6개 훅)
 │   └── utils.py                   # 유틸리티
-├── tests/                         # 469개 테스트
+├── tests/                         # 548개 테스트
 │   ├── test_chatbot.py            # 통합 테스트
 │   ├── test_classifier.py         # 분류기
 │   ├── test_similarity.py         # TF-IDF 매칭
@@ -296,6 +296,8 @@ bonded-exhibition-chatbot-data/
 │   ├── test_edge_cases.py         # 에지케이스
 │   ├── test_e2e.py                # E2E + 회귀 + 부하
 │   ├── test_phase13_18.py         # Phase 13-18 기능 테스트
+│   ├── test_phase19_25.py         # Phase 19-25 통합 테스트
+│   ├── test_kakao.py              # 카카오톡 연동 테스트
 │   └── test_web_api.py            # 웹 API
 ├── web/
 │   ├── index.html                 # 챗봇 UI (다크 테마, PWA, 음성입력)
@@ -400,6 +402,8 @@ timeline
         품질 완성 : E2E 테스트, 회귀 16건, 부하, 문서화, UX
     section Phase 13-18
         고도화 : 오타교정, BM25, 실시간모니터링, 품질검사, 플러그인
+    section Phase 19-26
+        UX + 성능 : 타이핑이펙트, 테마토글, 접근성, 캐싱, 카카오톡
 ```
 
 ## 업데이트 내역
@@ -411,6 +415,7 @@ timeline
 | v2.0.0 | Phase 1-6 (멀티턴, TF-IDF, Docker, SmartClassifier, PWA, 다국어) |
 | v3.0.0 | Phase 7-12 (보안, 분석, 프로덕션, E2E 테스트, 문서화, UX) |
 | v4.0.0 | Phase 13-18 (오타교정, BM25, 실시간모니터링, 품질검사, 플러그인) |
+| v5.0.0 | Phase 19-26 (타이핑이펙트, 테마토글, 접근성, 성능최적화, 카카오톡, 통합테스트) |
 
 ## 기술 스택
 

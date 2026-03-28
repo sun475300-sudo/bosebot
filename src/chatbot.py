@@ -3,6 +3,7 @@
 사용자 질문 → 분류 → FAQ 매칭 → 에스컬레이션 확인 → 답변 생성
 """
 
+from collections import OrderedDict
 from src.classifier import classify_query
 from src.clarification import ClarificationEngine
 from src.escalation import check_escalation, get_escalation_contact
@@ -21,6 +22,7 @@ CATEGORY_BONUS = 2
 MIN_KEYWORD_HITS = 1
 KEYWORD_SCORE_THRESHOLD = 3
 TFIDF_SCORE_THRESHOLD = 0.1
+CLASSIFIER_CACHE_MAX_SIZE = 100
 
 
 class BondedExhibitionChatbot:
@@ -36,6 +38,19 @@ class BondedExhibitionChatbot:
         self.smart_classifier = SmartClassifier()
         self.clarification_engine = ClarificationEngine()
         self.related_faq_finder = RelatedFAQFinder(self.faq_items)
+        self._classifier_cache: OrderedDict[str, list[str]] = OrderedDict()
+
+    def _cached_classify(self, query: str) -> list[str]:
+        """Classify a query with LRU caching (max 100 entries)."""
+        if query in self._classifier_cache:
+            # Move to end (most recently used)
+            self._classifier_cache.move_to_end(query)
+            return self._classifier_cache[query]
+        result = classify_query(query)
+        self._classifier_cache[query] = result
+        if len(self._classifier_cache) > CLASSIFIER_CACHE_MAX_SIZE:
+            self._classifier_cache.popitem(last=False)
+        return result
 
     def get_persona(self) -> str:
         """챗봇 페르소나 인사말을 반환한다."""
@@ -142,7 +157,7 @@ class BondedExhibitionChatbot:
         if session:
             categories = self.smart_classifier.classify_with_context(processed_query, session)
         else:
-            categories = classify_query(processed_query)
+            categories = self._cached_classify(processed_query)
         if not categories:
             categories = ["GENERAL"]
         primary_category = categories[0]

@@ -20,12 +20,21 @@ from flask import Flask, request, jsonify, send_from_directory
 from src.chatbot import BondedExhibitionChatbot
 from src.classifier import classify_query
 from src.conversation_export import ConversationExporter
-from src.escalation import check_escalation
+from src.escalation import check_escalation, get_escalation_contact
 from src.analytics import QueryAnalytics
 from src.auto_faq_pipeline import AutoFAQPipeline
 from src.faq_quality_checker import FAQQualityChecker
 from src.faq_recommender import FAQRecommender
 from src.feedback import FeedbackManager
+from src.kakao_adapter import (
+    build_skill_response,
+    format_carousel,
+    format_escalation_card,
+    format_quick_replies,
+    format_simple_text,
+    init_kakao_routes,
+    parse_kakao_request,
+)
 from src.logger_db import ChatLogger
 from src.realtime_monitor import RealtimeMonitor
 from src.satisfaction_tracker import SatisfactionTracker
@@ -684,6 +693,135 @@ def related_faq(faq_id):
     except Exception as e:
         logger.error(f"관련 FAQ 조회 실패: {e}")
         return jsonify({"error": "관련 FAQ 조회 중 오류가 발생했습니다."}), 500
+
+
+# 카카오 i 오픈빌더 블루프린트 등록
+kakao_blueprint = init_kakao_routes(chatbot, chat_logger)
+app.register_blueprint(kakao_blueprint)
+
+
+@app.route("/api/kakao/chat", methods=["POST"])
+def api_kakao_chat():
+    """카카오 i 오픈빌더 스킬 요청을 처리한다 (API 경로).
+
+    카카오 요청 형식:
+    {
+        "userRequest": {"utterance": "...", "user": {"id": "..."}},
+        "bot": {"id": "..."},
+        "action": {"name": "..."}
+    }
+
+    카카오 응답 형식: simpleText + quickReplies
+    """
+    data = request.get_json(silent=True)
+    if not data:
+        resp = build_skill_response([format_simple_text("요청을 처리할 수 없습니다.")])
+        return jsonify(resp), 200
+
+    parsed = parse_kakao_request(data)
+    utterance = parsed["utterance"]
+
+    if not utterance:
+        resp = build_skill_response([
+            format_simple_text("질문을 입력해 주세요.\n\n예: 보세전시장이 무엇인가요?")
+        ])
+        return jsonify(resp), 200
+
+    # 챗봇 응답 생성
+    answer = chatbot.process_query(utterance)
+    categories = classify_query(utterance)
+    primary_category = categories[0] if categories else "GENERAL"
+    escalation = check_escalation(utterance)
+
+    outputs = [format_simple_text(answer)]
+
+    # 에스컬레이션 필요 시 연락처 카드 추가
+    if escalation is not None:
+        contact = get_escalation_contact(escalation)
+        if contact:
+            outputs.append(format_escalation_card(contact))
+
+    # 바로가기 버튼: FAQ 카테고리
+    config_categories = chatbot.config.get("categories", [])
+    category_names = [
+        c["name"] if isinstance(c, dict) else str(c)
+        for c in config_categories
+    ]
+    if category_names:
+        quick_replies = format_quick_replies(category_names[:5])
+    else:
+        quick_replies = format_quick_replies([
+            "보세전시장이란?",
+            "물품 반입 절차",
+            "현장 판매 가능?",
+            "문의처 안내",
+        ])
+
+    # 로깅
+    try:
+        faq_match = chatbot.find_matching_faq(utterance, primary_category)
+        chat_logger.log_query(
+            query=utterance,
+            category=primary_category,
+            faq_id=faq_match.get("id") if faq_match else None,
+            is_escalation=escalation is not None,
+            response_preview=answer[:200],
+        )
+    except Exception:
+        pass
+
+    resp = build_skill_response(outputs, quick_replies)
+    return jsonify(resp), 200
+
+
+@app.route("/api/kakao/faq", methods=["POST"])
+def api_kakao_faq():
+    """FAQ 목록을 카카오 캐러셀 카드 형식으로 반환한다.
+
+    카카오 요청 형식 (표준 스킬 요청):
+    {
+        "userRequest": {"utterance": "...", "user": {"id": "..."}},
+        "bot": {"id": "..."},
+        "action": {"name": "..."}
+    }
+
+    응답: 카카오 carousel 카드 (FAQ 항목)
+    """
+    data = request.get_json(silent=True)
+
+    # 카테고리 필터링 (action params에서 category 추출)
+    category_filter = None
+    if data:
+        action = data.get("action", {})
+        params = action.get("params", {})
+        category_filter = params.get("category", "").strip() or None
+
+    faq_items = chatbot.faq_items
+    if category_filter:
+        faq_items = [
+            item for item in faq_items
+            if item.get("category", "") == category_filter
+        ]
+
+    # 최대 10개 카드로 제한 (카카오 캐러셀 제한)
+    faq_items = faq_items[:10]
+
+    if not faq_items:
+        resp = build_skill_response([
+            format_simple_text("해당 카테고리의 FAQ가 없습니다.")
+        ])
+        return jsonify(resp), 200
+
+    carousel = format_carousel(faq_items)
+
+    # 카테고리 바로가기 버튼
+    all_categories = sorted(set(
+        item.get("category", "") for item in chatbot.faq_items if item.get("category")
+    ))
+    quick_replies = format_quick_replies(all_categories[:5])
+
+    resp = build_skill_response([carousel], quick_replies)
+    return jsonify(resp), 200
 
 
 def main():
