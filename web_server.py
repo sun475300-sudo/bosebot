@@ -8,9 +8,11 @@ Flask 기반 REST API + 웹 UI를 제공한다.
 """
 
 import argparse
+import hashlib
 import logging
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -67,6 +69,70 @@ conversation_exporter = ConversationExporter()
 legal_refs = load_json("data/legal_references.json")
 faq_quality_checker = FAQQualityChecker(chatbot.faq_items, legal_refs)
 satisfaction_tracker = SatisfactionTracker()
+
+# --- FAQ in-memory cache ---
+_faq_cache: dict = {}
+
+
+def _refresh_faq_cache():
+    """Load FAQ data into memory and pre-build TF-IDF index."""
+    _faq_cache["items"] = list(chatbot.faq_items)
+    _faq_cache["tfidf_matcher"] = chatbot.tfidf_matcher
+
+
+_refresh_faq_cache()
+
+
+# --- Response time middleware ---
+@app.before_request
+def _record_start_time():
+    request._start_time = time.monotonic()
+
+
+@app.after_request
+def _add_response_time_header(response):
+    start = getattr(request, "_start_time", None)
+    if start is not None:
+        elapsed_ms = (time.monotonic() - start) * 1000
+        response.headers["X-Response-Time"] = f"{elapsed_ms:.1f}ms"
+        if elapsed_ms > 500:
+            logger.warning(
+                f"Slow request: {request.method} {request.path} took {elapsed_ms:.1f}ms"
+            )
+    return response
+
+
+# --- Static asset caching ---
+@app.after_request
+def _add_cache_headers(response):
+    """Add Cache-Control and ETag headers for static files."""
+    if request.path.startswith("/static/") or request.path in (
+        "/manifest.json",
+        "/sw.js",
+    ):
+        # Determine cache duration by file extension
+        path_lower = request.path.lower()
+        if path_lower.endswith(".html"):
+            max_age = 3600  # 1 hour
+        elif path_lower.endswith((".css", ".js", ".svg")):
+            max_age = 604800  # 1 week
+        else:
+            max_age = 3600  # default 1 hour
+
+        response.headers["Cache-Control"] = f"public, max-age={max_age}"
+
+        # ETag support based on response data
+        if response.data:
+            etag = hashlib.md5(response.data).hexdigest()
+            response.headers["ETag"] = f'"{etag}"'
+
+            # Handle If-None-Match
+            if_none_match = request.headers.get("If-None-Match")
+            if if_none_match and if_none_match.strip('"') == etag:
+                response.status_code = 304
+                response.data = b""
+
+    return response
 
 
 @app.errorhandler(400)
@@ -259,6 +325,27 @@ def autocomplete():
 def health():
     """헬스 체크 엔드포인트."""
     return jsonify({"status": "ok", "faq_count": len(chatbot.faq_items)})
+
+
+@app.route("/api/admin/cache/clear", methods=["POST"])
+def admin_cache_clear():
+    """FAQ 캐시를 무효화하고 다시 로드한다."""
+    try:
+        # Reload FAQ data from disk
+        chatbot.faq_data = load_json("data/faq.json")
+        chatbot.faq_items = chatbot.faq_data.get("items", [])
+        chatbot.tfidf_matcher = __import__(
+            "src.similarity", fromlist=["TFIDFMatcher"]
+        ).TFIDFMatcher(chatbot.faq_items)
+        chatbot.related_faq_finder = __import__(
+            "src.related_faq", fromlist=["RelatedFAQFinder"]
+        ).RelatedFAQFinder(chatbot.faq_items)
+        _refresh_faq_cache()
+        logger.info("FAQ cache cleared and reloaded")
+        return jsonify({"success": True, "faq_count": len(chatbot.faq_items)})
+    except Exception as e:
+        logger.error(f"캐시 초기화 실패: {e}")
+        return jsonify({"error": "캐시 초기화 중 오류가 발생했습니다."}), 500
 
 
 @app.route("/admin")
