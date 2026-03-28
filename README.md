@@ -11,12 +11,12 @@
 | FAQ | 50개 (v3.0.0) |
 | 질문 카테고리 | 10개 |
 | 에스컬레이션 규칙 | 5개 |
-| 테스트 | 1,156개 (전체 PASS) |
-| 소스 코드 | 13,344줄 (src/ + web_server + simulator) |
-| 테스트 코드 | 12,051줄 |
-| 소스 파일 | 51개 |
-| 테스트 파일 | 46개 |
-| 커밋 | 42개 |
+| 테스트 | 1,271개 (전체 PASS) |
+| 소스 코드 | 14,931줄 (src/ + web_server + simulator) |
+| 테스트 코드 | 13,397줄 |
+| 소스 파일 | 54개 |
+| 테스트 파일 | 49개 |
+| 커밋 | 45개 |
 
 ---
 
@@ -236,7 +236,7 @@ docker-compose up -d
 
 ### 테스트
 ```bash
-python -m pytest tests/ -v       # 1,156개 테스트 전체 PASS
+python -m pytest tests/ -v       # 1,271개 테스트 전체 PASS
 
 # 특정 모듈만
 python -m pytest tests/test_chatbot.py -v
@@ -308,7 +308,7 @@ bonded-exhibition-chatbot-data/
 │   ├── profiler.py                # 성능 프로파일링 (cProfile)
 │   ├── alert_center.py            # 알림 센터 (규칙 엔진, 임계값)
 │   └── utils.py                   # 유틸리티
-├── tests/                         # 1,156개 테스트
+├── tests/                         # 1,271개 테스트
 │   ├── test_chatbot.py            # 통합 테스트
 │   ├── test_classifier.py         # 분류기
 │   ├── test_similarity.py         # TF-IDF 매칭
