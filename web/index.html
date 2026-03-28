@@ -521,15 +521,181 @@
     padding: 0 2px;
     border-radius: 2px;
   }
+
+  /* 답변 접기/펼치기 */
+  .collapse-toggle {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 3px 10px;
+    font-size: 11px;
+    color: #64B5F6;
+    background: rgba(33, 150, 243, 0.1);
+    border: 1px solid rgba(33, 150, 243, 0.2);
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .collapse-toggle:hover { background: rgba(33, 150, 243, 0.2); }
+  .msg.bot .collapsible { display: none; }
+  .msg.bot.expanded .collapsible { display: block; }
+
+  /* 타이핑 커서 */
+  .typing-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 14px;
+    background: #4FC3F7;
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    animation: blink 0.7s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* 테마 토글 버튼 */
+  .theme-toggle {
+    padding: 6px 10px;
+    background: rgba(30, 45, 65, 0.8);
+    border: 1px solid rgba(100, 180, 255, 0.2);
+    border-radius: 6px;
+    color: #b0c4d8;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    line-height: 1;
+    margin-left: 8px;
+  }
+  .theme-toggle:hover { border-color: rgba(33, 150, 243, 0.5); color: #e0e6ed; }
+
+  /* 라이트 테마 */
+  body.light {
+    background: linear-gradient(135deg, #e8eef5 0%, #f5f7fa 50%, #e3ecf5 100%);
+    color: #333;
+  }
+  body.light header {
+    background: rgba(255, 255, 255, 0.95);
+    border-bottom-color: rgba(0, 0, 0, 0.1);
+  }
+  body.light header h1 { color: #1a2a3a; }
+  body.light header .status { color: #2E7D32; }
+  body.light .sidebar {
+    background: rgba(255, 255, 255, 0.92);
+    border-right-color: rgba(0, 0, 0, 0.08);
+  }
+  body.light .sidebar-header { color: #666; }
+  body.light .faq-item .faq-text { color: #555; }
+  body.light .faq-item:hover { background: rgba(33, 150, 243, 0.06); }
+  body.light .chat-area { background: rgba(245, 247, 250, 0.6); }
+  body.light .msg.bot {
+    background: #fff;
+    border-color: rgba(0, 0, 0, 0.08);
+    color: #444;
+  }
+  body.light .msg.bot .section-content { color: #555; }
+  body.light .msg.bot .section-title { color: #1565C0; }
+  body.light .msg.bot .legal-ref { color: #1976D2; }
+  body.light .msg.bot .disclaimer { color: #888; border-top-color: rgba(0,0,0,0.06); }
+  body.light .msg.bot .meta { color: #999; }
+  body.light .input-area {
+    background: rgba(255, 255, 255, 0.95);
+    border-top-color: rgba(0, 0, 0, 0.08);
+  }
+  body.light .input-area input {
+    background: #f0f2f5;
+    border-color: rgba(0, 0, 0, 0.1);
+    color: #333;
+  }
+  body.light .input-area input::placeholder { color: rgba(0, 0, 0, 0.35); }
+  body.light .feedback-btn {
+    background: rgba(240, 242, 245, 0.8);
+    border-color: rgba(0, 0, 0, 0.1);
+    color: #666;
+  }
+  body.light .export-btn, body.light .theme-toggle, body.light #micBtn {
+    background: rgba(240, 242, 245, 0.8);
+    border-color: rgba(0, 0, 0, 0.1);
+    color: #555;
+  }
+  body.light .lang-selector {
+    background: rgba(240, 242, 245, 0.8);
+    border-color: rgba(0, 0, 0, 0.1);
+    color: #555;
+  }
+  body.light .lang-selector option { background: #fff; color: #333; }
+  body.light .export-dropdown, body.light #autocompleteDropdown {
+    background: rgba(255, 255, 255, 0.98);
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+  body.light .export-dropdown button, body.light .ac-item .ac-question { color: #555; }
+  body.light .ac-item:hover, body.light .ac-item.active { background: rgba(33, 150, 243, 0.08); }
+  body.light .collapse-toggle { color: #1565C0; background: rgba(33,150,243,0.08); border-color: rgba(33,150,243,0.15); }
+  body.light .typing { background: #fff; border-color: rgba(0,0,0,0.08); }
+  body.light .msg.bot mark { background: rgba(255, 213, 79, 0.4); }
+
+  /* 모바일 햄버거 */
+  .hamburger {
+    display: none;
+    padding: 6px 10px;
+    background: rgba(30, 45, 65, 0.8);
+    border: 1px solid rgba(100, 180, 255, 0.2);
+    border-radius: 6px;
+    color: #b0c4d8;
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+    margin-right: 8px;
+  }
+  body.light .hamburger { background: rgba(240,242,245,0.8); border-color: rgba(0,0,0,0.1); color: #555; }
+
+  /* 모바일 반응형 */
+  @media (max-width: 899px) {
+    .hamburger { display: flex; align-items: center; justify-content: center; }
+    .sidebar {
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: 280px;
+      z-index: 1000;
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+    }
+    .sidebar.mobile-open {
+      display: flex !important;
+      flex-direction: column;
+      transform: translateX(0);
+    }
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 999;
+    }
+    .sidebar-overlay.show { display: block; }
+    header h1 { font-size: 14px; }
+    header .badge { display: none; }
+    .msg { max-width: 90%; }
+    .messages { padding: 16px; }
+    .input-area { padding: 10px 12px; gap: 8px; }
+    .input-area input { padding: 12px 14px; font-size: 14px; }
+    .input-area button { padding: 12px 18px; font-size: 13px; }
+  }
+  @media (max-width: 400px) {
+    header { padding: 10px 12px; gap: 8px; }
+    header h1 { font-size: 13px; }
+    .export-wrapper, .lang-selector { margin-left: 4px; }
+    .export-btn, .theme-toggle { padding: 5px 8px; font-size: 13px; }
+  }
 </style>
 </head>
 <body>
 
 <header>
+  <button class="hamburger" id="hamburgerBtn" onclick="toggleMobileSidebar()">&#x2630;</button>
   <div class="logo">B</div>
   <h1>보세전시장 민원응대 챗봇</h1>
   <span class="badge">v2.0</span>
   <div class="status">운영 중</div>
+  <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="테마 전환">&#x263E;</button>
   <div class="export-wrapper">
     <button class="export-btn" id="exportBtn" onclick="toggleExportDropdown()" title="대화 내보내기">&#x2B07;</button>
     <div class="export-dropdown" id="exportDropdown">
@@ -547,6 +713,7 @@
   </select>
 </header>
 
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMobileSidebar()"></div>
 <div class="container">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">자주 묻는 질문</div>
@@ -737,14 +904,35 @@ function addBotMessage(text, category, isEscalation, isWelcome) {
   const div = document.createElement('div');
   div.className = 'msg bot';
 
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'bot-content';
+
   if (isWelcome) {
-    div.innerHTML = `<div style="font-size:14px;line-height:1.8">${escapeHtml(text)}</div>`;
+    contentDiv.innerHTML = `<div style="font-size:14px;line-height:1.8">${escapeHtml(text)}</div>`;
+    div.appendChild(contentDiv);
   } else {
     let html = formatBotAnswer(text);
     if (lastUserQuery) {
       html = highlightKeywords(html, lastUserQuery);
     }
-    div.innerHTML = html;
+    // 결론만 보이고 나머지는 접기
+    const collapsibleHtml = addCollapsible(html);
+    contentDiv.innerHTML = '';
+    div.appendChild(contentDiv);
+    // 타이핑 이펙트 적용
+    typeEffect(contentDiv, collapsibleHtml, () => {
+      // 접기/펼치기 버튼 추가 (접힌 섹션이 있을 때만)
+      if (contentDiv.querySelector('.collapsible')) {
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'collapse-toggle';
+        toggleBtn.textContent = '상세 보기';
+        toggleBtn.onclick = function() {
+          div.classList.toggle('expanded');
+          toggleBtn.textContent = div.classList.contains('expanded') ? '접기' : '상세 보기';
+        };
+        contentDiv.appendChild(toggleBtn);
+      }
+    });
   }
 
   if (isEscalation) {
@@ -773,6 +961,25 @@ function addBotMessage(text, category, isEscalation, isWelcome) {
 
   messagesEl.insertBefore(div, typingEl);
   scrollToBottom();
+}
+
+function addCollapsible(html) {
+  // 결론 섹션은 보이고, 설명/근거/면책은 collapsible 클래스로 감쌈
+  const temp = document.createElement('div');
+  temp.innerHTML = html;
+  const sections = temp.querySelectorAll('.section');
+  let foundConclusion = false;
+  sections.forEach(sec => {
+    const title = sec.querySelector('.section-title');
+    if (title && title.textContent === '결론') {
+      foundConclusion = true;
+    } else if (foundConclusion) {
+      sec.classList.add('collapsible');
+    }
+  });
+  const disclaimer = temp.querySelector('.disclaimer');
+  if (disclaimer && foundConclusion) disclaimer.classList.add('collapsible');
+  return temp.innerHTML;
 }
 
 function formatBotAnswer(text) {
@@ -1070,6 +1277,52 @@ async function exportConversation(format) {
   }
   const content = generateClientExport(format, messages);
   downloadFile(content, filename, mimeMap[format]);
+}
+
+/* --- 테마 토글 --- */
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light');
+  localStorage.setItem('chatbot-theme', isLight ? 'light' : 'dark');
+  document.getElementById('themeToggle').innerHTML = isLight ? '&#x2600;' : '&#x263E;';
+}
+(function initTheme() {
+  if (localStorage.getItem('chatbot-theme') === 'light') {
+    document.body.classList.add('light');
+    document.getElementById('themeToggle').innerHTML = '&#x2600;';
+  }
+})();
+
+/* --- 모바일 사이드바 --- */
+function toggleMobileSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  sidebar.classList.toggle('mobile-open');
+  overlay.classList.toggle('show');
+}
+
+/* --- 타이핑 이펙트 --- */
+function typeEffect(element, html, callback) {
+  const temp = document.createElement('div');
+  temp.innerHTML = html;
+  const text = temp.textContent;
+  element.innerHTML = '';
+  const cursor = document.createElement('span');
+  cursor.className = 'typing-cursor';
+  element.appendChild(cursor);
+  let i = 0;
+  const speed = 15;
+  function typeNext() {
+    if (i < text.length) {
+      cursor.before(document.createTextNode(text.charAt(i)));
+      i++;
+      setTimeout(typeNext, speed);
+    } else {
+      cursor.remove();
+      element.innerHTML = html;
+      if (callback) callback();
+    }
+  }
+  typeNext();
 }
 
 init();
