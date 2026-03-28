@@ -16,8 +16,9 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, Response, request, jsonify, send_from_directory
 from src.chatbot import BondedExhibitionChatbot
+from src.metrics import metrics as metrics_collector
 from src.classifier import classify_query
 from src.conversation_export import ConversationExporter
 from src.escalation import check_escalation, get_escalation_contact
@@ -40,6 +41,8 @@ from src.realtime_monitor import RealtimeMonitor
 from src.satisfaction_tracker import SatisfactionTracker
 from src.security import APIKeyAuth, RateLimiter, sanitize_input
 from src.translator import SimpleTranslator
+from src.auth import JWTAuth, authenticate_user
+from src.law_updater import LawUpdateScheduler, LawVersionTracker, FAQUpdateNotifier
 from src.utils import load_json
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -79,6 +82,14 @@ legal_refs = load_json("data/legal_references.json")
 faq_quality_checker = FAQQualityChecker(chatbot.faq_items, legal_refs)
 satisfaction_tracker = SatisfactionTracker()
 
+# JWT 인증 초기화
+jwt_auth = JWTAuth()
+
+# 법령 업데이트 모듈 초기화
+law_version_tracker = LawVersionTracker()
+faq_update_notifier = FAQUpdateNotifier()
+law_update_scheduler = LawUpdateScheduler(law_version_tracker, faq_update_notifier)
+
 # --- FAQ in-memory cache ---
 _faq_cache: dict = {}
 
@@ -103,11 +114,31 @@ def _add_response_time_header(response):
     start = getattr(request, "_start_time", None)
     if start is not None:
         elapsed_ms = (time.monotonic() - start) * 1000
+        elapsed_s = elapsed_ms / 1000.0
         response.headers["X-Response-Time"] = f"{elapsed_ms:.1f}ms"
         if elapsed_ms > 500:
             logger.warning(
                 f"Slow request: {request.method} {request.path} took {elapsed_ms:.1f}ms"
             )
+        # --- Prometheus metrics instrumentation ---
+        endpoint = request.path
+        method = request.method
+        status = str(response.status_code)
+        metrics_collector.increment(
+            "request_count",
+            {"endpoint": endpoint, "method": method, "status": status},
+        )
+        metrics_collector.observe(
+            "request_duration_seconds",
+            elapsed_s,
+            {"endpoint": endpoint},
+        )
+        # Update gauges
+        try:
+            metrics_collector.set_gauge("active_sessions", chatbot.session_manager.active_count())
+            metrics_collector.set_gauge("faq_count", len(chatbot.faq_items))
+        except Exception:
+            pass
     return response
 
 
@@ -336,7 +367,24 @@ def health():
     return jsonify({"status": "ok", "faq_count": len(chatbot.faq_items)})
 
 
+@app.route("/metrics", methods=["GET"])
+def prometheus_metrics():
+    """Prometheus metrics endpoint (no auth required)."""
+    # Update cache hit rate gauge from FAQ cache state
+    try:
+        cache_items = _faq_cache.get("items")
+        if cache_items is not None and len(chatbot.faq_items) > 0:
+            metrics_collector.set_gauge("cache_hit_rate", 1.0)
+        else:
+            metrics_collector.set_gauge("cache_hit_rate", 0.0)
+    except Exception:
+        pass
+    body = metrics_collector.collect()
+    return Response(body, mimetype="text/plain; charset=utf-8")
+
+
 @app.route("/api/admin/cache/clear", methods=["POST"])
+@jwt_auth.require_auth()
 def admin_cache_clear():
     """FAQ 캐시를 무효화하고 다시 로드한다."""
     try:
@@ -357,6 +405,41 @@ def admin_cache_clear():
         return jsonify({"error": "캐시 초기화 중 오류가 발생했습니다."}), 500
 
 
+@app.route("/login")
+def login_page():
+    """로그인 페이지를 반환한다."""
+    return send_from_directory(os.path.join(BASE_DIR, "web"), "login.html")
+
+
+@app.route("/api/auth/login", methods=["POST"])
+def auth_login():
+    """사용자 로그인 처리."""
+    data = request.get_json(silent=True)
+    if not data or "username" not in data or "password" not in data:
+        return jsonify({"error": "username과 password 필드가 필요합니다."}), 400
+
+    user = authenticate_user(data["username"], data["password"])
+    if user is None:
+        return jsonify({"error": "잘못된 사용자명 또는 비밀번호입니다."}), 401
+
+    token = jwt_auth.generate_token(user["username"], role=user["role"])
+    return jsonify({"token": token, "expires_in": 86400})
+
+
+@app.route("/api/auth/me", methods=["GET"])
+@jwt_auth.require_auth()
+def auth_me():
+    """현재 사용자 정보를 반환한다."""
+    payload = getattr(request, "jwt_payload", None)
+    if payload:
+        return jsonify({
+            "username": payload.get("sub"),
+            "role": payload.get("role"),
+        })
+    # When auth is disabled (TESTING/ADMIN_AUTH_DISABLED), return default
+    return jsonify({"username": "admin", "role": "admin"})
+
+
 @app.route("/admin")
 def admin():
     """관리자 대시보드 페이지를 반환한다."""
@@ -364,12 +447,14 @@ def admin():
 
 
 @app.route("/api/admin/stats", methods=["GET"])
+@jwt_auth.require_auth()
 def admin_stats():
     """통계 JSON을 반환한다."""
     return jsonify(chat_logger.get_stats())
 
 
 @app.route("/api/admin/logs", methods=["GET"])
+@jwt_auth.require_auth()
 def admin_logs():
     """최근 로그 JSON을 반환한다."""
     limit = request.args.get("limit", 50, type=int)
@@ -377,6 +462,7 @@ def admin_logs():
 
 
 @app.route("/api/admin/unmatched", methods=["GET"])
+@jwt_auth.require_auth()
 def admin_unmatched():
     """미매칭 질문 JSON을 반환한다."""
     limit = request.args.get("limit", 20, type=int)
@@ -384,6 +470,7 @@ def admin_unmatched():
 
 
 @app.route("/api/admin/recommendations", methods=["GET"])
+@jwt_auth.require_auth()
 def admin_recommendations():
     """미매칭 질문 기반 FAQ 추가 후보 추천 목록을 반환한다."""
     top_k = request.args.get("top_k", 10, type=int)
@@ -420,6 +507,7 @@ def feedback():
 
 
 @app.route("/api/admin/feedback", methods=["GET"])
+@jwt_auth.require_auth()
 def admin_feedback():
     """피드백 통계를 반환한다."""
     stats = feedback_manager.get_feedback_stats()
@@ -428,6 +516,7 @@ def admin_feedback():
 
 
 @app.route("/api/admin/analytics", methods=["GET"])
+@jwt_auth.require_auth()
 def admin_analytics():
     """분석 리포트를 반환한다."""
     try:
@@ -446,6 +535,7 @@ def admin_analytics():
 
 
 @app.route("/api/admin/report", methods=["GET"])
+@jwt_auth.require_auth()
 def admin_report():
     """주간 리포트 텍스트를 반환한다."""
     try:
@@ -457,6 +547,7 @@ def admin_report():
 
 
 @app.route("/api/admin/faq-pipeline", methods=["GET"])
+@jwt_auth.require_auth()
 def admin_faq_pipeline():
     """FAQ 후보 목록을 반환한다."""
     try:
@@ -469,6 +560,7 @@ def admin_faq_pipeline():
 
 
 @app.route("/api/admin/faq-pipeline/approve", methods=["POST"])
+@jwt_auth.require_auth()
 def admin_faq_approve():
     """FAQ 후보를 승인한다."""
     data = request.get_json(silent=True)
@@ -486,6 +578,7 @@ def admin_faq_approve():
 
 
 @app.route("/api/admin/faq-pipeline/reject", methods=["POST"])
+@jwt_auth.require_auth()
 def admin_faq_reject():
     """FAQ 후보를 거부한다."""
     data = request.get_json(silent=True)
@@ -503,6 +596,7 @@ def admin_faq_reject():
 
 
 @app.route("/api/admin/monitor", methods=["GET"])
+@jwt_auth.require_auth()
 def admin_monitor():
     """실시간 모니터링 데이터를 반환한다."""
     try:
@@ -515,6 +609,7 @@ def admin_monitor():
 
 
 @app.route("/api/admin/quality", methods=["GET"])
+@jwt_auth.require_auth()
 def admin_quality():
     """FAQ 품질 검사 결과를 반환한다."""
     try:
@@ -526,6 +621,7 @@ def admin_quality():
 
 
 @app.route("/api/admin/realtime", methods=["GET"])
+@jwt_auth.require_auth()
 def admin_realtime():
     """실시간 모니터링 라이브 통계를 반환한다."""
     try:
@@ -566,6 +662,7 @@ def admin_realtime():
 
 
 @app.route("/api/admin/faq-quality", methods=["GET"])
+@jwt_auth.require_auth()
 def admin_faq_quality():
     """FAQ 품질 대시보드 데이터를 반환한다."""
     try:
@@ -587,6 +684,7 @@ def admin_faq_quality():
 
 
 @app.route("/api/admin/satisfaction", methods=["GET"])
+@jwt_auth.require_auth()
 def admin_satisfaction():
     """만족도 트렌드 데이터를 반환한다."""
     try:
@@ -822,6 +920,53 @@ def api_kakao_faq():
 
     resp = build_skill_response([carousel], quick_replies)
     return jsonify(resp), 200
+
+
+@app.route("/api/admin/law-updates", methods=["GET"])
+def admin_law_updates():
+    """최근 법령 변경과 영향 받는 FAQ를 반환한다."""
+    try:
+        since = request.args.get("since", "1970-01-01")
+        changes = law_version_tracker.get_changes_since(since)
+        pending = faq_update_notifier.get_pending_notifications()
+        history = law_update_scheduler.get_update_history()
+        return jsonify({
+            "changes": changes,
+            "pending_notifications": pending,
+            "update_history": history,
+        })
+    except Exception as e:
+        logger.error(f"법령 업데이트 조회 실패: {e}")
+        return jsonify({"error": "법령 업데이트 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/law-updates/check", methods=["POST"])
+def admin_law_updates_check():
+    """수동 법령 업데이트 확인을 트리거한다."""
+    try:
+        result = law_update_scheduler.check_for_updates()
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"법령 업데이트 확인 실패: {e}")
+        return jsonify({"error": "법령 업데이트 확인 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/law-updates/acknowledge", methods=["POST"])
+def admin_law_updates_acknowledge():
+    """법령 변경 알림을 확인 처리한다."""
+    data = request.get_json(silent=True)
+    if not data or "notification_id" not in data:
+        return jsonify({"error": "notification_id 필드가 필요합니다."}), 400
+
+    try:
+        success = faq_update_notifier.acknowledge(data["notification_id"])
+        if success:
+            return jsonify({"success": True})
+        else:
+            return jsonify({"error": "알림을 찾을 수 없거나 이미 확인되었습니다."}), 404
+    except Exception as e:
+        logger.error(f"알림 확인 처리 실패: {e}")
+        return jsonify({"error": "알림 확인 처리 중 오류가 발생했습니다."}), 500
 
 
 def main():

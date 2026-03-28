@@ -354,7 +354,11 @@
 <body>
     <div class="header">
         <h1>보세전시장 챗봇 관리자 대시보드</h1>
-        <a href="/">챗봇으로 돌아가기</a>
+        <div style="display:flex;align-items:center;gap:1rem;">
+            <span id="currentUser" style="font-size:0.85rem;color:#a8d0f0;"></span>
+            <a href="/">챗봇으로 돌아가기</a>
+            <button onclick="logout()" style="background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:0.3rem 0.8rem;cursor:pointer;font-size:0.85rem;">로그아웃</button>
+        </div>
     </div>
 
     <div class="container">
@@ -621,6 +625,64 @@
     <script>
         const API_BASE = "";
 
+        // --- Auth token management ---
+        function getToken() {
+            return localStorage.getItem("admin_token");
+        }
+
+        function authHeaders() {
+            const token = getToken();
+            const headers = {};
+            if (token) {
+                headers["Authorization"] = "Bearer " + token;
+            }
+            return headers;
+        }
+
+        function authFetch(url, options) {
+            options = options || {};
+            options.headers = Object.assign({}, options.headers || {}, authHeaders());
+            return fetch(url, options).then(res => {
+                if (res.status === 401) {
+                    localStorage.removeItem("admin_token");
+                    window.location.href = "/login";
+                }
+                return res;
+            });
+        }
+
+        function logout() {
+            localStorage.removeItem("admin_token");
+            window.location.href = "/login";
+        }
+
+        // Check auth on page load
+        (function checkAuth() {
+            const token = getToken();
+            if (!token) {
+                window.location.href = "/login";
+                return;
+            }
+            // Verify token is still valid
+            fetch("/api/auth/me", {
+                headers: { "Authorization": "Bearer " + token }
+            }).then(res => {
+                if (!res.ok) {
+                    localStorage.removeItem("admin_token");
+                    window.location.href = "/login";
+                } else {
+                    return res.json();
+                }
+            }).then(data => {
+                if (data && data.username) {
+                    document.getElementById("currentUser").textContent = data.username;
+                }
+            }).catch(() => {
+                localStorage.removeItem("admin_token");
+                window.location.href = "/login";
+            });
+        })();
+
         function escapeHtml(text) {
             if (!text) return "";
             const div = document.createElement("div");
@@ -630,7 +692,7 @@
 
         async function loadStats() {
             try {
-                const res = await fetch(API_BASE + "/api/admin/stats");
+                const res = await authFetch(API_BASE + "/api/admin/stats");
                 const data = await res.json();
 
                 document.getElementById("totalQueries").textContent = data.total_queries;
@@ -671,7 +733,7 @@
 
         async function loadLogs() {
             try {
-                const res = await fetch(API_BASE + "/api/admin/logs?limit=50");
+                const res = await authFetch(API_BASE + "/api/admin/logs?limit=50");
                 const data = await res.json();
                 const tbody = document.getElementById("logsBody");
 
@@ -697,7 +759,7 @@
 
         async function loadUnmatched() {
             try {
-                const res = await fetch(API_BASE + "/api/admin/unmatched?limit=20");
+                const res = await authFetch(API_BASE + "/api/admin/unmatched?limit=20");
                 const data = await res.json();
                 const tbody = document.getElementById("unmatchedBody");
 
@@ -720,7 +782,7 @@
 
         async function loadFeedback() {
             try {
-                const res = await fetch(API_BASE + "/api/admin/feedback");
+                const res = await authFetch(API_BASE + "/api/admin/feedback");
                 const data = await res.json();
                 const stats = data.stats;
 
@@ -749,7 +811,7 @@
 
         async function loadAnalytics() {
             try {
-                const res = await fetch(API_BASE + "/api/admin/analytics");
+                const res = await authFetch(API_BASE + "/api/admin/analytics");
                 const data = await res.json();
 
                 // 품질 점수 게이지
@@ -806,7 +868,7 @@
 
         async function loadWeeklyReport() {
             try {
-                const res = await fetch(API_BASE + "/api/admin/report");
+                const res = await authFetch(API_BASE + "/api/admin/report");
                 const data = await res.json();
                 document.getElementById("weeklyReportText").textContent = data.report || "리포트 없음";
             } catch (e) {
@@ -816,7 +878,7 @@
 
         async function loadFAQPipeline() {
             try {
-                const res = await fetch(API_BASE + "/api/admin/faq-pipeline");
+                const res = await authFetch(API_BASE + "/api/admin/faq-pipeline");
                 const data = await res.json();
                 const container = document.getElementById("pipelineCandidates");
 
@@ -841,7 +903,7 @@
 
         async function approveCandidate(id) {
             try {
-                const res = await fetch(API_BASE + "/api/admin/faq-pipeline/approve", {
+                const res = await authFetch(API_BASE + "/api/admin/faq-pipeline/approve", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ candidate_id: id })
@@ -860,7 +922,7 @@
 
         async function rejectCandidate(id) {
             try {
-                const res = await fetch(API_BASE + "/api/admin/faq-pipeline/reject", {
+                const res = await authFetch(API_BASE + "/api/admin/faq-pipeline/reject", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ candidate_id: id })
@@ -880,7 +942,7 @@
         // --- 실시간 모니터링 ---
         async function loadRealtime() {
             try {
-                const res = await fetch(API_BASE + "/api/admin/realtime");
+                const res = await authFetch(API_BASE + "/api/admin/realtime");
                 const data = await res.json();
 
                 document.getElementById("rtQueriesMin").textContent = data.queries_per_minute;
@@ -942,7 +1004,7 @@
 
         async function loadFAQQuality() {
             try {
-                const res = await fetch(API_BASE + "/api/admin/faq-quality");
+                const res = await authFetch(API_BASE + "/api/admin/faq-quality");
                 const data = await res.json();
 
                 const score = data.score !== undefined ? data.score : 0;
@@ -1012,7 +1074,7 @@
 
         async function loadSatisfaction() {
             try {
-                const res = await fetch(API_BASE + "/api/admin/satisfaction");
+                const res = await authFetch(API_BASE + "/api/admin/satisfaction");
                 const data = await res.json();
 
                 // Overall score
