@@ -150,11 +150,12 @@ class TestLoginEndpoint:
     def client(self):
         from web_server import app
         app.config["TESTING"] = True
-        # Ensure auth is NOT disabled for these tests
+        app.config["AUTH_TESTING"] = True  # Force auth enforcement
         old_auth = os.environ.pop("ADMIN_AUTH_DISABLED", None)
         old_testing = os.environ.pop("TESTING", None)
         with app.test_client() as client:
             yield client
+        app.config["AUTH_TESTING"] = False
         if old_auth is not None:
             os.environ["ADMIN_AUTH_DISABLED"] = old_auth
         if old_testing is not None:
@@ -203,13 +204,13 @@ class TestProtectedEndpoints:
     @pytest.fixture
     def client(self):
         from web_server import app
-        app.config["TESTING"] = False
-        # Force clear env vars again in case another fixture set them
+        app.config["TESTING"] = True
+        app.config["AUTH_TESTING"] = True  # Force auth enforcement
         os.environ.pop("ADMIN_AUTH_DISABLED", None)
         os.environ.pop("TESTING", None)
         with app.test_client() as client:
             yield client
-        app.config["TESTING"] = True
+        app.config["AUTH_TESTING"] = False
 
     def _get_token(self, client):
         res = client.post("/api/auth/login", json={

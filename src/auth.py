@@ -180,9 +180,13 @@ class JWTAuth:
                     return f(*args, **kwargs)
                 if os.environ.get("TESTING", "").lower() == "true":
                     return f(*args, **kwargs)
-                from flask import current_app
-                if current_app.config.get("TESTING"):
-                    return f(*args, **kwargs)
+                # Also check Flask's TESTING config for test client usage
+                try:
+                    from flask import current_app
+                    if current_app.config.get("TESTING") and not current_app.config.get("AUTH_TESTING"):
+                        return f(*args, **kwargs)
+                except RuntimeError:
+                    pass
 
                 auth_header = request.headers.get("Authorization", "")
                 if not auth_header.startswith("Bearer "):
