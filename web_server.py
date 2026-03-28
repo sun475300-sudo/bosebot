@@ -26,6 +26,7 @@ from src.faq_recommender import FAQRecommender
 from src.feedback import FeedbackManager
 from src.logger_db import ChatLogger
 from src.realtime_monitor import RealtimeMonitor
+from src.satisfaction_tracker import SatisfactionTracker
 from src.security import APIKeyAuth, RateLimiter, sanitize_input
 from src.translator import SimpleTranslator
 from src.utils import load_json
@@ -65,6 +66,7 @@ realtime_monitor = RealtimeMonitor()
 conversation_exporter = ConversationExporter()
 legal_refs = load_json("data/legal_references.json")
 faq_quality_checker = FAQQualityChecker(chatbot.faq_items, legal_refs)
+satisfaction_tracker = SatisfactionTracker()
 
 
 @app.errorhandler(400)
@@ -228,6 +230,29 @@ def config():
         "categories": chatbot.config.get("categories", []),
         "contacts": chatbot.config.get("contacts", {}),
     })
+
+
+@app.route("/api/autocomplete", methods=["GET"])
+def autocomplete():
+    """검색 자동완성: FAQ 질문 중 쿼리 문자열을 포함하는 상위 5개를 반환한다."""
+    q = request.args.get("q", "").strip()
+    if not q:
+        return jsonify({"suggestions": []})
+
+    q_lower = q.lower()
+    suggestions = []
+    for item in chatbot.faq_items:
+        question = item.get("question", "")
+        if q_lower in question.lower():
+            suggestions.append({
+                "id": item.get("id", ""),
+                "question": question,
+                "category": item.get("category", ""),
+            })
+            if len(suggestions) >= 5:
+                break
+
+    return jsonify({"suggestions": suggestions})
 
 
 @app.route("/api/health", methods=["GET"])

@@ -346,6 +346,66 @@
     padding: 4px 0;
   }
 
+  /* 내보내기 버튼 및 드롭다운 */
+  .export-wrapper {
+    position: relative;
+    margin-left: 8px;
+  }
+  .export-btn {
+    padding: 6px 10px;
+    background: rgba(30, 45, 65, 0.8);
+    border: 1px solid rgba(100, 180, 255, 0.2);
+    border-radius: 6px;
+    color: #b0c4d8;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .export-btn:hover {
+    border-color: rgba(33, 150, 243, 0.5);
+    color: #e0e6ed;
+    background: rgba(33, 150, 243, 0.15);
+  }
+  .export-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 6px;
+    background: rgba(20, 32, 50, 0.98);
+    border: 1px solid rgba(100, 180, 255, 0.2);
+    border-radius: 8px;
+    overflow: hidden;
+    min-width: 140px;
+    z-index: 100;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .export-dropdown.show { display: block; }
+  .export-dropdown button {
+    display: block;
+    width: 100%;
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    color: #b0c4d8;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s;
+  }
+  .export-dropdown button:hover {
+    background: rgba(33, 150, 243, 0.15);
+    color: #e0e6ed;
+  }
+  .export-dropdown button + button {
+    border-top: 1px solid rgba(100, 180, 255, 0.08);
+  }
+
   /* 언어 선택 드롭다운 */
   .lang-selector {
     margin-left: 12px;
@@ -413,6 +473,15 @@
   <h1>보세전시장 민원응대 챗봇</h1>
   <span class="badge">v2.0</span>
   <div class="status">운영 중</div>
+  <div class="export-wrapper">
+    <button class="export-btn" id="exportBtn" onclick="toggleExportDropdown()" title="대화 내보내기">&#x2B07;</button>
+    <div class="export-dropdown" id="exportDropdown">
+      <button onclick="exportConversation('text')">Text (.txt)</button>
+      <button onclick="exportConversation('json')">JSON (.json)</button>
+      <button onclick="exportConversation('csv')">CSV (.csv)</button>
+      <button onclick="exportConversation('html')">HTML (.html)</button>
+    </div>
+  </div>
   <select id="langSelector" class="lang-selector" onchange="setLanguage(this.value)">
     <option value="ko">KO</option>
     <option value="en">EN</option>
