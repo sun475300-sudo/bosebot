@@ -19,6 +19,10 @@
     "size": 3792,
     "sha256": "f06b07261036a8e8e68069b51c4b50a3c8f0287a38d4fa3294d5926ba16fb817"
   },
+  "data/tenants.db": {
+    "size": 12288,
+    "sha256": "8c05def4dc2eba236c356a5d5b9a2101a9b4884a6ba33273cac0f18cff6c9670"
+  },
   "data/webhooks.db": {
     "size": 28672,
     "sha256": "1671d56f36a44ff5b3d9aaa2b4357a589acbc80d774ff51f1782bf6e594268bd"

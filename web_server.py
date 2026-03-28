@@ -38,6 +38,7 @@ from src.kakao_adapter import (
 )
 from src.naver_adapter import NaverTalkTalkAdapter, EVENT_SEND, EVENT_OPEN
 from src.logger_db import ChatLogger
+from src.report_generator import ReportGenerator
 from src.realtime_monitor import RealtimeMonitor
 from src.satisfaction_tracker import SatisfactionTracker
 from src.security import APIKeyAuth, RateLimiter, sanitize_input
@@ -71,6 +72,7 @@ feedback_manager = FeedbackManager(db_path=os.path.join(BASE_DIR, "logs", "feedb
 translator = SimpleTranslator()
 faq_recommender = FAQRecommender(chat_logger)
 query_analytics = QueryAnalytics(chat_logger, feedback_manager)
+report_generator = ReportGenerator(chat_logger, feedback_manager)
 auto_faq_pipeline = AutoFAQPipeline(
     faq_recommender, faq_path=os.path.join(BASE_DIR, "data", "faq.json")
 )
@@ -103,6 +105,9 @@ webhook_manager = WebhookManager()
 
 # 멀티 테넌트 관리자 초기화
 tenant_manager = TenantManager()
+
+# FAQ 관리자 초기화
+faq_manager = FAQManager()
 
 # --- FAQ in-memory cache ---
 _faq_cache: dict = {}
@@ -248,6 +253,14 @@ def chat():
     if not rate_limiter.is_allowed(client_ip):
         return jsonify({"error": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."}), 429
 
+    # 멀티 테넌트 지원: X-Tenant-Id 헤더 (선택, 기본값 "default")
+    tenant_id = request.headers.get("X-Tenant-Id", "default")
+    tenant = tenant_manager.get_tenant(tenant_id)
+    if tenant is None:
+        return jsonify({"error": f"테넌트 '{tenant_id}'를 찾을 수 없습니다."}), 404
+    if not tenant.get("active", True):
+        return jsonify({"error": f"테넌트 '{tenant_id}'가 비활성 상태입니다."}), 403
+
     data = request.get_json(silent=True)
     if not data or "query" not in data:
         return jsonify({"error": "query 필드가 필요합니다."}), 400
@@ -317,6 +330,7 @@ def chat():
         "escalation_target": escalation.get("target") if escalation else None,
         "lang": lang,
         "related_questions": [{"id": r["id"], "question": r["question"]} for r in related],
+        "tenant_id": tenant_id,
     }
 
     if session_id:
