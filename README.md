@@ -11,12 +11,12 @@
 | FAQ | 50개 (v3.0.0) |
 | 질문 카테고리 | 10개 |
 | 에스컬레이션 규칙 | 5개 |
-| 테스트 | 895개 (전체 PASS) |
-| 소스 코드 | 10,238줄 (src/ + web_server + simulator) |
-| 테스트 코드 | 9,408줄 |
-| 소스 파일 | 43개 |
-| 테스트 파일 | 37개 |
-| 커밋 | 37개 |
+| 테스트 | 1,030개 (전체 PASS) |
+| 소스 코드 | 11,723줄 (src/ + web_server + simulator) |
+| 테스트 코드 | 10,631줄 |
+| 소스 파일 | 47개 |
+| 테스트 파일 | 42개 |
+| 커밋 | 40개 |
 
 ---
 
@@ -52,6 +52,10 @@
 | 분석 리포트 | 일간/주간/월간 자동생성, HTML 리포트 |
 | 멀티 테넌트 | 복수 보세전시장 지원, 테넌트별 FAQ/설정 분리 |
 | 웹훅 시스템 | 이벤트 발송, HMAC 서명, 구독 관리, 배송 로그 |
+| 감사 로그 | 관리자 행위 추적, 변경 이력, 감사 통계 |
+| i18n 6개국어 | KO/EN/CN/JP/VI/TH 번역 파일, 자동 언어 감지 |
+| 성능 프로파일링 | cProfile 통합, 컴포넌트 벤치마크, 병목 감지 |
+| 알림 센터 | 임계값 기반 규칙 엔진, 인앱 알림, 자동 감지 |
 
 ---
 
@@ -232,7 +236,7 @@ docker-compose up -d
 
 ### 테스트
 ```bash
-python -m pytest tests/ -v       # 895개 테스트 전체 PASS
+python -m pytest tests/ -v       # 1,030개 테스트 전체 PASS
 
 # 특정 모듈만
 python -m pytest tests/test_chatbot.py -v
@@ -299,8 +303,12 @@ bonded-exhibition-chatbot-data/
 │   ├── report_generator.py        # 분석 리포트 (일간/주간/월간)
 │   ├── tenant_manager.py          # 멀티 테넌트 관리
 │   ├── webhook_manager.py         # 이벤트 웹훅 시스템
+│   ├── audit_logger.py            # 감사 로그 (관리자 행위 추적)
+│   ├── i18n.py                    # 국제화 (6개 언어, 번역 파일)
+│   ├── profiler.py                # 성능 프로파일링 (cProfile)
+│   ├── alert_center.py            # 알림 센터 (규칙 엔진, 임계값)
 │   └── utils.py                   # 유틸리티
-├── tests/                         # 895개 테스트
+├── tests/                         # 1,030개 테스트
 │   ├── test_chatbot.py            # 통합 테스트
 │   ├── test_classifier.py         # 분류기
 │   ├── test_similarity.py         # TF-IDF 매칭
@@ -335,6 +343,10 @@ bonded-exhibition-chatbot-data/
 │   ├── test_report_generator.py   # 리포트 생성 테스트
 │   ├── test_tenant_manager.py     # 멀티 테넌트 테스트
 │   ├── test_webhook_manager.py    # 웹훅 테스트
+│   ├── test_audit_logger.py       # 감사 로그 테스트
+│   ├── test_i18n.py               # 국제화 테스트
+│   ├── test_profiler.py           # 프로파일러 테스트
+│   ├── test_alert_center.py       # 알림 센터 테스트
 │   └── test_web_api.py            # 웹 API
 ├── web/
 │   ├── index.html                 # 챗봇 UI (다크/라이트 테마, PWA, 음성, 접근성)
@@ -469,6 +481,8 @@ timeline
         확장 + 품질 : OpenAPI, 백업자동화, 부하테스트, 네이버톡톡
     section Phase 35-38
         관리 + 확장 : FAQ CRUD, 분석리포트, 멀티테넌트, 웹훅
+    section Phase 39-42
+        운영 고도화 : 감사로그, i18n 6개국어, 프로파일링, 알림센터
 ```
 
 ## 업데이트 내역
@@ -484,6 +498,7 @@ timeline
 | v6.0.0 | Phase 27-30 (JWT 인증, 법령 자동 업데이트, CD 파이프라인, Prometheus, Slack 알림) |
 | v7.0.0 | Phase 31-34 (OpenAPI/Swagger, 백업 자동화, 부하 테스트/벤치마크, 네이버 톡톡) |
 | v8.0.0 | Phase 35-38 (FAQ 관리 UI, 분석 리포트, 멀티 테넌트, 웹훅 시스템) |
+| v9.0.0 | Phase 39-42 (감사 로그, i18n 6개국어, 성능 프로파일링, 알림 센터) |
 
 ## 기술 스택
 
