@@ -50,6 +50,7 @@ from src.auth import JWTAuth, authenticate_user
 from src.law_updater import LawUpdateScheduler, LawVersionTracker, FAQUpdateNotifier
 from src.backup_manager import BackupManager
 from src.faq_manager import FAQManager
+from src.faq_io import FAQImporter, FAQExporter
 from src.tenant_manager import TenantManager
 from src.webhook_manager import WebhookManager
 from src.audit_logger import AuditLogger
@@ -58,6 +59,8 @@ from src.profiler import Profiler, RequestProfiler, ComponentBenchmark
 from src.health_monitor import HealthMonitor
 from src.i18n import I18nManager
 from src.db_migration import MigrationManager
+from src.ab_testing import ABTestManager
+from src.user_recommender import UserRecommender
 from src.utils import load_json
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -120,6 +123,8 @@ tenant_manager = TenantManager()
 
 # FAQ 관리자 초기화
 faq_manager = FAQManager()
+faq_importer = FAQImporter(faq_manager)
+faq_exporter = FAQExporter(faq_manager)
 
 # 감사 로거 초기화
 audit_logger = AuditLogger()
@@ -145,6 +150,14 @@ health_monitor = HealthMonitor(
     base_dir=BASE_DIR,
     faq_items=chatbot.faq_items,
     chat_logger=chat_logger,
+)
+
+# A/B 테스트 관리자 초기화
+ab_test_manager = ABTestManager()
+
+# 사용자 추천 시스템 초기화
+user_recommender = UserRecommender(
+    db_path=os.path.join(BASE_DIR, "data", "user_profiles.db")
 )
 
 # --- FAQ in-memory cache ---
@@ -403,6 +416,9 @@ def chat():
         )
         event_type = "escalation" if is_escalation else ("query" if faq_match else "unmatched")
         realtime_monitor.record_event(event_type, {"query": query, "category": primary_category})
+        # 사용자 추천 시스템에 질문 기록
+        if session_id:
+            user_recommender.record_query(session_id, query, primary_category, faq_id)
     except Exception as e:
         logger.error(f"로그 저장 실패: {e}")
 
