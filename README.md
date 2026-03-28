@@ -12,9 +12,33 @@
 | 질문 카테고리 | 10개 |
 | 에스컬레이션 규칙 | 5개 |
 | 테스트 | 469개 (전체 PASS) |
+| 소스 코드 | 5,756줄 (src/ + web_server + simulator) |
+| 테스트 코드 | 3,987줄 |
 | 소스 파일 | 33개 |
 | 테스트 파일 | 22개 |
-| 커밋 | 22개 |
+| 커밋 | 23개 |
+
+---
+
+## 핵심 기능
+
+| 기능 | 설명 |
+|------|------|
+| 하이브리드 매칭 | 키워드 스코어 → TF-IDF → BM25 폴백 3단계 매칭 |
+| 한국어 NLP | 형태소 토크나이저 + 동의어 사전(30개) + 오타 교정(자모 분해) |
+| 멀티턴 대화 | 세션 기반 확인 질문, 30분 만료, 맥락 인식 분류 |
+| 모호 질문 처리 | 되묻기 엔진으로 1~2개 카테고리 추려서 명확화 |
+| 관련 질문 추천 | 답변 시 관련 FAQ 자동 추천 |
+| 에스컬레이션 | 5개 규칙 기반 전문 담당자 연결 |
+| 다국어 지원 | KO/EN/CN/JP 자동 감지 및 구조 레이블 번역 |
+| PWA + 음성 | 오프라인 캐싱, Web Speech API 음성 입력 |
+| 보안 | API Key 인증, IP Rate Limiting, 입력 살균 |
+| 실시간 모니터링 | 이벤트 추적, 알림 임계값, 피크 분석 |
+| FAQ 품질 검사 | 키워드 중복, 커버리지, 답변 완성도 자동 진단 |
+| 플러그인 시스템 | pre/post 훅 6개 지점으로 확장 가능 |
+| 대화 내보내기 | Text/JSON/CSV/HTML 4종 포맷 |
+| 법령 업데이트 | 법제처 API 연동으로 법령 변경 감지 |
+| 만족도 추적 | 자동 만족도 트렌드 분석 및 낮은 답변 감지 |
 
 ---
 
@@ -22,27 +46,41 @@
 
 ```mermaid
 flowchart TB
-    A["사용자 질문"] --> B["웹 UI / Flask API"]
+    A["사용자 질문"] --> SC["오타 교정 + 동의어 해석"]
+    SC --> B["웹 UI / Flask API"]
     B --> S{"세션 확인"}
     S -->|멀티턴| MT["확인 질문 처리"]
-    S -->|신규| C["질문 의도 분류기<br/>(10개 카테고리, 도메인 우선순위)"]
-    C --> D["FAQ 매칭<br/>(키워드 → TF-IDF 폴백)"]
+    S -->|신규| CLR{"모호 질문?"}
+    CLR -->|모호| ASK["되묻기 엔진"]
+    CLR -->|명확| C["질문 의도 분류기<br/>(10카테고리, 도메인 우선순위)"]
+    C --> D["FAQ 매칭<br/>(키워드 → TF-IDF → BM25)"]
     C --> E["에스컬레이션 판단<br/>(5개 규칙, 캐싱)"]
     D --> F["답변 생성기<br/>(결론→설명→근거→면책)"]
+    D --> REC["관련 질문 추천"]
     E --> F
     MT --> F
+    ASK --> F
     F --> LOG["SQLite 로그 DB"]
-    F --> G["구조화된 답변 출력"]
+    F --> MON["실시간 모니터링"]
+    F --> SAT["만족도 추적"]
+    REC --> G["구조화된 답변 출력"]
+    F --> G
 
     style A fill:#1565C0,color:#fff,stroke:none
+    style SC fill:#00695C,color:#fff,stroke:none
     style B fill:#0D47A1,color:#fff,stroke:none
     style S fill:#FF6F00,color:#fff,stroke:none
     style MT fill:#E65100,color:#fff,stroke:none
+    style CLR fill:#F57F17,color:#fff,stroke:none
+    style ASK fill:#FF8F00,color:#fff,stroke:none
     style C fill:#1B5E20,color:#fff,stroke:none
     style D fill:#E65100,color:#fff,stroke:none
     style E fill:#B71C1C,color:#fff,stroke:none
     style F fill:#4A148C,color:#fff,stroke:none
+    style REC fill:#6A1B9A,color:#fff,stroke:none
     style LOG fill:#37474F,color:#fff,stroke:none
+    style MON fill:#263238,color:#fff,stroke:none
+    style SAT fill:#3E2723,color:#fff,stroke:none
     style G fill:#1565C0,color:#fff,stroke:none
 ```
 
@@ -181,7 +219,12 @@ docker-compose up -d
 
 ### 테스트
 ```bash
-python -m pytest tests/ -v       # 469개 테스트
+python -m pytest tests/ -v       # 469개 테스트 전체 PASS
+
+# 특정 모듈만
+python -m pytest tests/test_chatbot.py -v
+python -m pytest tests/test_e2e.py -v         # E2E + 회귀 + 부하
+python -m pytest tests/test_phase13_18.py -v  # 오타교정, BM25, 모니터링 등
 ```
 
 ---
@@ -252,10 +295,15 @@ bonded-exhibition-chatbot-data/
 │   ├── test_data_validator.py     # 데이터 정합성
 │   ├── test_edge_cases.py         # 에지케이스
 │   ├── test_e2e.py                # E2E + 회귀 + 부하
+│   ├── test_phase13_18.py         # Phase 13-18 기능 테스트
 │   └── test_web_api.py            # 웹 API
 ├── web/
-│   ├── index.html                 # 챗봇 UI (다크 테마)
-│   └── admin.html                 # 관리자 대시보드
+│   ├── index.html                 # 챗봇 UI (다크 테마, PWA, 음성입력)
+│   ├── admin.html                 # 관리자 대시보드
+│   ├── manifest.json              # PWA 매니페스트
+│   ├── sw.js                      # 서비스 워커 (오프라인 캐싱)
+│   ├── icon-192.svg               # PWA 아이콘 (192x192)
+│   └── icon-512.svg               # PWA 아이콘 (512x512)
 ├── docs/
 │   ├── API.md                     # API 레퍼런스 (15+ 엔드포인트)
 │   ├── OPERATIONS.md              # 운영 매뉴얼
@@ -363,6 +411,21 @@ timeline
 | v2.0.0 | Phase 1-6 (멀티턴, TF-IDF, Docker, SmartClassifier, PWA, 다국어) |
 | v3.0.0 | Phase 7-12 (보안, 분석, 프로덕션, E2E 테스트, 문서화, UX) |
 | v4.0.0 | Phase 13-18 (오타교정, BM25, 실시간모니터링, 품질검사, 플러그인) |
+
+## 기술 스택
+
+| 분야 | 기술 |
+|------|------|
+| Backend | Python 3.11, Flask, gunicorn |
+| Frontend | HTML5, CSS3, JavaScript (Vanilla) |
+| NLP | TF-IDF, BM25, 레벤슈타인 거리, 자모 분해 (순수 Python) |
+| DB | SQLite (로그, 피드백, FAQ 파이프라인) |
+| 배포 | Docker, docker-compose, nginx 리버스 프록시 |
+| CI/CD | GitHub Actions |
+| PWA | Service Worker, Web App Manifest |
+| 테스트 | pytest (단위/통합/E2E/회귀/부하) |
+
+---
 
 ## 라이선스
 
