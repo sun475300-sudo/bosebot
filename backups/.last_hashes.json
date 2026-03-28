@@ -1,4 +1,12 @@
 {
+  "data/alerts.db": {
+    "size": 12288,
+    "sha256": "ce9a9dc575e4714f526c2a14c0539d24bac16ffd7a61ac816a3c00cdc7142414"
+  },
+  "data/audit.db": {
+    "size": 65536,
+    "sha256": "12b25468e360bea977009f906e93073cb18cbcc40369b3b55b60d23d1b2b3e6a"
+  },
   "data/escalation_rules.json": {
     "size": 2262,
     "sha256": "dd7d439fdf2de49984ac88275ac5120528ee894bd793159ebe8432e89c20d145"
@@ -21,10 +29,10 @@
   },
   "data/tenants.db": {
     "size": 12288,
-    "sha256": "7e3de7294cc959d01e2164f2a833f7c1d9ca4c123497d506272dc75d228f5328"
+    "sha256": "2abde403047954683ee8a57792861f937732e5cfa021ebf949cdd5392b38d0c3"
   },
   "data/webhooks.db": {
-    "size": 36864,
-    "sha256": "79fa6892d67a7fe3bf2f49f8cb0e6512591859a3794ac2a469a5723bb361e009"
+    "size": 86016,
+    "sha256": "0791d72db4219626b51fa7abc1ee6f45d8542abd64fcae1ce646ab645fc3de11"
   }
 }
