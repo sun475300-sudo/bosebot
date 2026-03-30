@@ -61,6 +61,10 @@ from src.i18n import I18nManager
 from src.db_migration import MigrationManager
 from src.ab_testing import ABTestManager
 from src.user_recommender import UserRecommender
+from src.flow_analyzer import FlowAnalyzer
+from src.sentiment_analyzer import SentimentAnalyzer
+from src.question_cluster import QuestionClusterer, DuplicateDetector
+from src.task_scheduler import TaskScheduler, create_default_scheduler
 from src.utils import load_json
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -155,10 +159,25 @@ health_monitor = HealthMonitor(
 # A/B 테스트 관리자 초기화
 ab_test_manager = ABTestManager()
 
+# 대화 흐름 분석기 초기화
+flow_analyzer = FlowAnalyzer(db_path=os.path.join(BASE_DIR, "logs", "flow_analysis.db"))
+
 # 사용자 추천 시스템 초기화
 user_recommender = UserRecommender(
     db_path=os.path.join(BASE_DIR, "data", "user_profiles.db")
 )
+
+# 감정 분석기 초기화
+sentiment_analyzer = SentimentAnalyzer(
+    db_path=os.path.join(BASE_DIR, "data", "sentiment.db")
+)
+
+# 질문 클러스터링 초기화
+question_clusterer = QuestionClusterer(chatbot.faq_items)
+duplicate_detector = DuplicateDetector(chatbot.faq_items)
+
+# 작업 스케줄러 초기화
+task_scheduler = create_default_scheduler()
 
 # --- FAQ in-memory cache ---
 _faq_cache: dict = {}
@@ -394,7 +413,19 @@ def chat():
     escalation = check_escalation(query)
     # 세션 ID 처리 (선택적)
     session_id = data.get("session_id")
+
+    # 감정 분석
+    sentiment_result = sentiment_analyzer.analyze_and_store(query, session_id=session_id)
+
     answer = chatbot.process_query(query, session_id=session_id)
+
+    # 감정에 따른 답변 톤 조절
+    answer = sentiment_analyzer.adjust_response_tone(answer, sentiment_result)
+
+    # 매우 부정적 감정 시 자동 에스컬레이션
+    sentiment_escalation = sentiment_analyzer.should_escalate(sentiment_result)
+    if sentiment_escalation and escalation is None:
+        escalation = {"target": "customer_support", "reason": "negative_sentiment"}
 
     logger.info(f"질문: {query[:50]}... | 분류: {categories[0]} | 에스컬레이션: {escalation is not None}")
 
@@ -447,6 +478,7 @@ def chat():
         "lang": lang,
         "related_questions": [{"id": r["id"], "question": r["question"]} for r in related],
         "tenant_id": tenant_id,
+        "sentiment": sentiment_result,
     }
 
     if session_id:
@@ -2413,6 +2445,200 @@ def apply_ab_test_winner(test_id):
     except Exception as e:
         logger.error(f"A/B 테스트 우승 적용 실패: {e}")
         return jsonify({"error": "A/B 테스트 우승 적용 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/flow/sankey", methods=["GET"])
+@jwt_auth.require_auth()
+def flow_sankey():
+    """Sankey diagram data for conversation flows."""
+    try:
+        data = flow_analyzer.generate_sankey_data()
+        return jsonify(data)
+    except Exception as e:
+        logger.error(f"Flow sankey data error: {e}")
+        return jsonify({"error": "Failed to generate Sankey data."}), 500
+
+
+@app.route("/api/admin/flow/paths", methods=["GET"])
+@jwt_auth.require_auth()
+def flow_paths():
+    """Common conversation paths."""
+    try:
+        top_n = request.args.get("top_n", 10, type=int)
+        data = flow_analyzer.get_common_paths(top_n=top_n)
+        return jsonify({"paths": data})
+    except Exception as e:
+        logger.error(f"Flow paths error: {e}")
+        return jsonify({"error": "Failed to get conversation paths."}), 500
+
+
+@app.route("/api/admin/flow/dropoff", methods=["GET"])
+@jwt_auth.require_auth()
+def flow_dropoff():
+    """Drop-off analysis for conversation flows."""
+    try:
+        data = flow_analyzer.get_drop_off_points()
+        return jsonify({"drop_off_points": data})
+    except Exception as e:
+        logger.error(f"Flow drop-off error: {e}")
+        return jsonify({"error": "Failed to get drop-off analysis."}), 500
+
+
+@app.route("/api/admin/flow/transitions", methods=["GET"])
+@jwt_auth.require_auth()
+def flow_transitions():
+    """Transition matrix for conversation flows."""
+    try:
+        data = flow_analyzer.get_transition_matrix()
+        return jsonify({"transitions": data})
+    except Exception as e:
+        logger.error(f"Flow transitions error: {e}")
+        return jsonify({"error": "Failed to get transition matrix."}), 500
+
+
+@app.route("/api/admin/sentiment", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_sentiment_stats():
+    """감정 분석 통계를 반환한다."""
+    try:
+        session_id = request.args.get("session_id")
+        stats = sentiment_analyzer.get_sentiment_stats(session_id=session_id)
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"감정 분석 통계 조회 실패: {e}")
+        return jsonify({"error": "감정 분석 통계 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/sentiment/history", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_sentiment_history():
+    """감정 분석 이력을 반환한다."""
+    try:
+        session_id = request.args.get("session_id")
+        limit = request.args.get("limit", 50, type=int)
+        history = sentiment_analyzer.get_sentiment_history(session_id=session_id, limit=limit)
+        return jsonify({"history": history, "count": len(history)})
+    except Exception as e:
+        logger.error(f"감정 분석 이력 조회 실패: {e}")
+        return jsonify({"error": "감정 분석 이력 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/clusters", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_clusters():
+    """질문 클러스터를 반환한다."""
+    try:
+        threshold = request.args.get("threshold", 0.5, type=float)
+        clusters = question_clusterer.cluster_questions(threshold=threshold)
+        stats = question_clusterer.get_cluster_stats()
+        return jsonify({"clusters": clusters, "stats": stats})
+    except Exception as e:
+        logger.error(f"클러스터 조회 실패: {e}")
+        return jsonify({"error": "클러스터 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/duplicates", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_duplicates():
+    """중복 감지 리포트를 반환한다."""
+    try:
+        report = duplicate_detector.generate_report()
+        return jsonify(report)
+    except Exception as e:
+        logger.error(f"중복 감지 실패: {e}")
+        return jsonify({"error": "중복 감지 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/similar", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_similar():
+    """유사 질문을 검색한다."""
+    try:
+        query = request.args.get("q", "")
+        top_k = request.args.get("top_k", 5, type=int)
+        if not query:
+            return jsonify({"error": "q 파라미터가 필요합니다."}), 400
+        results = question_clusterer.find_similar_to(query, top_k=top_k)
+        return jsonify({"query": query, "results": results, "count": len(results)})
+    except Exception as e:
+        logger.error(f"유사 질문 검색 실패: {e}")
+        return jsonify({"error": "유사 질문 검색 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/clusters/refresh", methods=["POST"])
+@jwt_auth.require_auth()
+def admin_clusters_refresh():
+    """클러스터를 재계산한다."""
+    global question_clusterer, duplicate_detector
+    try:
+        question_clusterer = QuestionClusterer(chatbot.faq_items)
+        duplicate_detector = DuplicateDetector(chatbot.faq_items)
+        threshold = request.args.get("threshold", 0.5, type=float)
+        clusters = question_clusterer.cluster_questions(threshold=threshold)
+        stats = question_clusterer.get_cluster_stats()
+        return jsonify({"message": "클러스터가 재계산되었습니다.", "clusters": clusters, "stats": stats})
+    except Exception as e:
+        logger.error(f"클러스터 재계산 실패: {e}")
+        return jsonify({"error": "클러스터 재계산 중 오류가 발생했습니다."}), 500
+
+
+# --- Task Scheduler API ---
+
+@app.route("/api/admin/scheduler/tasks", methods=["GET"])
+@jwt_auth.require_auth()
+def scheduler_list_tasks():
+    """등록된 스케줄러 작업 목록을 반환한다."""
+    try:
+        tasks = task_scheduler.list_tasks()
+        return jsonify({"tasks": tasks, "count": len(tasks)})
+    except Exception as e:
+        logger.error(f"스케줄러 작업 목록 조회 실패: {e}")
+        return jsonify({"error": "스케줄러 작업 목록 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/scheduler/tasks/<name>/run", methods=["POST"])
+@jwt_auth.require_auth()
+def scheduler_run_task(name):
+    """스케줄러 작업을 수동 실행한다."""
+    try:
+        result = task_scheduler.run_task(name)
+        return jsonify(result)
+    except KeyError:
+        return jsonify({"error": f"Task not found: {name}"}), 404
+    except Exception as e:
+        logger.error(f"스케줄러 작업 실행 실패: {e}")
+        return jsonify({"error": "스케줄러 작업 실행 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/scheduler/tasks/<name>", methods=["PUT"])
+@jwt_auth.require_auth()
+def scheduler_update_task(name):
+    """스케줄러 작업을 활성화/비활성화한다."""
+    try:
+        data = request.get_json() or {}
+        if "enabled" in data:
+            task_scheduler.set_task_enabled(name, bool(data["enabled"]))
+        status = task_scheduler.get_task_status(name)
+        return jsonify(status)
+    except KeyError:
+        return jsonify({"error": f"Task not found: {name}"}), 404
+    except Exception as e:
+        logger.error(f"스케줄러 작업 업데이트 실패: {e}")
+        return jsonify({"error": "스케줄러 작업 업데이트 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/scheduler/log", methods=["GET"])
+@jwt_auth.require_auth()
+def scheduler_execution_log():
+    """스케줄러 실행 이력을 반환한다."""
+    try:
+        task_name = request.args.get("task_name")
+        limit = request.args.get("limit", 50, type=int)
+        logs = task_scheduler.get_execution_log(task_name=task_name, limit=limit)
+        return jsonify({"logs": logs, "count": len(logs)})
+    except Exception as e:
+        logger.error(f"스케줄러 실행 이력 조회 실패: {e}")
+        return jsonify({"error": "스케줄러 실행 이력 조회 중 오류가 발생했습니다."}), 500
 
 
 def main():
