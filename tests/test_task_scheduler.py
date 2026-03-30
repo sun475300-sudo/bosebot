@@ -503,6 +503,10 @@ class TestSchedulerAPI:
             assert log_entry["task_name"] == "cleanup_old_logs"
 
     def test_list_tasks_unauthenticated(self, client):
-        res = client.get("/api/admin/scheduler/tasks")
-        # Should fail without auth
-        assert res.status_code in (401, 403)
+        # Enable AUTH_TESTING so Flask TESTING mode doesn't bypass auth
+        app.config["AUTH_TESTING"] = True
+        try:
+            res = client.get("/api/admin/scheduler/tasks")
+            assert res.status_code in (401, 403)
+        finally:
+            app.config.pop("AUTH_TESTING", None)

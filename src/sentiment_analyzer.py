@@ -191,17 +191,20 @@ class SentimentAnalyzer:
         # 부정어에 의한 감정 반전 처리
         # 한국어 부정 패턴: (1) 앞에 오는 부정어 "안 좋아" (2) 뒤에 오는 부정어 "불만 없어"
         processed = set()
+        consumed_negator_indices = set()
         for i, role in enumerate(token_roles):
             if role in ("pos", "neg") and i not in processed:
                 has_negation = False
                 # (1) 바로 앞 토큰이 부정어인지 확인
-                if i > 0 and token_roles[i - 1] == "negator":
+                if i > 0 and token_roles[i - 1] == "negator" and (i - 1) not in consumed_negator_indices:
                     has_negation = True
-                    processed.add(i - 1)  # 부정어 소비
+                    consumed_negator_indices.add(i - 1)
+                    processed.add(i - 1)
                 # (2) 바로 뒤 토큰이 부정어인지 확인
-                elif i + 1 < len(token_roles) and token_roles[i + 1] == "negator":
+                elif i + 1 < len(token_roles) and token_roles[i + 1] == "negator" and (i + 1) not in consumed_negator_indices:
                     has_negation = True
-                    processed.add(i + 1)  # 부정어 소비
+                    consumed_negator_indices.add(i + 1)
+                    processed.add(i + 1)
 
                 processed.add(i)
                 if role == "pos":
@@ -214,6 +217,16 @@ class SentimentAnalyzer:
                         positive_hits.append(token_words[i])
                     else:
                         negative_hits.append(token_words[i])
+
+        # 소비된 부정어 토큰에 포함된 단어를 스킵 목록에 추가
+        consumed_negator_substrings = set()
+        for idx in consumed_negator_indices:
+            tok = tokens[idx]
+            for neg in NEGATION_WORDS:
+                if neg in tok:
+                    consumed_negator_substrings.add(neg)
+            # 토큰 자체도 추가
+            consumed_negator_substrings.add(tok)
 
         # 텍스트 전체에서 부분 문자열 매칭 (토큰 경계를 넘는 경우)
         all_hits = set(positive_hits + negative_hits)
@@ -236,6 +249,9 @@ class SentimentAnalyzer:
 
         for nw in NEGATIVE_WORDS:
             if nw in text_lower and nw not in all_hits:
+                # 소비된 부정어의 부분 문자열이면 스킵
+                if nw in consumed_negator_substrings:
+                    continue
                 negated = False
                 for neg in NEGATION_WORDS:
                     if re.search(rf'{re.escape(neg)}\s*{re.escape(nw)}', text_lower):
