@@ -64,6 +64,7 @@ from src.user_recommender import UserRecommender
 from src.flow_analyzer import FlowAnalyzer
 from src.sentiment_analyzer import SentimentAnalyzer
 from src.question_cluster import QuestionClusterer, DuplicateDetector
+from src.task_scheduler import TaskScheduler, create_default_scheduler
 from src.utils import load_json
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -174,6 +175,9 @@ sentiment_analyzer = SentimentAnalyzer(
 # 질문 클러스터링 초기화
 question_clusterer = QuestionClusterer(chatbot.faq_items)
 duplicate_detector = DuplicateDetector(chatbot.faq_items)
+
+# 작업 스케줄러 초기화
+task_scheduler = create_default_scheduler()
 
 # --- FAQ in-memory cache ---
 _faq_cache: dict = {}
@@ -2576,6 +2580,65 @@ def admin_clusters_refresh():
     except Exception as e:
         logger.error(f"클러스터 재계산 실패: {e}")
         return jsonify({"error": "클러스터 재계산 중 오류가 발생했습니다."}), 500
+
+
+# --- Task Scheduler API ---
+
+@app.route("/api/admin/scheduler/tasks", methods=["GET"])
+@jwt_auth.require_auth()
+def scheduler_list_tasks():
+    """등록된 스케줄러 작업 목록을 반환한다."""
+    try:
+        tasks = task_scheduler.list_tasks()
+        return jsonify({"tasks": tasks, "count": len(tasks)})
+    except Exception as e:
+        logger.error(f"스케줄러 작업 목록 조회 실패: {e}")
+        return jsonify({"error": "스케줄러 작업 목록 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/scheduler/tasks/<name>/run", methods=["POST"])
+@jwt_auth.require_auth()
+def scheduler_run_task(name):
+    """스케줄러 작업을 수동 실행한다."""
+    try:
+        result = task_scheduler.run_task(name)
+        return jsonify(result)
+    except KeyError:
+        return jsonify({"error": f"Task not found: {name}"}), 404
+    except Exception as e:
+        logger.error(f"스케줄러 작업 실행 실패: {e}")
+        return jsonify({"error": "스케줄러 작업 실행 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/scheduler/tasks/<name>", methods=["PUT"])
+@jwt_auth.require_auth()
+def scheduler_update_task(name):
+    """스케줄러 작업을 활성화/비활성화한다."""
+    try:
+        data = request.get_json() or {}
+        if "enabled" in data:
+            task_scheduler.set_task_enabled(name, bool(data["enabled"]))
+        status = task_scheduler.get_task_status(name)
+        return jsonify(status)
+    except KeyError:
+        return jsonify({"error": f"Task not found: {name}"}), 404
+    except Exception as e:
+        logger.error(f"스케줄러 작업 업데이트 실패: {e}")
+        return jsonify({"error": "스케줄러 작업 업데이트 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/scheduler/log", methods=["GET"])
+@jwt_auth.require_auth()
+def scheduler_execution_log():
+    """스케줄러 실행 이력을 반환한다."""
+    try:
+        task_name = request.args.get("task_name")
+        limit = request.args.get("limit", 50, type=int)
+        logs = task_scheduler.get_execution_log(task_name=task_name, limit=limit)
+        return jsonify({"logs": logs, "count": len(logs)})
+    except Exception as e:
+        logger.error(f"스케줄러 실행 이력 조회 실패: {e}")
+        return jsonify({"error": "스케줄러 실행 이력 조회 중 오류가 발생했습니다."}), 500
 
 
 def main():

@@ -144,7 +144,7 @@ class SentimentAnalyzer:
             if word in text_lower:
                 intensifier_multiplier = max(intensifier_multiplier, mult)
 
-        # 부정어 감지: 토큰 기반
+        # 부정어 감지: 토큰 기반 (위치 기록)
         negation_positions = set()
         for i, token in enumerate(tokens):
             for neg in NEGATION_WORDS:
@@ -152,56 +152,103 @@ class SentimentAnalyzer:
                     negation_positions.add(i)
                     break
 
-        # 긍정/부정 키워드 매칭
+        # 각 토큰의 감정 유형 파악 (positive/negative/negation/none)
+        token_roles: list[str] = []  # "pos", "neg", "negator", "none"
+        token_words: list[str] = []  # matched keyword
         for i, token in enumerate(tokens):
-            # 바로 앞 토큰이 부정어인지 확인
-            has_negation = (i - 1) in negation_positions
+            role = "none"
+            matched = ""
+
+            # 부정어(negator)인지 먼저 확인
+            is_negator = i in negation_positions
 
             # 긍정어 확인
             for pw in POSITIVE_WORDS:
                 if pw in token:
-                    if has_negation:
-                        negative_hits.append(pw)
-                    else:
-                        positive_hits.append(pw)
+                    role = "pos"
+                    matched = pw
                     break
 
-            # 부정어 확인
-            for nw in NEGATIVE_WORDS:
-                if nw in token:
+            # 부정 감정어 확인 (negator 역할인 토큰은 감정어로 취급하지 않음)
+            if role == "none":
+                if is_negator:
+                    role = "negator"
+                else:
+                    for nw in NEGATIVE_WORDS:
+                        if nw in token:
+                            role = "neg"
+                            matched = nw
+                            break
+
+            # 긍정어이면서 동시에 부정어 위치인 경우 (예: 없는 경우는 드묾)
+            if role == "pos" and is_negator:
+                role = "negator"
+                matched = ""
+
+            token_roles.append(role)
+            token_words.append(matched)
+
+        # 부정어에 의한 감정 반전 처리
+        # 한국어 부정 패턴: (1) 앞에 오는 부정어 "안 좋아" (2) 뒤에 오는 부정어 "불만 없어"
+        processed = set()
+        for i, role in enumerate(token_roles):
+            if role in ("pos", "neg") and i not in processed:
+                has_negation = False
+                # (1) 바로 앞 토큰이 부정어인지 확인
+                if i > 0 and token_roles[i - 1] == "negator":
+                    has_negation = True
+                    processed.add(i - 1)  # 부정어 소비
+                # (2) 바로 뒤 토큰이 부정어인지 확인
+                elif i + 1 < len(token_roles) and token_roles[i + 1] == "negator":
+                    has_negation = True
+                    processed.add(i + 1)  # 부정어 소비
+
+                processed.add(i)
+                if role == "pos":
                     if has_negation:
-                        positive_hits.append(nw)
+                        negative_hits.append(token_words[i])
                     else:
-                        negative_hits.append(nw)
-                    break
+                        positive_hits.append(token_words[i])
+                else:  # neg
+                    if has_negation:
+                        positive_hits.append(token_words[i])
+                    else:
+                        negative_hits.append(token_words[i])
 
         # 텍스트 전체에서 부분 문자열 매칭 (토큰 경계를 넘는 경우)
+        all_hits = set(positive_hits + negative_hits)
         for pw in POSITIVE_WORDS:
-            if pw in text_lower and pw not in positive_hits and pw not in negative_hits:
-                # 부정어 + 긍정어 패턴 확인
+            if pw in text_lower and pw not in all_hits:
+                # 부정어 + 긍정어 패턴 확인 (앞 또는 뒤)
                 negated = False
                 for neg in NEGATION_WORDS:
-                    # "안 좋아", "안좋아" 패턴
-                    if re.search(rf'{neg}\s*{re.escape(pw)}', text_lower):
+                    if re.search(rf'{re.escape(neg)}\s*{re.escape(pw)}', text_lower):
+                        negated = True
+                        break
+                    if re.search(rf'{re.escape(pw)}\s*{re.escape(neg)}', text_lower):
                         negated = True
                         break
                 if negated:
                     negative_hits.append(pw)
                 else:
                     positive_hits.append(pw)
+                all_hits.add(pw)
 
         for nw in NEGATIVE_WORDS:
-            if nw in text_lower and nw not in negative_hits and nw not in positive_hits:
-                # 부정어 + 부정어 패턴 → 긍정 전환
+            if nw in text_lower and nw not in all_hits:
                 negated = False
                 for neg in NEGATION_WORDS:
-                    if re.search(rf'{neg}\s*{re.escape(nw)}', text_lower):
+                    if re.search(rf'{re.escape(neg)}\s*{re.escape(nw)}', text_lower):
+                        negated = True
+                        break
+                    if re.search(rf'{re.escape(nw)}\s*{re.escape(neg)}', text_lower):
                         negated = True
                         break
                 if negated:
                     positive_hits.append(nw)
                 else:
                     negative_hits.append(nw)
+                all_hits.add(nw)
 
         # 점수 계산
         pos_count = len(positive_hits)
