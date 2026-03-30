@@ -155,6 +155,7 @@ class SentimentAnalyzer:
         # 각 토큰의 감정 유형 파악 (positive/negative/negation/none)
         token_roles: list[str] = []  # "pos", "neg", "negator", "none"
         token_words: list[str] = []  # matched keyword
+        token_scan_seen: set[str] = set()  # 토큰 스캔에서 발견된 모든 후보 단어
         for i, token in enumerate(tokens):
             role = "none"
             matched = ""
@@ -162,25 +163,55 @@ class SentimentAnalyzer:
             # 부정어(negator)인지 먼저 확인
             is_negator = i in negation_positions
 
-            # 긍정어 확인
+            # 긍정어와 부정어를 모두 찾고, 더 긴(더 구체적인) 매치를 선택
+            best_pos = ""
             for pw in POSITIVE_WORDS:
                 if pw in token:
-                    role = "pos"
-                    matched = pw
-                    break
+                    token_scan_seen.add(pw)
+                    if len(pw) > len(best_pos):
+                        best_pos = pw
 
-            # 부정 감정어 확인 (negator 역할인 토큰은 감정어로 취급하지 않음)
-            if role == "none":
+            best_neg = ""
+            for nw in NEGATIVE_WORDS:
+                if nw in token:
+                    token_scan_seen.add(nw)
+                    if len(nw) > len(best_neg):
+                        best_neg = nw
+
+            # 둘 다 매칭되면: 토큰 내 매칭 위치를 비교하여 겹치면 앞쪽(부정 접두사) 우선
+            if best_pos and best_neg:
+                pos_start = token.find(best_pos)
+                neg_start = token.find(best_neg)
+                pos_end = pos_start + len(best_pos)
+                neg_end = neg_start + len(best_neg)
+                # 매칭 범위가 겹치면 → 더 앞에서 시작하는 쪽 우선 (불편 vs 편해 → 불편 우선)
+                overlaps = pos_start < neg_end and neg_start < pos_end
+                if overlaps:
+                    if neg_start <= pos_start:
+                        role = "neg"
+                        matched = best_neg
+                    else:
+                        role = "pos"
+                        matched = best_pos
+                elif len(best_neg) >= len(best_pos):
+                    role = "neg"
+                    matched = best_neg
+                else:
+                    role = "pos"
+                    matched = best_pos
+            elif best_pos:
+                role = "pos"
+                matched = best_pos
+            elif best_neg:
                 if is_negator:
                     role = "negator"
                 else:
-                    for nw in NEGATIVE_WORDS:
-                        if nw in token:
-                            role = "neg"
-                            matched = nw
-                            break
+                    role = "neg"
+                    matched = best_neg
+            elif is_negator:
+                role = "negator"
 
-            # 긍정어이면서 동시에 부정어 위치인 경우 (예: 없는 경우는 드묾)
+            # 긍정어이면서 동시에 부정어 위치인 경우
             if role == "pos" and is_negator:
                 role = "negator"
                 matched = ""
@@ -230,8 +261,22 @@ class SentimentAnalyzer:
 
         # 텍스트 전체에서 부분 문자열 매칭 (토큰 경계를 넘는 경우)
         all_hits = set(positive_hits + negative_hits)
+
+        def _is_embedded_in_opposite(word, word_list, text_str):
+            """단어가 반대 감정 단어의 부분 문자열인지 확인."""
+            for other in word_list:
+                if word != other and word in other and other in text_str:
+                    return True
+            return False
+
         for pw in POSITIVE_WORDS:
             if pw in text_lower and pw not in all_hits:
+                # 토큰 스캔에서 이미 처리된 단어는 스킵
+                if pw in token_scan_seen:
+                    continue
+                # 이 긍정어가 부정어의 부분 문자열이면 스킵 (예: 편해 ⊂ 불편해)
+                if _is_embedded_in_opposite(pw, NEGATIVE_WORDS, text_lower):
+                    continue
                 # 부정어 + 긍정어 패턴 확인 (앞 또는 뒤)
                 negated = False
                 for neg in NEGATION_WORDS:
@@ -249,8 +294,14 @@ class SentimentAnalyzer:
 
         for nw in NEGATIVE_WORDS:
             if nw in text_lower and nw not in all_hits:
+                # 토큰 스캔에서 이미 처리된 단어는 스킵
+                if nw in token_scan_seen:
+                    continue
                 # 소비된 부정어의 부분 문자열이면 스킵
                 if nw in consumed_negator_substrings:
+                    continue
+                # 이 부정어가 긍정어의 부분 문자열이면 스킵
+                if _is_embedded_in_opposite(nw, POSITIVE_WORDS, text_lower):
                     continue
                 negated = False
                 for neg in NEGATION_WORDS:
