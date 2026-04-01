@@ -65,6 +65,10 @@ from src.flow_analyzer import FlowAnalyzer
 from src.sentiment_analyzer import SentimentAnalyzer
 from src.question_cluster import QuestionClusterer, DuplicateDetector
 from src.task_scheduler import TaskScheduler, create_default_scheduler
+from src.knowledge_graph import KnowledgeGraph
+from src.template_engine import TemplateEngine, ResponseFormatter
+from src.context_memory import ContextMemory, ConversationMemoryManager
+from src.user_segment import UserSegmenter
 from src.utils import load_json
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -178,6 +182,20 @@ duplicate_detector = DuplicateDetector(chatbot.faq_items)
 
 # 작업 스케줄러 초기화
 task_scheduler = create_default_scheduler()
+
+# 템플릿 엔진 초기화
+template_engine = TemplateEngine()
+response_formatter = ResponseFormatter(template_engine)
+
+# 지식 그래프 초기화
+knowledge_graph = KnowledgeGraph.build_from_faq(chatbot.faq_items)
+
+# 컨텍스트 메모리 초기화
+context_memory = ContextMemory(db_path=os.path.join(BASE_DIR, "data", "memory.db"))
+conversation_memory_manager = ConversationMemoryManager(context_memory)
+
+# 사용자 세분화 초기화
+user_segmenter = UserSegmenter(db_path=os.path.join(BASE_DIR, "data", "segments.db"))
 
 # --- FAQ in-memory cache ---
 _faq_cache: dict = {}
@@ -453,6 +471,15 @@ def chat():
     except Exception as e:
         logger.error(f"로그 저장 실패: {e}")
 
+    # 사용자 세분화 분류 및 답변 깊이 조절
+    user_segment = None
+    if session_id:
+        try:
+            user_segment = user_segmenter.classify_user(session_id, query)
+            answer = user_segmenter.adjust_response_depth(answer, user_segment)
+        except Exception as e:
+            logger.error(f"사용자 세분화 실패: {e}")
+
     # 다국어 지원: lang 파라미터에 따라 답변 헤더 번역
     lang = data.get("lang", "ko")
     if lang and lang != "ko" and translator.is_supported(lang):
@@ -479,6 +506,7 @@ def chat():
         "related_questions": [{"id": r["id"], "question": r["question"]} for r in related],
         "tenant_id": tenant_id,
         "sentiment": sentiment_result,
+        "user_segment": user_segment,
     }
 
     if session_id:
@@ -489,6 +517,15 @@ def chat():
             response["recommended"] = recommended
         except Exception:
             response["recommended"] = []
+
+        # 컨텍스트 메모리: 토픽 저장 및 재방문 사용자 resume 제공
+        try:
+            conversation_memory_manager.remember_topic(session_id, query, primary_category)
+            resume = conversation_memory_manager.get_conversation_resume(session_id)
+            if resume and conversation_memory_manager.is_returning_user(session_id):
+                response["conversation_resume"] = resume
+        except Exception as e:
+            logger.error(f"컨텍스트 메모리 저장 실패: {e}")
 
     return jsonify(response)
 
@@ -549,6 +586,42 @@ def session_status(session_id):
     if session is None:
         return jsonify({"error": "세션을 찾을 수 없거나 만료되었습니다."}), 404
     return jsonify(session.to_dict())
+
+
+@app.route("/api/session/<session_id>/context", methods=["GET"])
+def session_context(session_id):
+    """세션의 컨텍스트 메모리를 조회한다."""
+    key = request.args.get("key")
+    try:
+        entries = context_memory.get_context(session_id, key=key)
+        return jsonify({"session_id": session_id, "context": entries})
+    except Exception as e:
+        logger.error(f"컨텍스트 조회 실패: {e}")
+        return jsonify({"error": "컨텍스트 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/session/<session_id>/profile", methods=["GET"])
+def session_profile(session_id):
+    """세션의 사용자 프로필을 조회한다."""
+    try:
+        profile = context_memory.get_user_profile(session_id)
+        return jsonify(profile)
+    except Exception as e:
+        logger.error(f"프로필 조회 실패: {e}")
+        return jsonify({"error": "프로필 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/session/<session_id>/context", methods=["DELETE"])
+def session_context_delete(session_id):
+    """세션의 컨텍스트를 삭제한다."""
+    data = request.get_json(silent=True) or {}
+    key = data.get("key")
+    try:
+        deleted = context_memory.forget(session_id, key=key)
+        return jsonify({"session_id": session_id, "deleted": deleted})
+    except Exception as e:
+        logger.error(f"컨텍스트 삭제 실패: {e}")
+        return jsonify({"error": "컨텍스트 삭제 중 오류가 발생했습니다."}), 500
 
 
 @app.route("/api/faq", methods=["GET"])
@@ -2639,6 +2712,178 @@ def scheduler_execution_log():
     except Exception as e:
         logger.error(f"스케줄러 실행 이력 조회 실패: {e}")
         return jsonify({"error": "스케줄러 실행 이력 조회 중 오류가 발생했습니다."}), 500
+
+
+
+# ---------------------------------------------------------------------------
+# Knowledge Graph API
+# ---------------------------------------------------------------------------
+
+
+@app.route("/api/admin/knowledge/graph", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_knowledge_graph():
+    """전체 지식 그래프를 반환한다."""
+    try:
+        data = knowledge_graph.export_graph()
+        stats = knowledge_graph.get_graph_stats()
+        return jsonify({"graph": data, "stats": stats})
+    except Exception as e:
+        logger.error(f"지식 그래프 조회 실패: {e}")
+        return jsonify({"error": "지식 그래프 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/knowledge/node/<node_id>", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_knowledge_node(node_id):
+    """노드 정보 및 이웃 노드를 반환한다."""
+    try:
+        if node_id not in knowledge_graph.nodes:
+            return jsonify({"error": f"Node '{node_id}' not found"}), 404
+        node = knowledge_graph.nodes[node_id]
+        neighbors = knowledge_graph.get_neighbors(node_id, depth=1)
+        return jsonify({"node": node, "neighbors": neighbors})
+    except Exception as e:
+        logger.error(f"노드 조회 실패: {e}")
+        return jsonify({"error": "노드 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/knowledge/path", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_knowledge_path():
+    """두 노드 사이의 최단 경로를 반환한다."""
+    try:
+        source = request.args.get("from")
+        target = request.args.get("to")
+        if not source or not target:
+            return jsonify({"error": "'from' and 'to' parameters are required"}), 400
+        if source not in knowledge_graph.nodes:
+            return jsonify({"error": f"Node '{source}' not found"}), 404
+        if target not in knowledge_graph.nodes:
+            return jsonify({"error": f"Node '{target}' not found"}), 404
+        path = knowledge_graph.find_path(source, target)
+        return jsonify({"path": path, "length": len(path)})
+    except Exception as e:
+        logger.error(f"경로 탐색 실패: {e}")
+        return jsonify({"error": "경로 탐색 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/knowledge/rebuild", methods=["POST"])
+@jwt_auth.require_auth()
+def admin_knowledge_rebuild():
+    """지식 그래프를 재구축한다."""
+    global knowledge_graph
+    try:
+        knowledge_graph = KnowledgeGraph.build_from_faq(chatbot.faq_items)
+        stats = knowledge_graph.get_graph_stats()
+        return jsonify({"message": "지식 그래프가 재구축되었습니다.", "stats": stats})
+    except Exception as e:
+        logger.error(f"지식 그래프 재구축 실패: {e}")
+        return jsonify({"error": "지식 그래프 재구축 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/segments", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_segment_stats():
+    """사용자 세그먼트 분포 통계를 반환한다."""
+    try:
+        stats = user_segmenter.get_segment_stats()
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"세그먼트 통계 조회 실패: {e}")
+        return jsonify({"error": "세그먼트 통계 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/segments/<session_id>", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_segment_info(session_id):
+    """특정 사용자의 세그먼트 정보를 반환한다."""
+    try:
+        info = user_segmenter.get_segment_info(session_id)
+        if info is None:
+            return jsonify({"error": "세그먼트 정보를 찾을 수 없습니다."}), 404
+        return jsonify(info)
+    except Exception as e:
+        logger.error(f"세그먼트 정보 조회 실패: {e}")
+        return jsonify({"error": "세그먼트 정보 조회 중 오류가 발생했습니다."}), 500
+
+
+
+# ---- Template Admin API ------------------------------------------------
+
+@app.route('/api/admin/templates', methods=['GET'])
+@jwt_auth.require_auth()
+def list_templates_api():
+    """등록된 템플릿 목록을 반환한다."""
+    names = template_engine.list_templates()
+    return jsonify({'templates': names, 'count': len(names)})
+
+
+@app.route('/api/admin/templates', methods=['POST'])
+@jwt_auth.require_auth()
+def create_template_api():
+    """새 템플릿을 등록한다."""
+    data = request.get_json(silent=True) or {}
+    name = data.get('name', '').strip()
+    tpl_content = data.get('content', '')
+    if not name:
+        return jsonify({'error': '템플릿 이름이 필요합니다.'}), 400
+    if not tpl_content:
+        return jsonify({'error': '템플릿 내용이 필요합니다.'}), 400
+    try:
+        template_engine.register_template(name, tpl_content)
+        return jsonify({'message': f"템플릿 '{name}' 생성 완료.", 'name': name}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@app.route('/api/admin/templates/<name>', methods=['PUT'])
+@jwt_auth.require_auth()
+def update_template_api(name):
+    """기존 템플릿을 수정한다."""
+    data = request.get_json(silent=True) or {}
+    tpl_content = data.get('content', '')
+    if not tpl_content:
+        return jsonify({'error': '템플릿 내용이 필요합니다.'}), 400
+    try:
+        template_engine.get_template(name)
+    except KeyError:
+        return jsonify({'error': f"템플릿 '{name}'을(를) 찾을 수 없습니다."}), 404
+    template_engine.register_template(name, tpl_content)
+    return jsonify({'message': f"템플릿 '{name}' 수정 완료.", 'name': name})
+
+
+@app.route('/api/admin/templates/<name>', methods=['DELETE'])
+@jwt_auth.require_auth()
+def delete_template_api(name):
+    """템플릿을 삭제한다."""
+    try:
+        template_engine.delete_template(name)
+        return jsonify({'message': f"템플릿 '{name}' 삭제 완료."})
+    except KeyError:
+        return jsonify({'error': f"템플릿 '{name}'을(를) 찾을 수 없습니다."}), 404
+
+
+@app.route('/api/admin/templates/preview', methods=['POST'])
+@jwt_auth.require_auth()
+def preview_template_api():
+    """템플릿 미리보기를 렌더링한다."""
+    data = request.get_json(silent=True) or {}
+    template_name = data.get('template_name')
+    template_str = data.get('template_str')
+    ctx = data.get('context', {})
+    if not template_name and not template_str:
+        return jsonify({'error': 'template_name 또는 template_str이 필요합니다.'}), 400
+    try:
+        if template_str:
+            result = template_engine.render_string(template_str, ctx)
+        else:
+            result = template_engine.render(template_name, ctx)
+        return jsonify({'rendered': result})
+    except KeyError as e:
+        return jsonify({'error': str(e)}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
 
 
 def main():
