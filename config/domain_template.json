@@ -1,0 +1,36 @@
+{
+  "domain": {
+    "name": "",
+    "code": "",
+    "description": ""
+  },
+  "categories": [],
+  "persona": {
+    "name": "",
+    "greeting": "",
+    "tone": "formal"
+  },
+  "response_format": {
+    "sections": ["conclusion", "explanation", "legal_basis", "disclaimer"]
+  },
+  "escalation": {
+    "enabled": true,
+    "default_contact": ""
+  },
+  "legal_references": {
+    "enabled": true,
+    "source": ""
+  },
+  "features": {
+    "sentiment_analysis": true,
+    "user_segmentation": true,
+    "knowledge_graph": true,
+    "ab_testing": false,
+    "multi_language": false
+  },
+  "limits": {
+    "max_query_length": 2000,
+    "session_timeout_min": 30,
+    "faq_max_items": 500
+  }
+}

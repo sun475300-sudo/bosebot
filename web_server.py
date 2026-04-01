@@ -69,6 +69,7 @@ from src.knowledge_graph import KnowledgeGraph
 from src.template_engine import TemplateEngine, ResponseFormatter
 from src.context_memory import ContextMemory, ConversationMemoryManager
 from src.user_segment import UserSegmenter
+from src.domain_config import DomainConfig, DomainInitializer
 from src.utils import load_json
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -196,6 +197,10 @@ conversation_memory_manager = ConversationMemoryManager(context_memory)
 
 # 사용자 세분화 초기화
 user_segmenter = UserSegmenter(db_path=os.path.join(BASE_DIR, "data", "segments.db"))
+
+# 도메인 설정 초기화
+domain_initializer = DomainInitializer()
+_domain_config = DomainConfig()
 
 # --- FAQ in-memory cache ---
 _faq_cache: dict = {}
@@ -2884,6 +2889,96 @@ def preview_template_api():
         return jsonify({'error': str(e)}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+
+# ---------------------------------------------------------------------------
+# 도메인 설정 API
+# ---------------------------------------------------------------------------
+
+@app.route("/api/admin/domain", methods=["GET"])
+@jwt_auth.require_auth()
+def get_domain_config_api():
+    """현재 도메인 설정을 반환한다."""
+    if _domain_config.loaded:
+        return jsonify(_domain_config.to_dict())
+    return jsonify({"error": "도메인 설정이 로드되지 않았습니다."}), 404
+
+
+@app.route("/api/admin/domain", methods=["PUT"])
+@jwt_auth.require_auth()
+def update_domain_config_api():
+    """도메인 설정을 업데이트한다."""
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "JSON 본문이 필요합니다."}), 400
+    _domain_config.load_dict(data)
+    validation = _domain_config.validate()
+    if not validation["valid"]:
+        return jsonify({"error": "설정 검증 실패", "details": validation}), 400
+    return jsonify({"message": "도메인 설정이 업데이트되었습니다.", "config": _domain_config.to_dict()})
+
+
+@app.route("/api/admin/domain/validate", methods=["POST"])
+@jwt_auth.require_auth()
+def validate_domain_config_api():
+    """도메인 설정을 검증한다."""
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "JSON 본문이 필요합니다."}), 400
+    temp = DomainConfig()
+    temp.load_dict(data)
+    result = temp.validate()
+    return jsonify(result)
+
+
+@app.route("/api/admin/domain/template", methods=["GET"])
+@jwt_auth.require_auth()
+def get_domain_template_api():
+    """빈 도메인 템플릿을 반환한다."""
+    return jsonify(DomainConfig.export_template())
+
+
+# --- Chart Data API ---
+from src.chart_data import ChartDataGenerator
+chart_data_gen = ChartDataGenerator(
+    logger_db=chat_logger,
+    feedback_db=feedback_manager,
+    sentiment_analyzer=globals().get("sentiment_analyzer"),
+    user_segmenter=globals().get("user_segmenter"),
+)
+
+
+@app.route("/api/admin/charts/categories", methods=["GET"])
+@jwt_auth.require_auth()
+def chart_categories():
+    return jsonify(chart_data_gen.category_distribution())
+
+
+@app.route("/api/admin/charts/trends", methods=["GET"])
+@jwt_auth.require_auth()
+def chart_trends():
+    metric = request.args.get("metric", "queries")
+    days = int(request.args.get("days", 30))
+    return jsonify(chart_data_gen.daily_query_trend(days=days))
+
+
+@app.route("/api/admin/charts/heatmap", methods=["GET"])
+@jwt_auth.require_auth()
+def chart_heatmap():
+    days = int(request.args.get("days", 7))
+    return jsonify(chart_data_gen.hourly_heatmap(days=days))
+
+
+@app.route("/api/admin/charts/dashboard", methods=["GET"])
+@jwt_auth.require_auth()
+def chart_dashboard():
+    charts = {
+        "categories": chart_data_gen.category_distribution(),
+        "trends": chart_data_gen.daily_query_trend(days=30),
+        "heatmap": chart_data_gen.hourly_heatmap(days=7),
+        "top_queries": chart_data_gen.top_queries(limit=10),
+    }
+    return jsonify({"charts": charts})
 
 
 def main():
