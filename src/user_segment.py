@@ -183,9 +183,9 @@ class UserSegmenter:
         current_score = self.scorer.score_query(query)
 
         # 종합 판단
-        if avg_complexity >= 0.6 and query_count >= 3:
+        if avg_complexity >= 0.5 and query_count >= 3:
             return "expert"
-        elif avg_complexity >= 0.6 and current_score >= 0.5:
+        elif avg_complexity >= 0.5 and current_score >= 0.5:
             return "expert"
         elif avg_complexity >= 0.3 or (current_score >= 0.3 and not has_beginner_words):
             return "intermediate"
