@@ -72,6 +72,7 @@ from src.user_segment import UserSegmenter
 from src.domain_config import DomainConfig, DomainInitializer
 from src.utils import load_json
 from src.api_gateway import APIGateway, PaginationHelper, SortHelper
+from src.quality_scorer import ResponseQualityScorer, QualityReport
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MAX_QUERY_LENGTH = 2000
@@ -113,6 +114,10 @@ conversation_summarizer = ConversationSummarizer(chatbot.session_manager)
 legal_refs = load_json("data/legal_references.json")
 faq_quality_checker = FAQQualityChecker(chatbot.faq_items, legal_refs)
 satisfaction_tracker = SatisfactionTracker()
+
+# 응답 품질 스코어러 초기화
+quality_scorer = ResponseQualityScorer(chat_logger)
+quality_report = QualityReport(quality_scorer)
 
 # JWT 인증 초기화
 jwt_auth = JWTAuth()
@@ -2987,6 +2992,72 @@ def chart_dashboard():
         "top_queries": chart_data_gen.top_queries(limit=10),
     }
     return jsonify({"charts": charts})
+
+
+# ── Quality Scoring Routes ───────────────────────────────────────────────
+
+
+@app.route("/api/admin/quality/scores", methods=["GET"])
+@jwt_auth.require_auth()
+def quality_scores_overview():
+    """Return comprehensive quality report."""
+    try:
+        days = int(request.args.get("days", 30))
+        report = quality_report.generate(days=days)
+        return jsonify(report)
+    except Exception as e:
+        logger.error(f"Quality scores overview failed: {e}")
+        return jsonify({"error": "Failed to generate quality scores."}), 500
+
+
+@app.route("/api/admin/quality/low", methods=["GET"])
+@jwt_auth.require_auth()
+def quality_low_responses():
+    """Return responses below quality threshold."""
+    try:
+        threshold = int(request.args.get("threshold", 60))
+        low = quality_scorer.get_low_quality_responses(threshold=threshold)
+        return jsonify({"threshold": threshold, "count": len(low), "responses": low})
+    except Exception as e:
+        logger.error(f"Low quality query failed: {e}")
+        return jsonify({"error": "Failed to retrieve low quality responses."}), 500
+
+
+@app.route("/api/admin/quality/trend", methods=["GET"])
+@jwt_auth.require_auth()
+def quality_trend():
+    """Return quality score trend over time."""
+    try:
+        days = int(request.args.get("days", 30))
+        trend = quality_scorer.get_quality_trend(days=days)
+        return jsonify({"days": days, "trend": trend})
+    except Exception as e:
+        logger.error(f"Quality trend query failed: {e}")
+        return jsonify({"error": "Failed to retrieve quality trend."}), 500
+
+
+@app.route("/api/admin/quality/score", methods=["POST"])
+@jwt_auth.require_auth()
+def quality_score_single():
+    """Score a specific Q&A pair."""
+    try:
+        data = request.get_json(force=True)
+        query = data.get("query", "")
+        answer = data.get("answer", "")
+        category = data.get("category", "")
+
+        if not query or not answer:
+            return jsonify({"error": "Both 'query' and 'answer' are required."}), 400
+
+        result = quality_scorer.score_response(query, answer, category)
+        suggestions = quality_scorer.suggest_improvements(
+            query, answer, result["breakdown"]
+        )
+        result["suggestions"] = suggestions
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Quality scoring failed: {e}")
+        return jsonify({"error": "Failed to score response."}), 500
 
 
 # ── API v2 Routes ─────────────────────────────────────────────────────────
