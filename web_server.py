@@ -71,6 +71,9 @@ from src.context_memory import ContextMemory, ConversationMemoryManager
 from src.user_segment import UserSegmenter
 from src.domain_config import DomainConfig, DomainInitializer
 from src.utils import load_json
+from src.api_gateway import APIGateway, PaginationHelper, SortHelper
+from src.quality_scorer import ResponseQualityScorer, QualityReport
+from src.conversation_analytics import ConversationAnalytics
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MAX_QUERY_LENGTH = 2000
@@ -94,6 +97,7 @@ translator = SimpleTranslator()
 i18n_manager = I18nManager()
 faq_recommender = FAQRecommender(chat_logger)
 query_analytics = QueryAnalytics(chat_logger, feedback_manager)
+conversation_analytics = ConversationAnalytics(chat_logger, feedback_manager)
 report_generator = ReportGenerator(chat_logger, feedback_manager)
 auto_faq_pipeline = AutoFAQPipeline(
     faq_recommender, faq_path=os.path.join(BASE_DIR, "data", "faq.json")
@@ -112,6 +116,10 @@ conversation_summarizer = ConversationSummarizer(chatbot.session_manager)
 legal_refs = load_json("data/legal_references.json")
 faq_quality_checker = FAQQualityChecker(chatbot.faq_items, legal_refs)
 satisfaction_tracker = SatisfactionTracker()
+
+# 응답 품질 스코어러 초기화
+quality_scorer = ResponseQualityScorer(chat_logger)
+quality_report = QualityReport(quality_scorer)
 
 # JWT 인증 초기화
 jwt_auth = JWTAuth()
@@ -201,6 +209,13 @@ user_segmenter = UserSegmenter(db_path=os.path.join(BASE_DIR, "data", "segments.
 # 도메인 설정 초기화
 domain_initializer = DomainInitializer()
 _domain_config = DomainConfig()
+
+# API 게이트웨이 초기화
+api_gateway = APIGateway()
+api_gateway.register_version("v1", status="active")
+api_gateway.register_version("v2", status="active")
+pagination_helper = PaginationHelper()
+sort_helper = SortHelper()
 
 # --- FAQ in-memory cache ---
 _faq_cache: dict = {}
@@ -2979,6 +2994,209 @@ def chart_dashboard():
         "top_queries": chart_data_gen.top_queries(limit=10),
     }
     return jsonify({"charts": charts})
+
+
+# ── Quality Scoring Routes ───────────────────────────────────────────────
+
+
+@app.route("/api/admin/quality/scores", methods=["GET"])
+@jwt_auth.require_auth()
+def quality_scores_overview():
+    """Return comprehensive quality report."""
+    try:
+        days = int(request.args.get("days", 30))
+        report = quality_report.generate(days=days)
+        return jsonify(report)
+    except Exception as e:
+        logger.error(f"Quality scores overview failed: {e}")
+        return jsonify({"error": "Failed to generate quality scores."}), 500
+
+
+@app.route("/api/admin/quality/low", methods=["GET"])
+@jwt_auth.require_auth()
+def quality_low_responses():
+    """Return responses below quality threshold."""
+    try:
+        threshold = int(request.args.get("threshold", 60))
+        low = quality_scorer.get_low_quality_responses(threshold=threshold)
+        return jsonify({"threshold": threshold, "count": len(low), "responses": low})
+    except Exception as e:
+        logger.error(f"Low quality query failed: {e}")
+        return jsonify({"error": "Failed to retrieve low quality responses."}), 500
+
+
+@app.route("/api/admin/quality/trend", methods=["GET"])
+@jwt_auth.require_auth()
+def quality_trend():
+    """Return quality score trend over time."""
+    try:
+        days = int(request.args.get("days", 30))
+        trend = quality_scorer.get_quality_trend(days=days)
+        return jsonify({"days": days, "trend": trend})
+    except Exception as e:
+        logger.error(f"Quality trend query failed: {e}")
+        return jsonify({"error": "Failed to retrieve quality trend."}), 500
+
+
+@app.route("/api/admin/quality/score", methods=["POST"])
+@jwt_auth.require_auth()
+def quality_score_single():
+    """Score a specific Q&A pair."""
+    try:
+        data = request.get_json(force=True)
+        query = data.get("query", "")
+        answer = data.get("answer", "")
+        category = data.get("category", "")
+
+        if not query or not answer:
+            return jsonify({"error": "Both 'query' and 'answer' are required."}), 400
+
+        result = quality_scorer.score_response(query, answer, category)
+        suggestions = quality_scorer.suggest_improvements(
+            query, answer, result["breakdown"]
+        )
+        result["suggestions"] = suggestions
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Quality scoring failed: {e}")
+        return jsonify({"error": "Failed to score response."}), 500
+
+
+# ── API v2 Routes ─────────────────────────────────────────────────────────
+
+
+@app.route("/api/versions", methods=["GET"])
+def api_versions():
+    """List available API versions with their status."""
+    versions = api_gateway.get_active_versions()
+    return jsonify({"versions": versions})
+
+
+@app.route("/api/v2/faq", methods=["GET"])
+def v2_faq_list():
+    """Paginated and sortable FAQ list (v2)."""
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 20, type=int)
+    sort_by = request.args.get("sort", "id")
+    order = request.args.get("order", "asc")
+
+    items = []
+    for item in chatbot.faq_items:
+        items.append({
+            "id": item.get("id", ""),
+            "category": item.get("category", ""),
+            "question": item.get("question", ""),
+        })
+
+    sorted_items = sort_helper.sort_items(items, sort_by, order)
+    result = pagination_helper.paginate(sorted_items, page=page, per_page=per_page)
+
+    resp = jsonify(result)
+    resp.headers["X-API-Version"] = "v2"
+    return api_gateway.add_deprecation_headers(resp, "v2")
+
+
+@app.route("/api/v2/chat", methods=["POST"])
+def v2_chat():
+    """Chat endpoint (v2) - same as v1 but response includes API version."""
+    client_ip = request.remote_addr or "unknown"
+    if not rate_limiter.is_allowed(client_ip):
+        return jsonify({"error": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."}), 429
+
+    tenant_id = request.headers.get("X-Tenant-Id", "default")
+    tenant = tenant_manager.get_tenant(tenant_id)
+    if tenant is None:
+        return jsonify({"error": f"테넌트 '{tenant_id}'를 찾을 수 없습니다."}), 404
+    if not tenant.get("active", True):
+        return jsonify({"error": f"테넌트 '{tenant_id}'가 비활성 상태입니다."}), 403
+
+    data = request.get_json(silent=True)
+    if not data or "query" not in data:
+        return jsonify({"error": "query 필드가 필요합니다."}), 400
+
+    raw_query = data["query"]
+    if not isinstance(raw_query, str):
+        return jsonify({"error": "query는 문자열이어야 합니다."}), 400
+
+    query = sanitize_input(raw_query, max_length=MAX_QUERY_LENGTH)
+    if not query:
+        return jsonify({"error": "질문을 입력해 주세요."}), 400
+
+    if len(query) > MAX_QUERY_LENGTH:
+        return jsonify({"error": f"질문은 {MAX_QUERY_LENGTH}자 이내로 입력해 주세요."}), 400
+
+    categories = classify_query(query)
+    escalation = check_escalation(query)
+    session_id = data.get("session_id")
+    answer = chatbot.process_query(query, session_id=session_id)
+
+    primary_category = categories[0] if categories else "GENERAL"
+    is_escalation = escalation is not None
+
+    response_data = {
+        "answer": answer,
+        "category": primary_category,
+        "categories": categories,
+        "is_escalation": is_escalation,
+        "escalation_target": escalation.get("target") if escalation else None,
+        "tenant_id": tenant_id,
+        "api_version": "v2",
+    }
+    if session_id:
+        response_data["session_id"] = session_id
+
+    resp = jsonify(response_data)
+    resp.headers["X-API-Version"] = "v2"
+    return api_gateway.add_deprecation_headers(resp, "v2")
+
+
+# ── Conversation Analytics Routes ─────────────────────────────────────────
+
+
+@app.route("/api/admin/analytics/patterns", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_analytics_patterns():
+    """탐지된 대화 패턴을 반환한다."""
+    try:
+        days = request.args.get("days", 30, type=int)
+        patterns = conversation_analytics.detect_patterns(days=days)
+        sequences = conversation_analytics.pattern_detector.find_common_sequences()
+        pairs = conversation_analytics.pattern_detector.find_question_pairs()
+        seasonality = conversation_analytics.pattern_detector.detect_seasonality()
+        return jsonify({
+            "patterns": patterns,
+            "sequences": sequences,
+            "pairs": pairs,
+            "seasonality": seasonality,
+        })
+    except Exception as e:
+        logger.error(f"패턴 분석 실패: {e}")
+        return jsonify({"error": "패턴 분석 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/analytics/insights", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_analytics_insights():
+    """자동 생성된 인사이트를 반환한다."""
+    try:
+        days = request.args.get("days", 30, type=int)
+        insights = conversation_analytics.generate_insights(days=days)
+        return jsonify(insights)
+    except Exception as e:
+        logger.error(f"인사이트 생성 실패: {e}")
+        return jsonify({"error": "인사이트 생성 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/analytics/metrics", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_analytics_metrics():
+    """모든 대화 분석 지표를 반환한다."""
+    try:
+        metrics = conversation_analytics.get_all_metrics()
+        return jsonify(metrics)
+    except Exception as e:
+        logger.error(f"분석 지표 조회 실패: {e}")
+        return jsonify({"error": "분석 지표 조회 중 오류가 발생했습니다."}), 500
 
 
 def main():
