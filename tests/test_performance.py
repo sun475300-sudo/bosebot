@@ -198,6 +198,7 @@ class TestThroughput:
 
     def test_mixed_workload(self, client):
         """Mixed workload: 50 chat + 30 faq + 20 autocomplete in <20s."""
+        self._reset_rate_limiter()
         chat_payload = {"query": "보세전시장이 무엇인가요?"}
         start = time.monotonic()
 
@@ -226,8 +227,15 @@ class TestThroughput:
 class TestMemoryUsage:
     """Verify that repeated operations do not leak memory."""
 
+    @staticmethod
+    def _reset_rate_limiter():
+        """Clear rate limiter state so memory tests aren't throttled."""
+        rate_limiter._requests.clear()
+        rate_limiter.max_requests = 100000
+
     def test_chat_no_memory_leak(self, client):
         """1000 sequential chat requests don't leak memory."""
+        self._reset_rate_limiter()
         payload = {"query": "보세전시장이 무엇인가요?"}
 
         # Warm up
