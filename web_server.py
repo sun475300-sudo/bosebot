@@ -71,6 +71,7 @@ from src.context_memory import ContextMemory, ConversationMemoryManager
 from src.user_segment import UserSegmenter
 from src.domain_config import DomainConfig, DomainInitializer
 from src.utils import load_json
+from src.api_gateway import APIGateway, PaginationHelper, SortHelper
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MAX_QUERY_LENGTH = 2000
@@ -201,6 +202,13 @@ user_segmenter = UserSegmenter(db_path=os.path.join(BASE_DIR, "data", "segments.
 # 도메인 설정 초기화
 domain_initializer = DomainInitializer()
 _domain_config = DomainConfig()
+
+# API 게이트웨이 초기화
+api_gateway = APIGateway()
+api_gateway.register_version("v1", status="active")
+api_gateway.register_version("v2", status="active")
+pagination_helper = PaginationHelper()
+sort_helper = SortHelper()
 
 # --- FAQ in-memory cache ---
 _faq_cache: dict = {}
@@ -2979,6 +2987,94 @@ def chart_dashboard():
         "top_queries": chart_data_gen.top_queries(limit=10),
     }
     return jsonify({"charts": charts})
+
+
+# ── API v2 Routes ─────────────────────────────────────────────────────────
+
+
+@app.route("/api/versions", methods=["GET"])
+def api_versions():
+    """List available API versions with their status."""
+    versions = api_gateway.get_active_versions()
+    return jsonify({"versions": versions})
+
+
+@app.route("/api/v2/faq", methods=["GET"])
+def v2_faq_list():
+    """Paginated and sortable FAQ list (v2)."""
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 20, type=int)
+    sort_by = request.args.get("sort", "id")
+    order = request.args.get("order", "asc")
+
+    items = []
+    for item in chatbot.faq_items:
+        items.append({
+            "id": item.get("id", ""),
+            "category": item.get("category", ""),
+            "question": item.get("question", ""),
+        })
+
+    sorted_items = sort_helper.sort_items(items, sort_by, order)
+    result = pagination_helper.paginate(sorted_items, page=page, per_page=per_page)
+
+    resp = jsonify(result)
+    resp.headers["X-API-Version"] = "v2"
+    return api_gateway.add_deprecation_headers(resp, "v2")
+
+
+@app.route("/api/v2/chat", methods=["POST"])
+def v2_chat():
+    """Chat endpoint (v2) - same as v1 but response includes API version."""
+    client_ip = request.remote_addr or "unknown"
+    if not rate_limiter.is_allowed(client_ip):
+        return jsonify({"error": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."}), 429
+
+    tenant_id = request.headers.get("X-Tenant-Id", "default")
+    tenant = tenant_manager.get_tenant(tenant_id)
+    if tenant is None:
+        return jsonify({"error": f"테넌트 '{tenant_id}'를 찾을 수 없습니다."}), 404
+    if not tenant.get("active", True):
+        return jsonify({"error": f"테넌트 '{tenant_id}'가 비활성 상태입니다."}), 403
+
+    data = request.get_json(silent=True)
+    if not data or "query" not in data:
+        return jsonify({"error": "query 필드가 필요합니다."}), 400
+
+    raw_query = data["query"]
+    if not isinstance(raw_query, str):
+        return jsonify({"error": "query는 문자열이어야 합니다."}), 400
+
+    query = sanitize_input(raw_query, max_length=MAX_QUERY_LENGTH)
+    if not query:
+        return jsonify({"error": "질문을 입력해 주세요."}), 400
+
+    if len(query) > MAX_QUERY_LENGTH:
+        return jsonify({"error": f"질문은 {MAX_QUERY_LENGTH}자 이내로 입력해 주세요."}), 400
+
+    categories = classify_query(query)
+    escalation = check_escalation(query)
+    session_id = data.get("session_id")
+    answer = chatbot.process_query(query, session_id=session_id)
+
+    primary_category = categories[0] if categories else "GENERAL"
+    is_escalation = escalation is not None
+
+    response_data = {
+        "answer": answer,
+        "category": primary_category,
+        "categories": categories,
+        "is_escalation": is_escalation,
+        "escalation_target": escalation.get("target") if escalation else None,
+        "tenant_id": tenant_id,
+        "api_version": "v2",
+    }
+    if session_id:
+        response_data["session_id"] = session_id
+
+    resp = jsonify(response_data)
+    resp.headers["X-API-Version"] = "v2"
+    return api_gateway.add_deprecation_headers(resp, "v2")
 
 
 def main():

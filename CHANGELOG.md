@@ -4,6 +4,65 @@
 
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)
 
+## [14.0.0] - 2026-04-02
+
+### Added
+- Phase 59: 스트레스 테스트 (test_stress)
+  - 전체 API 엔드포인트 커버리지 테스트 (30+ 엔드포인트)
+  - 엣지 케이스 검증: 빈 쿼리, 초장문 쿼리, 유니코드/이모지, CJK 혼합, SQL 인젝션, XSS 방어
+  - 데이터 무결성 검증: FAQ 50개 항목, 10개 카테고리, 필수 필드, ID 중복, 에스컬레이션 규칙, 법령 참조
+  - 동시성 테스트: 연속 고속 요청, 다중 세션 고유성, 자동완성 연속 호출
+  - 크로스 모듈 통합 테스트: 감정 분석 연동, 세션 기반 대화, 다국어 채팅
+- Phase 60: 범용 도메인 설정 시스템 (domain_config)
+  - DomainConfig: JSON 기반 도메인 설정 로드/저장, 점(.) 표기법 get/set
+  - 스키마 검증: 8개 섹션(domain, categories, persona, response_format, escalation, legal_references, features, limits)
+  - DomainInitializer: 도메인 생성/목록/전환 관리, 빈 템플릿 내보내기
+  - 챗봇을 보세전시장 외 다른 도메인에서도 재사용 가능하도록 범용화
+- Phase 61: 대시보드 차트 데이터 API (chart_data)
+  - Chart.js 호환 시각화 데이터 생성기 (ChartDataGenerator)
+  - 9종 차트: 카테고리 분포(파이), 일별 질문 추이(라인), 시간대 히트맵, 응답 시간 히스토그램, 만족도 추이, 상위 질문 TOP-N(바), 에스컬레이션 추이, FAQ 매칭률 추이, 사용자 세그먼트/감정 분포
+
+### Changed
+- 테스트 커버리지를 스트레스/보안/무결성 영역으로 대폭 확장
+- 대시보드 시각화를 Chart.js 표준 데이터 형식으로 통합
+
+## [13.0.0] - 2026-04-01
+
+### Added
+- Phase 55: 지식 그래프 (knowledge_graph)
+  - KnowledgeGraph: FAQ/개념/법령/카테고리 노드 및 관계 그래프
+  - 4종 노드 타입(faq, concept, law, category), 4종 관계(related_to, requires, part_of, cites)
+  - BFS 기반 이웃 탐색(depth 지정), 최단 경로 탐색, 서브그래프 추출
+  - FAQ 데이터 자동 그래프 빌드: 공유 키워드/법적근거/카테고리 기반 엣지 자동 생성
+  - 노드 검색, 관련 개념 조회, 그래프 통계(밀도/노드/엣지 수), JSON 내보내기
+- Phase 56: 사용자 세분화 (user_segment)
+  - TermComplexityScorer: 법률 용어(60+), 조문 참조 패턴(8종), 기술 전문 용어(40+) 기반 복잡도 0-1 점수
+  - UserSegmenter: beginner/intermediate/expert 3단계 세그먼트 자동 분류
+  - SQLite 기반 세그먼트 이력 추적 (user_segments, segment_history 테이블)
+  - 세그먼트별 답변 깊이 조절: beginner(쉬운 설명 추가), expert(법률 인용 강조)
+  - 전체 세그먼트 분포 통계
+- Phase 57: 장기 대화 컨텍스트 메모리 (context_memory)
+  - ContextMemory: SQLite 기반 세션 간 컨텍스트 저장 (TTL 7일 기본)
+  - 세션 링크를 통한 이전 세션 컨텍스트 이관 (merge_context)
+  - 사용자 프로필 자동 구성 (토픽 빈도, 선호도 축적)
+  - ConversationMemoryManager: 고수준 토픽 기억, 대화 재개 메시지, 재방문 사용자 감지
+  - 만료 컨텍스트 자동 정리 (cleanup_expired)
+- Phase 58: 동적 응답 템플릿 엔진 (template_engine)
+  - TemplateEngine: 변수 치환({{var}}), 조건문({%if%}), 반복문({%for%}), 기본값(|default) 지원
+  - 5종 빌트인 템플릿: standard_answer, escalation, unknown_query, welcome, error
+  - 커스텀 템플릿 등록/삭제/목록 관리 (CRUD)
+  - ResponseFormatter: 도메인별 설정 병합을 통한 범용 답변 포맷팅
+- 추가 분석 모듈:
+  - 감정 분석기 (sentiment_analyzer): 긍정/부정/중립 감정 판별, 부정어 반전 처리, 강조어 배율, SQLite 이력 저장, 답변 톤 자동 조절, 에스컬레이션 트리거
+  - 질문 클러스터링 (question_cluster): TF-IDF 기반 코사인 유사도, agglomerative 클러스터링, FAQ 중복 감지 및 병합 제안, DuplicateDetector
+  - 대화 흐름 분석 (flow_analyzer): 세션 대화 경로 추적, 전환 매트릭스, 이탈 지점 감지, Sankey 다이어그램 데이터, 경로별 만족도 분석
+  - 주기적 작업 스케줄러 (task_scheduler): cron 표현식 파서(CronParser), 작업 등록/실행/이력 관리, 5종 기본 작업(백업/리포트/법령체크/로그정리/FAQ품질)
+
+### Changed
+- 챗봇 응답 파이프라인에 감정 분석 및 사용자 세분화 통합
+- 대화 컨텍스트를 세션 단위에서 장기 메모리로 확장
+- 답변 생성을 하드코딩에서 동적 템플릿 엔진 방식으로 전환
+
 ## [11.0.0] - 2026-03-28
 
 ### Added
