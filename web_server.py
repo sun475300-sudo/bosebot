@@ -73,6 +73,7 @@ from src.domain_config import DomainConfig, DomainInitializer
 from src.utils import load_json
 from src.api_gateway import APIGateway, PaginationHelper, SortHelper
 from src.quality_scorer import ResponseQualityScorer, QualityReport
+from src.conversation_analytics import ConversationAnalytics
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MAX_QUERY_LENGTH = 2000
@@ -96,6 +97,7 @@ translator = SimpleTranslator()
 i18n_manager = I18nManager()
 faq_recommender = FAQRecommender(chat_logger)
 query_analytics = QueryAnalytics(chat_logger, feedback_manager)
+conversation_analytics = ConversationAnalytics(chat_logger, feedback_manager)
 report_generator = ReportGenerator(chat_logger, feedback_manager)
 auto_faq_pipeline = AutoFAQPipeline(
     faq_recommender, faq_path=os.path.join(BASE_DIR, "data", "faq.json")
@@ -3146,6 +3148,55 @@ def v2_chat():
     resp = jsonify(response_data)
     resp.headers["X-API-Version"] = "v2"
     return api_gateway.add_deprecation_headers(resp, "v2")
+
+
+# ── Conversation Analytics Routes ─────────────────────────────────────────
+
+
+@app.route("/api/admin/analytics/patterns", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_analytics_patterns():
+    """탐지된 대화 패턴을 반환한다."""
+    try:
+        days = request.args.get("days", 30, type=int)
+        patterns = conversation_analytics.detect_patterns(days=days)
+        sequences = conversation_analytics.pattern_detector.find_common_sequences()
+        pairs = conversation_analytics.pattern_detector.find_question_pairs()
+        seasonality = conversation_analytics.pattern_detector.detect_seasonality()
+        return jsonify({
+            "patterns": patterns,
+            "sequences": sequences,
+            "pairs": pairs,
+            "seasonality": seasonality,
+        })
+    except Exception as e:
+        logger.error(f"패턴 분석 실패: {e}")
+        return jsonify({"error": "패턴 분석 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/analytics/insights", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_analytics_insights():
+    """자동 생성된 인사이트를 반환한다."""
+    try:
+        days = request.args.get("days", 30, type=int)
+        insights = conversation_analytics.generate_insights(days=days)
+        return jsonify(insights)
+    except Exception as e:
+        logger.error(f"인사이트 생성 실패: {e}")
+        return jsonify({"error": "인사이트 생성 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/analytics/metrics", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_analytics_metrics():
+    """모든 대화 분석 지표를 반환한다."""
+    try:
+        metrics = conversation_analytics.get_all_metrics()
+        return jsonify(metrics)
+    except Exception as e:
+        logger.error(f"분석 지표 조회 실패: {e}")
+        return jsonify({"error": "분석 지표 조회 중 오류가 발생했습니다."}), 500
 
 
 def main():
