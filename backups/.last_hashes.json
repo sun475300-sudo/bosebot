@@ -5,11 +5,11 @@
   },
   "data/alerts.db": {
     "size": 20480,
-    "sha256": "a353cc5def7a139dc9aa9e8281277bdf0bc698a0577ffdee9073f89ff0ae216a"
+    "sha256": "763adbc40ca1a85ea7eafb3aaf8e849bca1cd87c86317a342b7b3b7992970fc7"
   },
   "data/audit.db": {
     "size": 172032,
-    "sha256": "5327610e7a12273ab4c1f6451cf6314b9178213fd3c0e14d4bd50535ab034538"
+    "sha256": "50a338a7c4b46c6607f3d01b899dfa3eac44d5ba82de0db07f70a41c65c7a966"
   },
   "data/escalation_rules.json": {
     "size": 2262,
@@ -23,6 +23,10 @@
     "size": 12288,
     "sha256": "77bcb3bcfe128807ea3dae1589e5623616654e891ae94cd12a1796833f18c9eb"
   },
+  "data/faq_snapshots.db": {
+    "size": 380928,
+    "sha256": "133da04d1826de140352260de16cca2e1b23d121929ed291d02f6d91b23dc759"
+  },
   "data/law_versions.db": {
     "size": 20480,
     "sha256": "6bd27f22aeba25f6b043b168413b23f275a0406ca9997e8bd6c483ad9761efa2"
@@ -32,8 +36,8 @@
     "sha256": "f06b07261036a8e8e68069b51c4b50a3c8f0287a38d4fa3294d5926ba16fb817"
   },
   "data/memory.db": {
-    "size": 57344,
-    "sha256": "8f07c748f60e9462192bcd8b48d3f3bdc7aa358578231352ff4c19707e5c0056"
+    "size": 61440,
+    "sha256": "e1d1636956415b6484bb1d6982f9df08afb3e362456571553de18e94a86273b8"
   },
   "data/migrations.db": {
     "size": 8192,
@@ -41,26 +45,26 @@
   },
   "data/scheduler.db": {
     "size": 16384,
-    "sha256": "8975caa80d0fdc70b3062426b0f312b6728471ca07d06ec56cf001d91095c432"
+    "sha256": "3dc254dc513ddc89f4aa604ae5f469f3388301970c4634accabcfc2062167201"
   },
   "data/segments.db": {
-    "size": 45056,
-    "sha256": "92c6834cb0e0c43a7670ea38133a04677d3a37e9f31da3c7133b5cf9ce641e46"
+    "size": 49152,
+    "sha256": "2ca5d0e45e17cd9224c1f20b14ac40ffc515deaf93638721fd0327797c754757"
   },
   "data/sentiment.db": {
-    "size": 200704,
-    "sha256": "73a3cc3194e91b74b3e914fd0fd1ac971a14fbb32d11edbd0eecc97333963052"
+    "size": 221184,
+    "sha256": "3ad739eb3cd07ac0ffe3941c438ee9db13ab27b3d34e3c49d7c2e388770f349c"
   },
   "data/tenants.db": {
     "size": 24576,
-    "sha256": "faa7f6e78f23fae967d6b5813473d6274c9d1e8f4bbf14cb6873413ac5fe713e"
+    "sha256": "f19635104998acb852295ba5a80d1f1e1597fd7cf57c6d4efb0503b7c84ded44"
   },
   "data/user_profiles.db": {
-    "size": 53248,
-    "sha256": "cdbd152b8b418d042595cc68a4ef4e5293821324c6a33e1935d71af919e079e3"
+    "size": 57344,
+    "sha256": "b64c633e5ef6592ff5816336513a1036fa2570013be38b57436dd3edf4bed866"
   },
   "data/webhooks.db": {
-    "size": 438272,
-    "sha256": "211717e95dc4e657749e00c68784c5e373b13f3a61e9c2fa15aee3c261db958e"
+    "size": 466944,
+    "sha256": "1f8d6961045459e981a8d1573e51232a34ce5271a8cc273d17f01a5a9a9992bc"
   }
 }

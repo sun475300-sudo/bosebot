@@ -2564,6 +2564,18 @@ def health_dashboard():
     return send_from_directory(os.path.join(BASE_DIR, "web"), "health.html")
 
 
+@app.route("/admin/notifications")
+def admin_notifications_page():
+    """관리자 알림 센터 페이지를 반환한다."""
+    return send_from_directory(os.path.join(BASE_DIR, "web"), "notifications.html")
+
+
+@app.route("/admin/analytics")
+def admin_analytics_page():
+    """관리자 분석 대시보드 페이지를 반환한다."""
+    return send_from_directory(os.path.join(BASE_DIR, "web"), "analytics-dashboard.html")
+
+
 # ── A/B Testing API ──────────────────────────────────────────────────────
 
 @app.route("/api/admin/ab-tests", methods=["POST"])
@@ -3342,6 +3354,52 @@ def admin_circuits():
     except Exception as e:
         logger.error(f"서킷 브레이커 상태 조회 실패: {e}")
         return jsonify({"error": "서킷 브레이커 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/suggestions", methods=["GET"])
+def api_suggestions():
+    """세션 기반 맥락 제안을 반환한다."""
+    session_id = request.args.get("session_id")
+    if not session_id:
+        return jsonify({"error": "session_id 파라미터가 필요합니다."}), 400
+
+    try:
+        session_history: list = []
+        ctx = chatbot.session_manager.get_context(session_id) if hasattr(chatbot.session_manager, "get_context") else {}
+        if isinstance(ctx, dict):
+            session_history = ctx.get("queries", [])
+
+        if not session_history:
+            suggestions = smart_suggestion_engine.get_onboarding_suggestions()
+            return jsonify({"session_id": session_id, "suggestions": suggestions, "type": "onboarding"})
+
+        last_query = session_history[-1]
+        category = classify_query(last_query)[0] if last_query else "GENERAL"
+        suggestions = smart_suggestion_engine.get_follow_up_suggestions(
+            last_query, "", category, session_history=session_history,
+        )
+        tips = smart_suggestion_engine.get_contextual_tips(category)
+        return jsonify({
+            "session_id": session_id,
+            "suggestions": suggestions,
+            "tips": tips,
+            "type": "contextual",
+        })
+    except Exception as e:
+        logger.error(f"제안 조회 실패: {e}")
+        return jsonify({"error": "제안 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/onboarding", methods=["GET"])
+def api_onboarding():
+    """새 사용자를 위한 온보딩 제안을 반환한다."""
+    try:
+        suggestions = smart_suggestion_engine.get_onboarding_suggestions()
+        tips = smart_suggestion_engine.get_contextual_tips("GENERAL")
+        return jsonify({"suggestions": suggestions, "tips": tips})
+    except Exception as e:
+        logger.error(f"온보딩 제안 조회 실패: {e}")
+        return jsonify({"error": "온보딩 제안 조회 중 오류가 발생했습니다."}), 500
 
 
 def main():
