@@ -51,6 +51,7 @@ from src.law_updater import LawUpdateScheduler, LawVersionTracker, FAQUpdateNoti
 from src.backup_manager import BackupManager
 from src.faq_manager import FAQManager
 from src.faq_io import FAQImporter, FAQExporter
+from src.faq_diff import FAQDiffEngine
 from src.tenant_manager import TenantManager
 from src.webhook_manager import WebhookManager
 from src.audit_logger import AuditLogger
@@ -74,6 +75,8 @@ from src.utils import load_json
 from src.api_gateway import APIGateway, PaginationHelper, SortHelper
 from src.quality_scorer import ResponseQualityScorer, QualityReport
 from src.conversation_analytics import ConversationAnalytics
+from src.error_recovery import ErrorRecovery, CircuitBreakerOpenError
+from src.smart_suggestions import SmartSuggestionEngine
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MAX_QUERY_LENGTH = 2000
@@ -142,6 +145,7 @@ tenant_manager = TenantManager()
 faq_manager = FAQManager()
 faq_importer = FAQImporter(faq_manager)
 faq_exporter = FAQExporter(faq_manager)
+faq_diff_engine = FAQDiffEngine(faq_manager)
 
 # 감사 로거 초기화
 audit_logger = AuditLogger()
@@ -199,6 +203,14 @@ response_formatter = ResponseFormatter(template_engine)
 # 지식 그래프 초기화
 knowledge_graph = KnowledgeGraph.build_from_faq(chatbot.faq_items)
 
+# 스마트 제안 엔진 초기화
+smart_suggestion_engine = SmartSuggestionEngine(
+    faq_items=chatbot.faq_items,
+    knowledge_graph=knowledge_graph,
+    question_clusterer=question_clusterer,
+    related_faq_finder=chatbot.related_faq_finder,
+)
+
 # 컨텍스트 메모리 초기화
 context_memory = ContextMemory(db_path=os.path.join(BASE_DIR, "data", "memory.db"))
 conversation_memory_manager = ConversationMemoryManager(context_memory)
@@ -216,6 +228,9 @@ api_gateway.register_version("v1", status="active")
 api_gateway.register_version("v2", status="active")
 pagination_helper = PaginationHelper()
 sort_helper = SortHelper()
+
+# 에러 복구 시스템 초기화
+error_recovery = ErrorRecovery(db_path=os.path.join(BASE_DIR, "logs", "error_logs.db"))
 
 # --- FAQ in-memory cache ---
 _faq_cache: dict = {}
@@ -516,6 +531,19 @@ def chat():
         except Exception:
             pass
 
+    # 스마트 제안 생성
+    suggestions = []
+    try:
+        session_history = []
+        if session_id:
+            ctx = chatbot.session_manager.get_context(session_id) if hasattr(chatbot.session_manager, "get_context") else {}
+            session_history = ctx.get("queries", []) if isinstance(ctx, dict) else []
+        suggestions = smart_suggestion_engine.get_follow_up_suggestions(
+            query, translated_answer, primary_category, session_history=session_history,
+        )
+    except Exception as e:
+        logger.error(f"스마트 제안 생성 실패: {e}")
+
     response = {
         "answer": translated_answer,
         "category": primary_category,
@@ -524,6 +552,7 @@ def chat():
         "escalation_target": escalation.get("target") if escalation else None,
         "lang": lang,
         "related_questions": [{"id": r["id"], "question": r["question"]} for r in related],
+        "suggestions": suggestions,
         "tenant_id": tenant_id,
         "sentiment": sentiment_result,
         "user_segment": user_segment,
@@ -1974,6 +2003,80 @@ def admin_faq_export():
         return jsonify({"error": "FAQ export failed"}), 500
 
 
+# --- FAQ Snapshot / Diff API endpoints ---
+
+@app.route("/api/admin/faq/snapshot", methods=["POST"])
+@jwt_auth.require_auth()
+def admin_faq_snapshot():
+    """Create a snapshot of the current FAQ state."""
+    data = request.get_json(silent=True) or {}
+    label = data.get("label")
+    try:
+        result = faq_diff_engine.snapshot(label=label)
+        return jsonify(result), 201
+    except Exception as e:
+        logger.error(f"FAQ snapshot failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/faq/snapshots", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_faq_snapshots():
+    """List all FAQ snapshots."""
+    try:
+        snapshots = faq_diff_engine.list_snapshots()
+        return jsonify({"snapshots": snapshots})
+    except Exception as e:
+        logger.error(f"FAQ snapshot listing failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/faq/diff", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_faq_diff():
+    """Compare two FAQ snapshots."""
+    a = request.args.get("a")
+    b = request.args.get("b")
+    if not a or not b:
+        return jsonify({"error": "Both 'a' and 'b' snapshot IDs are required"}), 400
+    try:
+        a_id = int(a)
+        b_id = int(b)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Snapshot IDs must be integers"}), 400
+    try:
+        diff_result = faq_diff_engine.diff(a_id, b_id)
+        summary = faq_diff_engine.get_change_summary(diff_result)
+        return jsonify({"diff": diff_result, "summary": summary})
+    except KeyError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        logger.error(f"FAQ diff failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/faq/rollback", methods=["POST"])
+@jwt_auth.require_auth()
+def admin_faq_rollback():
+    """Rollback FAQ data to a specific snapshot."""
+    data = request.get_json(silent=True) or {}
+    snapshot_id = data.get("snapshot_id")
+    if snapshot_id is None:
+        return jsonify({"error": "snapshot_id is required"}), 400
+    try:
+        snapshot_id = int(snapshot_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "snapshot_id must be an integer"}), 400
+    try:
+        count = faq_diff_engine.rollback_to(snapshot_id)
+        return jsonify({"restored_items": count, "snapshot_id": snapshot_id})
+    except KeyError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        logger.error(f"FAQ rollback failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 # --- Webhook API endpoints ---
 
 @app.route("/api/admin/webhooks", methods=["POST"])
@@ -2459,6 +2562,18 @@ def admin_health_components():
 def health_dashboard():
     """헬스 모니터링 대시보드 페이지를 반환한다."""
     return send_from_directory(os.path.join(BASE_DIR, "web"), "health.html")
+
+
+@app.route("/admin/notifications")
+def admin_notifications_page():
+    """관리자 알림 센터 페이지를 반환한다."""
+    return send_from_directory(os.path.join(BASE_DIR, "web"), "notifications.html")
+
+
+@app.route("/admin/analytics")
+def admin_analytics_page():
+    """관리자 분석 대시보드 페이지를 반환한다."""
+    return send_from_directory(os.path.join(BASE_DIR, "web"), "analytics-dashboard.html")
 
 
 # ── A/B Testing API ──────────────────────────────────────────────────────
@@ -3197,6 +3312,94 @@ def admin_analytics_metrics():
     except Exception as e:
         logger.error(f"분석 지표 조회 실패: {e}")
         return jsonify({"error": "분석 지표 조회 중 오류가 발생했습니다."}), 500
+
+
+# --- 에러 복구 API 엔드포인트 ---
+
+
+@app.route("/api/admin/errors", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_errors():
+    """최근 에러 목록을 반환한다."""
+    try:
+        limit = request.args.get("limit", 50, type=int)
+        errors = error_recovery.error_logger.get_recent_errors(limit=limit)
+        return jsonify({"errors": errors, "count": len(errors)})
+    except Exception as e:
+        logger.error(f"에러 로그 조회 실패: {e}")
+        return jsonify({"error": "에러 로그 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/errors/stats", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_error_stats():
+    """에러 통계를 반환한다."""
+    try:
+        stats = error_recovery.get_error_stats()
+        rate = error_recovery.error_logger.get_error_rate(minutes=60)
+        stats["error_rate"] = rate
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"에러 통계 조회 실패: {e}")
+        return jsonify({"error": "에러 통계 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/circuits", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_circuits():
+    """서킷 브레이커 상태를 반환한다."""
+    try:
+        status = error_recovery.get_circuit_status()
+        return jsonify({"circuits": status})
+    except Exception as e:
+        logger.error(f"서킷 브레이커 상태 조회 실패: {e}")
+        return jsonify({"error": "서킷 브레이커 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/suggestions", methods=["GET"])
+def api_suggestions():
+    """세션 기반 맥락 제안을 반환한다."""
+    session_id = request.args.get("session_id")
+    if not session_id:
+        return jsonify({"error": "session_id 파라미터가 필요합니다."}), 400
+
+    try:
+        session_history: list = []
+        ctx = chatbot.session_manager.get_context(session_id) if hasattr(chatbot.session_manager, "get_context") else {}
+        if isinstance(ctx, dict):
+            session_history = ctx.get("queries", [])
+
+        if not session_history:
+            suggestions = smart_suggestion_engine.get_onboarding_suggestions()
+            return jsonify({"session_id": session_id, "suggestions": suggestions, "type": "onboarding"})
+
+        last_query = session_history[-1]
+        category = classify_query(last_query)[0] if last_query else "GENERAL"
+        suggestions = smart_suggestion_engine.get_follow_up_suggestions(
+            last_query, "", category, session_history=session_history,
+        )
+        tips = smart_suggestion_engine.get_contextual_tips(category)
+        return jsonify({
+            "session_id": session_id,
+            "suggestions": suggestions,
+            "tips": tips,
+            "type": "contextual",
+        })
+    except Exception as e:
+        logger.error(f"제안 조회 실패: {e}")
+        return jsonify({"error": "제안 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/onboarding", methods=["GET"])
+def api_onboarding():
+    """새 사용자를 위한 온보딩 제안을 반환한다."""
+    try:
+        suggestions = smart_suggestion_engine.get_onboarding_suggestions()
+        tips = smart_suggestion_engine.get_contextual_tips("GENERAL")
+        return jsonify({"suggestions": suggestions, "tips": tips})
+    except Exception as e:
+        logger.error(f"온보딩 제안 조회 실패: {e}")
+        return jsonify({"error": "온보딩 제안 조회 중 오류가 발생했습니다."}), 500
 
 
 def main():

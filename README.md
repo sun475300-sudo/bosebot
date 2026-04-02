@@ -11,12 +11,12 @@
 | FAQ | 50개 (v3.0.0) |
 | 질문 카테고리 | 10개 |
 | 에스컬레이션 규칙 | 5개 |
-| 테스트 | 1,845개 (전체 PASS) |
-| 소스 코드 | 20,524줄 (src/ + web_server + simulator) |
-| 테스트 코드 | 18,239줄 |
-| 소스 파일 | 67개 |
-| 테스트 파일 | 63개 |
-| 커밋 | 62개 |
+| 테스트 | 1,937개 (전체 PASS) |
+| 소스 코드 | 21,603줄 (src/ + web_server + simulator) |
+| 테스트 코드 | 19,345줄 |
+| 소스 파일 | 70개 |
+| 테스트 파일 | 67개 |
+| 커밋 | 63개 |
 
 ---
 
@@ -236,7 +236,7 @@ docker-compose up -d
 
 ### 테스트
 ```bash
-python -m pytest tests/ -v       # 1,447개 테스트 전체 PASS
+python -m pytest tests/ -v       # 1,937개 테스트 전체 PASS
 
 # 특정 모듈만
 python -m pytest tests/test_chatbot.py -v
@@ -307,8 +307,24 @@ bonded-exhibition-chatbot-data/
 │   ├── i18n.py                    # 국제화 (6개 언어, 번역 파일)
 │   ├── profiler.py                # 성능 프로파일링 (cProfile)
 │   ├── alert_center.py            # 알림 센터 (규칙 엔진, 임계값)
+│   ├── knowledge_graph.py         # 지식 그래프 (BFS, 관계 매핑)
+│   ├── user_segment.py            # 사용자 세그먼트 (초보/중급/전문가)
+│   ├── context_memory.py          # 컨텍스트 메모리 (장기 대화 기억)
+│   ├── template_engine.py         # 동적 응답 템플릿 엔진
+│   ├── chart_data.py              # 차트 데이터 (Chart.js 호환)
+│   ├── domain_config.py           # 도메인 설정 (멀티 도메인)
+│   ├── sentiment_analyzer.py      # 감정 분석 (한국어 사전)
+│   ├── question_cluster.py        # 질문 클러스터링 (중복 탐지)
+│   ├── flow_analyzer.py           # 대화 흐름 분석 (Sankey)
+│   ├── task_scheduler.py          # 스케줄러 (cron 파서)
+│   ├── api_gateway.py             # API 게이트웨이 (버전관리)
+│   ├── conversation_analytics.py  # 대화 분석 v2 (패턴, 인사이트)
+│   ├── quality_scorer.py          # 응답 품질 스코어러 (0-100)
+│   ├── faq_diff.py                # FAQ 버전 비교/롤백
+│   ├── smart_suggestions.py       # 스마트 제안 (후속 질문)
+│   ├── error_recovery.py          # 오류 복구 (서킷 브레이커)
 │   └── utils.py                   # 유틸리티
-├── tests/                         # 1,447개 테스트
+├── tests/                         # 1,937개 테스트
 │   ├── test_chatbot.py            # 통합 테스트
 │   ├── test_classifier.py         # 분류기
 │   ├── test_similarity.py         # TF-IDF 매칭
@@ -503,6 +519,10 @@ timeline
 | v9.0.0 | Phase 39-42 (감사 로그, i18n 6개국어, 성능 프로파일링, 알림 센터) |
 | v10.0.0 | Phase 43-50 (Rate Limiting v2, DB 마이그레이션, 헬스 대시보드, A/B 테스트, FAQ 임포트/익스포트) |
 | v12.0.0 | Phase 51-54 (감정 분석, 질문 클러스터링, 대화 흐름 분석, 스케줄러) |
+| v13.0.0 | Phase 55-58 (지식 그래프, 사용자 세그먼트, 컨텍스트 메모리, 템플릿 엔진) |
+| v14.0.0 | Phase 59-61 (스트레스 테스트, 도메인 설정, 차트 API) |
+| v15.0.0 | Phase 62-65 (API 게이트웨이, 대화 분석 v2, 응답 품질 스코어러) |
+| v16.0.0 | Phase 66-69 (FAQ 버전 diff, 스마트 제안, 알림 대시보드, 오류 복구) |
 | v10.0.0 | Phase 43-46 (Rate Limiting v2, DB 마이그레이션, 헬스 대시보드, 대화 요약) |
 
 ## 기술 스택
