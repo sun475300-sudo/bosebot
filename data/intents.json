@@ -1,0 +1,282 @@
+{
+  "version": "1.0",
+  "description": "보세전시장 챗봇 인텐트 시드 데이터 (30개)",
+  "groups": [
+    {
+      "group_id": "A",
+      "group_name": "제도·자격",
+      "intents": [
+        {
+          "intent_id": "bonded_exhibition_definition",
+          "intent_name_ko": "보세전시장 정의",
+          "description": "보세전시장이란 무엇인지, 관세법상 개념과 목적을 설명한다.",
+          "required_entities": [],
+          "risk_level": "low",
+          "answer_policy": "direct_with_citation"
+        },
+        {
+          "intent_id": "bonded_exhibition_legal_basis",
+          "intent_name_ko": "보세전시장 법적 근거",
+          "description": "보세전시장 설치·운영의 법적 근거(관세법 제190조 등)를 안내한다.",
+          "required_entities": [],
+          "risk_level": "low",
+          "answer_policy": "direct_with_citation"
+        },
+        {
+          "intent_id": "bonded_exhibition_eligibility",
+          "intent_name_ko": "보세전시장 자격 요건",
+          "description": "보세전시장을 설치·운영하기 위해 갖추어야 할 자격 요건을 안내한다.",
+          "required_entities": ["user_type"],
+          "risk_level": "medium",
+          "answer_policy": "rule_plus_rag"
+        },
+        {
+          "intent_id": "bonded_exhibition_operator_scope",
+          "intent_name_ko": "운영인 범위",
+          "description": "보세전시장 운영인의 범위와 역할을 설명한다.",
+          "required_entities": ["user_type"],
+          "risk_level": "low",
+          "answer_policy": "direct_with_citation"
+        },
+        {
+          "intent_id": "bonded_exhibition_difference_from_other_bonded_areas",
+          "intent_name_ko": "다른 보세구역과의 차이",
+          "description": "보세전시장과 보세창고·보세공장·종합보세구역 등 다른 보세구역의 차이를 비교 설명한다.",
+          "required_entities": ["bonded_area_type"],
+          "risk_level": "low",
+          "answer_policy": "direct_with_citation"
+        },
+        {
+          "intent_id": "bonded_exhibition_comprehensive_bonded_area_relation",
+          "intent_name_ko": "종합보세구역과의 관계",
+          "description": "종합보세구역 내에서 보세전시장 기능이 어떻게 수행되는지 설명한다.",
+          "required_entities": ["bonded_area_type"],
+          "risk_level": "low",
+          "answer_policy": "direct_with_citation"
+        }
+      ]
+    },
+    {
+      "group_id": "B",
+      "group_name": "특허·신청",
+      "intents": [
+        {
+          "intent_id": "permit_need",
+          "intent_name_ko": "특허 필요 여부",
+          "description": "보세전시장 설영에 특허가 필요한지, 어떤 경우 특허를 받아야 하는지 안내한다.",
+          "required_entities": ["event_type"],
+          "risk_level": "medium",
+          "answer_policy": "rule_plus_rag"
+        },
+        {
+          "intent_id": "permit_application_process",
+          "intent_name_ko": "특허 신청 절차",
+          "description": "보세전시장 특허 신청의 전체 절차(접수→심사→허가)를 단계별로 안내한다.",
+          "required_entities": ["user_type", "event_type"],
+          "risk_level": "medium",
+          "answer_policy": "rule_plus_rag"
+        },
+        {
+          "intent_id": "permit_required_documents",
+          "intent_name_ko": "특허 신청 구비서류",
+          "description": "특허 신청 시 제출해야 하는 서류 목록과 각 서류의 작성 요령을 안내한다.",
+          "required_entities": ["document_type"],
+          "risk_level": "medium",
+          "answer_policy": "rule_plus_rag"
+        },
+        {
+          "intent_id": "permit_review_criteria",
+          "intent_name_ko": "특허 심사 기준",
+          "description": "세관에서 보세전시장 특허를 심사할 때 적용하는 기준을 설명한다.",
+          "required_entities": [],
+          "risk_level": "medium",
+          "answer_policy": "rule_plus_rag"
+        },
+        {
+          "intent_id": "permit_change_or_extension",
+          "intent_name_ko": "특허 변경·연장",
+          "description": "이미 받은 특허의 내용 변경(장소·기간 등) 또는 기간 연장 절차를 안내한다.",
+          "required_entities": ["date_range"],
+          "risk_level": "medium",
+          "answer_policy": "rule_plus_rag"
+        },
+        {
+          "intent_id": "permit_responsible_office",
+          "intent_name_ko": "담당 세관·부서",
+          "description": "보세전시장 특허 신청 및 문의를 처리하는 담당 세관과 부서를 안내한다.",
+          "required_entities": ["location"],
+          "risk_level": "low",
+          "answer_policy": "direct_with_citation"
+        }
+      ]
+    },
+    {
+      "group_id": "C",
+      "group_name": "시설·운영",
+      "intents": [
+        {
+          "intent_id": "facility_requirements",
+          "intent_name_ko": "시설 요건",
+          "description": "보세전시장으로 특허받기 위해 갖추어야 할 시설 기준(면적, 구조 등)을 안내한다.",
+          "required_entities": ["location"],
+          "risk_level": "medium",
+          "answer_policy": "rule_plus_rag"
+        },
+        {
+          "intent_id": "security_requirements",
+          "intent_name_ko": "보안 요건",
+          "description": "보세전시장의 보안·감시 설비 요건(CCTV, 잠금장치 등)을 안내한다.",
+          "required_entities": [],
+          "risk_level": "medium",
+          "answer_policy": "rule_plus_rag"
+        },
+        {
+          "intent_id": "access_control",
+          "intent_name_ko": "출입 통제",
+          "description": "보세전시장 내 출입 통제 기준과 방문자 관리 방법을 안내한다.",
+          "required_entities": ["user_type"],
+          "risk_level": "medium",
+          "answer_policy": "rule_plus_rag"
+        },
+        {
+          "intent_id": "customs_inspection_space",
+          "intent_name_ko": "세관 검사 공간",
+          "description": "보세전시장 내 세관 검사를 위한 전용 공간 확보 의무를 안내한다.",
+          "required_entities": [],
+          "risk_level": "medium",
+          "answer_policy": "rule_plus_rag"
+        },
+        {
+          "intent_id": "inventory_management",
+          "intent_name_ko": "재고 관리",
+          "description": "보세전시장에 반입된 물품의 재고 관리 방법과 장부 기록 의무를 안내한다.",
+          "required_entities": ["item_type", "declaration_status"],
+          "risk_level": "high",
+          "answer_policy": "restricted_plus_escalation"
+        },
+        {
+          "intent_id": "operator_obligations",
+          "intent_name_ko": "운영인 의무",
+          "description": "보세전시장 운영인의 법적 의무(보고, 기록유지, 사고예방 등)를 안내한다.",
+          "required_entities": ["user_type"],
+          "risk_level": "medium",
+          "answer_policy": "rule_plus_rag"
+        }
+      ]
+    },
+    {
+      "group_id": "D",
+      "group_name": "반입·전시·사용",
+      "intents": [
+        {
+          "intent_id": "inbound_declaration",
+          "intent_name_ko": "반입 신고",
+          "description": "보세전시장에 외국물품을 반입할 때 필요한 반입 신고 절차와 요건을 안내한다.",
+          "required_entities": ["item_type", "declaration_status", "date_range"],
+          "risk_level": "high",
+          "answer_policy": "restricted_plus_escalation"
+        },
+        {
+          "intent_id": "inbound_inspection",
+          "intent_name_ko": "반입 검사",
+          "description": "반입 신고 후 세관의 물품 검사 절차와 검사 대상 선별 기준을 안내한다.",
+          "required_entities": ["item_type", "action_type"],
+          "risk_level": "high",
+          "answer_policy": "restricted_plus_escalation"
+        },
+        {
+          "intent_id": "use_in_exhibition_hall",
+          "intent_name_ko": "전시장 내 사용",
+          "description": "관세법 시행령 제208조에 따라 보세전시장 안에서 허용되는 물품 사용 범위를 안내한다.",
+          "required_entities": ["item_type", "action_type"],
+          "risk_level": "medium",
+          "answer_policy": "rule_plus_rag"
+        },
+        {
+          "intent_id": "display_item_change_or_movement",
+          "intent_name_ko": "전시물 변경·이동",
+          "description": "전시 중인 물품의 위치 변경, 다른 전시장으로의 이동 절차를 안내한다.",
+          "required_entities": ["item_type", "location"],
+          "risk_level": "medium",
+          "answer_policy": "rule_plus_rag"
+        },
+        {
+          "intent_id": "loss_or_damage",
+          "intent_name_ko": "분실·손상",
+          "description": "전시장 내 물품의 분실 또는 손상 발생 시 보고 의무와 처리 절차를 안내한다.",
+          "required_entities": ["item_type", "risk_flag"],
+          "risk_level": "high",
+          "answer_policy": "restricted_plus_escalation"
+        },
+        {
+          "intent_id": "sample_or_demo_use",
+          "intent_name_ko": "견본품·시연 사용",
+          "description": "견본품 배포 또는 물품 시연(데모)이 허용되는 범위와 조건을 안내한다.",
+          "required_entities": ["item_type", "action_type"],
+          "risk_level": "medium",
+          "answer_policy": "rule_plus_rag"
+        }
+      ]
+    },
+    {
+      "group_id": "E",
+      "group_name": "판매·증여·시식",
+      "intents": [
+        {
+          "intent_id": "sale_of_items",
+          "intent_name_ko": "물품 판매",
+          "description": "보세전시장 내에서 외국물품을 판매할 수 있는 조건, 수입신고 의무, 관세 납부 절차를 안내한다.",
+          "required_entities": ["item_type", "action_type", "declaration_status"],
+          "risk_level": "high",
+          "answer_policy": "restricted_plus_escalation"
+        },
+        {
+          "intent_id": "gift_distribution",
+          "intent_name_ko": "증여물품 배포",
+          "description": "전시장 내에서 외국물품을 증여(무상 배포)할 때의 요건과 제한을 안내한다.",
+          "required_entities": ["item_type", "action_type"],
+          "risk_level": "high",
+          "answer_policy": "restricted_plus_escalation"
+        },
+        {
+          "intent_id": "tasting_food",
+          "intent_name_ko": "시식용 식품",
+          "description": "전시장 내에서 시식용 식품·음료를 제공할 수 있는 조건과 관세 처리를 안내한다.",
+          "required_entities": ["item_type", "action_type"],
+          "risk_level": "high",
+          "answer_policy": "restricted_plus_escalation"
+        },
+        {
+          "intent_id": "domestic_release_after_sale",
+          "intent_name_ko": "판매 후 국내 반출",
+          "description": "보세전시장에서 판매된 물품의 수입신고·관세 납부 후 국내 반출 절차를 안내한다.",
+          "required_entities": ["item_type", "declaration_status", "action_type"],
+          "risk_level": "high",
+          "answer_policy": "restricted_plus_escalation"
+        }
+      ]
+    },
+    {
+      "group_id": "F",
+      "group_name": "반출·사후처리",
+      "intents": [
+        {
+          "intent_id": "outbound_or_reexport",
+          "intent_name_ko": "반출·재수출",
+          "description": "전시 종료 후 외국물품을 반출(재수출)하는 절차와 기한을 안내한다.",
+          "required_entities": ["item_type", "date_range", "action_type"],
+          "risk_level": "medium",
+          "answer_policy": "rule_plus_rag"
+        },
+        {
+          "intent_id": "transfer_to_other_bonded_area_or_noncompliance",
+          "intent_name_ko": "타 보세구역 이송·위반처리",
+          "description": "다른 보세구역으로의 물품 이송 절차와, 기한 초과·미반출 등 위반 시 처리 방법을 안내한다.",
+          "required_entities": ["bonded_area_type", "item_type", "risk_flag"],
+          "risk_level": "high",
+          "answer_policy": "restricted_plus_escalation"
+        }
+      ]
+    }
+  ]
+}
