@@ -677,8 +677,8 @@ def chat():
         if faq_id:
             try:
                 related = chatbot.related_faq_finder.find_related(faq_id, top_k=3)
-            except Exception:
-                pass
+            except (AttributeError, KeyError, ValueError) as e:
+                logger.debug(f"Related FAQ lookup skipped: {e}")
 
         # 스마트 제안 생성
         suggestions = []
