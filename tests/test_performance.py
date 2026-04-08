@@ -30,6 +30,15 @@ from web_server import app, rate_limiter  # noqa: E402
 def client():
     """Create a shared Flask test client for the whole module."""
     app.config["TESTING"] = True
+    # Clear rate limiter to avoid 429s from prior test modules
+    try:
+        from web_server import advanced_rate_limiter
+        if hasattr(advanced_rate_limiter, '_windows'):
+            advanced_rate_limiter._windows.clear()
+        if hasattr(advanced_rate_limiter, '_quotas_used'):
+            advanced_rate_limiter._quotas_used.clear()
+    except Exception:
+        pass
     with app.test_client() as c:
         yield c
 

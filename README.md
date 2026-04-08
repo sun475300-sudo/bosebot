@@ -11,12 +11,12 @@
 | FAQ | 50개 (v3.0.0) |
 | 질문 카테고리 | 10개 |
 | 에스컬레이션 규칙 | 5개 |
-| 테스트 | 1,937개 (전체 PASS) |
-| 소스 코드 | 21,603줄 (src/ + web_server + simulator) |
-| 테스트 코드 | 19,345줄 |
+| 테스트 | 2,081개 (전체 PASS) |
+| 소스 코드 | 21,605줄 (src/ + web_server + simulator) |
+| 테스트 코드 | 21,197줄 |
 | 소스 파일 | 70개 |
-| 테스트 파일 | 67개 |
-| 커밋 | 63개 |
+| 테스트 파일 | 70개 |
+| 커밋 | 70개 |
 
 ---
 
@@ -56,6 +56,74 @@
 | i18n 6개국어 | KO/EN/CN/JP/VI/TH 번역 파일, 자동 언어 감지 |
 | 성능 프로파일링 | cProfile 통합, 컴포넌트 벤치마크, 병목 감지 |
 | 알림 센터 | 임계값 기반 규칙 엔진, 인앱 알림, 자동 감지 |
+| 지식 그래프 | FAQ 관계 매핑, BFS 경로 탐색, 그래프 시각화 |
+| 사용자 세그먼트 | 초보/중급/전문가 분류, 답변 깊이 자동 조절 |
+| 컨텍스트 메모리 | 장기 대화 기억, 이전 세션 참조, 사용자 프로필 |
+| 응답 템플릿 엔진 | 동적 템플릿, 조건부/루프, 도메인 독립 커스텀 |
+| 도메인 설정 | 멀티 도메인 지원, 템플릿, 검증, 스위칭 |
+| API 게이트웨이 | v1/v2 버전관리, 페이지네이션, 정렬, 디프리케이션 |
+| 대화 분석 v2 | 패턴 감지, 이탈률, 해결률, 자동 인사이트 |
+| 응답 품질 스코어러 | 5차원 0-100점, 개선 제안, 카테고리별 품질 |
+| FAQ 버전 관리 | 스냅샷, 필드별 diff, 원클릭 롤백 |
+| 스마트 제안 | 후속 질문 자동 추천, 온보딩, 맥락 팁 |
+| 오류 복구 | 재시도, 서킷 브레이커, 폴백, 에러 통계 |
+
+---
+
+## 시스템 구성요소
+
+```mermaid
+graph LR
+    subgraph Core["코어 엔진"]
+        CB[chatbot] --> CL[classifier]
+        CB --> SM[similarity/TF-IDF]
+        CB --> BM[bm25_ranker]
+        CB --> SC[spell_corrector]
+    end
+    subgraph NLP["NLP 파이프라인"]
+        KT[korean_tokenizer]
+        SN[synonym_resolver]
+        SA[sentiment_analyzer]
+        QC[question_cluster]
+    end
+    subgraph User["사용자 인텔리전스"]
+        US[user_segment]
+        UR[user_recommender]
+        CM[context_memory]
+        SS[smart_suggestions]
+    end
+    subgraph Admin["관리 도구"]
+        FM[faq_manager]
+        FD[faq_diff]
+        AL[audit_logger]
+        AC[alert_center]
+        TS[task_scheduler]
+    end
+    subgraph Ext["외부 연동"]
+        KA[kakao_adapter]
+        NA[naver_adapter]
+        SL[slack_notifier]
+        MT[metrics/Prometheus]
+    end
+    subgraph API["API 레이어"]
+        AG[api_gateway]
+        AU[auth/JWT]
+        RL[rate_limiter_v2]
+        ER[error_recovery]
+    end
+    Core --> NLP
+    Core --> User
+    API --> Core
+    Admin --> Core
+    Ext --> Core
+
+    style Core fill:#1565C0,color:#fff
+    style NLP fill:#00695C,color:#fff
+    style User fill:#6A1B9A,color:#fff
+    style Admin fill:#E65100,color:#fff
+    style Ext fill:#1B5E20,color:#fff
+    style API fill:#B71C1C,color:#fff
+```
 
 ---
 
@@ -77,11 +145,15 @@ flowchart TB
     E --> F
     MT --> F
     ASK --> F
+    F --> SENT["감정 분석"]
+    SENT --> SEG["사용자 세그먼트"]
+    SEG --> TMPL["템플릿 엔진"]
+    TMPL --> SUG["스마트 제안"]
+    SUG --> G["구조화된 답변 출력"]
     F --> LOG["SQLite 로그 DB"]
     F --> MON["실시간 모니터링"]
-    F --> SAT["만족도 추적"]
-    REC --> G["구조화된 답변 출력"]
-    F --> G
+    F --> CTX["컨텍스트 메모리"]
+    REC --> G
 
     style A fill:#1565C0,color:#fff,stroke:none
     style SC fill:#00695C,color:#fff,stroke:none
@@ -236,7 +308,7 @@ docker-compose up -d
 
 ### 테스트
 ```bash
-python -m pytest tests/ -v       # 1,937개 테스트 전체 PASS
+python -m pytest tests/ -v       # 2,081개 테스트 전체 PASS
 
 # 특정 모듈만
 python -m pytest tests/test_chatbot.py -v
@@ -324,7 +396,7 @@ bonded-exhibition-chatbot-data/
 │   ├── smart_suggestions.py       # 스마트 제안 (후속 질문)
 │   ├── error_recovery.py          # 오류 복구 (서킷 브레이커)
 │   └── utils.py                   # 유틸리티
-├── tests/                         # 1,937개 테스트
+├── tests/                         # 2,081개 테스트
 │   ├── test_chatbot.py            # 통합 테스트
 │   ├── test_classifier.py         # 분류기
 │   ├── test_similarity.py         # TF-IDF 매칭

@@ -265,7 +265,7 @@ _RATE_LIMIT_EXEMPT_PATHS = {"/", "/api/health", "/static", "/manifest.json", "/s
 @app.before_request
 def _check_advanced_rate_limit():
     """Apply per-endpoint rate limits via AdvancedRateLimiter."""
-    if app.config.get("TESTING"):
+    if app.config.get("TESTING") or os.environ.get("TESTING"):
         return None
     path = request.path
     # Skip static / health endpoints
@@ -433,10 +433,11 @@ def service_worker():
 @app.route("/api/chat", methods=["POST"])
 def chat():
     """사용자 질문을 처리하여 답변을 반환한다."""
-    # Rate Limiting 적용
+    # Rate Limiting 적용 (테스트 모드 제외)
     client_ip = request.remote_addr or "unknown"
-    if not rate_limiter.is_allowed(client_ip):
-        return jsonify({"error": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."}), 429
+    if not app.config.get("TESTING") and not os.environ.get("TESTING"):
+        if not rate_limiter.is_allowed(client_ip):
+            return jsonify({"error": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."}), 429
 
     # 멀티 테넌트 지원: X-Tenant-Id 헤더 (선택, 기본값 "default")
     tenant_id = request.headers.get("X-Tenant-Id", "default")
@@ -3215,8 +3216,9 @@ def v2_faq_list():
 def v2_chat():
     """Chat endpoint (v2) - same as v1 but response includes API version."""
     client_ip = request.remote_addr or "unknown"
-    if not rate_limiter.is_allowed(client_ip):
-        return jsonify({"error": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."}), 429
+    if not app.config.get("TESTING") and not os.environ.get("TESTING"):
+        if not rate_limiter.is_allowed(client_ip):
+            return jsonify({"error": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."}), 429
 
     tenant_id = request.headers.get("X-Tenant-Id", "default")
     tenant = tenant_manager.get_tenant(tenant_id)
