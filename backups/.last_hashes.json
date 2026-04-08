@@ -1,15 +1,15 @@
 {
   "data/ab_tests.db": {
     "size": 32768,
-    "sha256": "0eafd34b1119df66a93d298021a6425ae0d79b096544f998cc931483ee83f508"
+    "sha256": "5e36be4bef49c7572600ea60a1d22fef5f723c53c2bbfce8ca609f2f36e4f4a4"
   },
   "data/alerts.db": {
-    "size": 20480,
-    "sha256": "763adbc40ca1a85ea7eafb3aaf8e849bca1cd87c86317a342b7b3b7992970fc7"
+    "size": 24576,
+    "sha256": "4f833e14df6129f6b5a123aec737446415744988c9240c9fc5b44b9f4da87db7"
   },
   "data/audit.db": {
-    "size": 172032,
-    "sha256": "50a338a7c4b46c6607f3d01b899dfa3eac44d5ba82de0db07f70a41c65c7a966"
+    "size": 471040,
+    "sha256": "42e0c7efc0663a7bcdb5f1478db500af75c106c5041e7234e914a53b7514ba85"
   },
   "data/escalation_rules.json": {
     "size": 2262,
@@ -24,8 +24,8 @@
     "sha256": "77bcb3bcfe128807ea3dae1589e5623616654e891ae94cd12a1796833f18c9eb"
   },
   "data/faq_snapshots.db": {
-    "size": 380928,
-    "sha256": "133da04d1826de140352260de16cca2e1b23d121929ed291d02f6d91b23dc759"
+    "size": 5062656,
+    "sha256": "0e009711c91631e850d9ed11f2c162b68864e08d3e0ec5723d6993bd787f8f27"
   },
   "data/law_versions.db": {
     "size": 20480,
@@ -36,35 +36,35 @@
     "sha256": "f06b07261036a8e8e68069b51c4b50a3c8f0287a38d4fa3294d5926ba16fb817"
   },
   "data/memory.db": {
-    "size": 61440,
-    "sha256": "e1d1636956415b6484bb1d6982f9df08afb3e362456571553de18e94a86273b8"
+    "size": 163840,
+    "sha256": "e83da3e73e45ac3cbc4ae1c666dae713e7defdc5ef1e2fa806e3ae32cf49c6e2"
   },
   "data/migrations.db": {
     "size": 8192,
     "sha256": "62b0e0c80d5b9ab7348a33538b1bcd04661b39da44c434f03273f5546c221428"
   },
   "data/scheduler.db": {
-    "size": 16384,
-    "sha256": "3dc254dc513ddc89f4aa604ae5f469f3388301970c4634accabcfc2062167201"
+    "size": 28672,
+    "sha256": "decd6f78efe1ef9a7bbc8d3009e4d17b1cce8b418b8399c742ec0676177a53ea"
   },
   "data/segments.db": {
-    "size": 49152,
-    "sha256": "2ca5d0e45e17cd9224c1f20b14ac40ffc515deaf93638721fd0327797c754757"
+    "size": 151552,
+    "sha256": "5a18513301fa1a1ab19e8826bc4f38e9bc24474ea8e10d7bdb8aa3af71bef00f"
   },
   "data/sentiment.db": {
-    "size": 221184,
-    "sha256": "3ad739eb3cd07ac0ffe3941c438ee9db13ab27b3d34e3c49d7c2e388770f349c"
+    "size": 3428352,
+    "sha256": "0b4270cbfe5784d79522b1baf10f5d93ab9156426b32e0578f65fab05c1936b4"
   },
   "data/tenants.db": {
     "size": 24576,
-    "sha256": "f19635104998acb852295ba5a80d1f1e1597fd7cf57c6d4efb0503b7c84ded44"
+    "sha256": "06783cdc628d91f10890000c0c917e7f33ff8c713c7cc3851576d451b4e3fc4e"
   },
   "data/user_profiles.db": {
-    "size": 57344,
-    "sha256": "b64c633e5ef6592ff5816336513a1036fa2570013be38b57436dd3edf4bed866"
+    "size": 126976,
+    "sha256": "796da72084d51d5b3433305338f1e79b1594134522153d8b6abda0093fa20f5b"
   },
   "data/webhooks.db": {
-    "size": 466944,
-    "sha256": "1f8d6961045459e981a8d1573e51232a34ce5271a8cc273d17f01a5a9a9992bc"
+    "size": 2097152,
+    "sha256": "9858a89b20ef337ac2b7da7dfbac770dc1dc850c92b57c5394fea790ed9e14ad"
   }
 }

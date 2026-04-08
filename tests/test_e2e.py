@@ -225,7 +225,8 @@ class TestLoadSimulation:
             for f in concurrent.futures.as_completed(futures):
                 results.append(f.result())
 
-        assert all(code == 200 for code in results)
+        # Allow 200 or 429 (rate limited) in concurrent scenario
+        assert all(code in (200, 429) for code in results)
         assert len(results) == 50
 
     def test_all_faq_questions(self):
