@@ -14,10 +14,13 @@ import os
 import sys
 import time
 from datetime import datetime
+from collections import defaultdict
+from functools import wraps
+import json as json_module
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from flask import Flask, Response, request, jsonify, send_from_directory
+from flask import Flask, Response, request, jsonify, send_from_directory, make_response
 from src.chatbot import BondedExhibitionChatbot
 from src.metrics import metrics as metrics_collector
 from src.classifier import classify_query
@@ -79,19 +82,34 @@ from src.error_recovery import ErrorRecovery, CircuitBreakerOpenError
 from src.smart_suggestions import SmartSuggestionEngine
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MAX_QUERY_LENGTH = 2000
+MAX_QUERY_LENGTH = 500  # Production: reduced from 2000 to 500 chars for better security
+APP_VERSION = "4.0.0"
 
 # logs 디렉토리 자동 생성
 os.makedirs(os.path.join(BASE_DIR, "logs"), exist_ok=True)
 
 app = Flask(__name__, static_folder=os.path.join(BASE_DIR, "web"), static_url_path="/static")
 
+# Production configuration
+app.config['JSON_SORT_KEYS'] = False
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
+
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("chatbot")
+
+# Production request logging setup
+_request_log_handler = logging.FileHandler(os.path.join(BASE_DIR, "logs", "requests.log"))
+_request_log_handler.setFormatter(logging.Formatter(
+    "%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+))
+_request_logger = logging.getLogger("requests")
+_request_logger.addHandler(_request_log_handler)
+_request_logger.setLevel(logging.INFO)
 
 chatbot = BondedExhibitionChatbot()
 chat_logger = ChatLogger(db_path=os.path.join(BASE_DIR, "logs", "chat_logs.db"))
@@ -232,6 +250,49 @@ sort_helper = SortHelper()
 # 에러 복구 시스템 초기화
 error_recovery = ErrorRecovery(db_path=os.path.join(BASE_DIR, "logs", "error_logs.db"))
 
+# --- Production: Simple in-memory rate limiter (60 requests/min per IP) ---
+class ProductionRateLimiter:
+    """Simple in-memory rate limiter for production."""
+    def __init__(self, max_requests=60, window_seconds=60):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.requests = defaultdict(list)  # IP -> list of timestamps
+
+    def is_allowed(self, client_ip):
+        """Check if request is allowed for the client IP."""
+        now = time.time()
+        # Clean old requests
+        self.requests[client_ip] = [ts for ts in self.requests[client_ip]
+                                   if now - ts < self.window_seconds]
+
+        if len(self.requests[client_ip]) < self.max_requests:
+            self.requests[client_ip].append(now)
+            return True
+        return False
+
+    def get_stats(self, client_ip):
+        """Get current request stats for IP."""
+        now = time.time()
+        self.requests[client_ip] = [ts for ts in self.requests[client_ip]
+                                   if now - ts < self.window_seconds]
+        return {
+            'requests': len(self.requests[client_ip]),
+            'limit': self.max_requests,
+            'window': self.window_seconds
+        }
+
+_production_rate_limiter = ProductionRateLimiter(
+    max_requests=int(os.environ.get("PRODUCTION_RATE_LIMIT", "60")),
+    window_seconds=60
+)
+
+# --- Request usage statistics ---
+_usage_stats = {
+    'total_queries': 0,
+    'start_time': time.time(),
+    'errors': defaultdict(int),
+}
+
 # --- FAQ in-memory cache ---
 _faq_cache: dict = {}
 
@@ -257,6 +318,59 @@ def _get_client_ip():
     """Extract client IP from request."""
     return request.remote_addr or "unknown"
 
+
+# --- Production: CORS Configuration ---
+def _get_cors_origins():
+    """Get allowed CORS origins from environment variable."""
+    default_origins = ["http://localhost:5000", "http://localhost:8080", "http://localhost:3000"]
+    cors_origins = os.environ.get("CHATBOT_CORS_ORIGINS", ",".join(default_origins))
+    return [origin.strip() for origin in cors_origins.split(",")]
+
+_CORS_ORIGINS = _get_cors_origins()
+
+@app.before_request
+def _add_cors_headers():
+    """Add CORS headers to request."""
+    if request.method == 'OPTIONS':
+        response = make_response()
+        origin = request.headers.get('Origin')
+        if origin in _CORS_ORIGINS:
+            response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Tenant-Id'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Max-Age'] = '3600'
+        return response, 200
+
+@app.after_request
+def _apply_cors_headers(response):
+    """Apply CORS headers to response."""
+    origin = request.headers.get('Origin')
+    if origin in _CORS_ORIGINS:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+    return response
+
+# --- Production: Request logging middleware ---
+@app.before_request
+def _log_request_start():
+    """Log request start with timestamp."""
+    request._start_time = time.time()
+    client_ip = _get_client_ip()
+    _request_logger.info(f"[START] {request.method} {request.path} from {client_ip}")
+
+@app.after_request
+def _log_request_end(response):
+    """Log request completion with response time."""
+    if hasattr(request, '_start_time'):
+        elapsed = time.time() - request._start_time
+        status_code = response.status_code
+        client_ip = _get_client_ip()
+        _request_logger.info(
+            f"[END] {request.method} {request.path} "
+            f"status={status_code} time={elapsed:.3f}s from {client_ip}"
+        )
+    return response
 
 # --- Advanced rate limiting middleware ---
 _RATE_LIMIT_EXEMPT_PATHS = {"/", "/api/health", "/static", "/manifest.json", "/sw.js"}
@@ -432,152 +546,195 @@ def service_worker():
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
-    """사용자 질문을 처리하여 답변을 반환한다."""
-    # Rate Limiting 적용 (테스트 모드 제외)
-    client_ip = request.remote_addr or "unknown"
-    if not app.config.get("TESTING") and not os.environ.get("TESTING"):
-        if not rate_limiter.is_allowed(client_ip):
-            return jsonify({"error": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."}), 429
-
-    # 멀티 테넌트 지원: X-Tenant-Id 헤더 (선택, 기본값 "default")
-    tenant_id = request.headers.get("X-Tenant-Id", "default")
-    tenant = tenant_manager.get_tenant(tenant_id)
-    if tenant is None:
-        return jsonify({"error": f"테넌트 '{tenant_id}'를 찾을 수 없습니다."}), 404
-    if not tenant.get("active", True):
-        return jsonify({"error": f"테넌트 '{tenant_id}'가 비활성 상태입니다."}), 403
-
-    data = request.get_json(silent=True)
-    if not data or "query" not in data:
-        return jsonify({"error": "query 필드가 필요합니다."}), 400
-
-    raw_query = data["query"]
-    if not isinstance(raw_query, str):
-        return jsonify({"error": "query는 문자열이어야 합니다."}), 400
-
-    # 입력 살균 적용
-    query = sanitize_input(raw_query, max_length=MAX_QUERY_LENGTH)
-    if not query:
-        return jsonify({"error": "질문을 입력해 주세요."}), 400
-
-    if len(query) > MAX_QUERY_LENGTH:
-        return jsonify({"error": f"질문은 {MAX_QUERY_LENGTH}자 이내로 입력해 주세요."}), 400
-
-    categories = classify_query(query)
-    escalation = check_escalation(query)
-    # 세션 ID 처리 (선택적)
-    session_id = data.get("session_id")
-
-    # 감정 분석
-    sentiment_result = sentiment_analyzer.analyze_and_store(query, session_id=session_id)
-
-    answer = chatbot.process_query(query, session_id=session_id)
-
-    # 감정에 따른 답변 톤 조절
-    answer = sentiment_analyzer.adjust_response_tone(answer, sentiment_result)
-
-    # 매우 부정적 감정 시 자동 에스컬레이션
-    sentiment_escalation = sentiment_analyzer.should_escalate(sentiment_result)
-    if sentiment_escalation and escalation is None:
-        escalation = {"target": "customer_support", "reason": "negative_sentiment"}
-
-    logger.info(f"질문: {query[:50]}... | 분류: {categories[0]} | 에스컬레이션: {escalation is not None}")
-
-    primary_category = categories[0] if categories else "GENERAL"
-    is_escalation = escalation is not None
-
-    # FAQ 매칭 결과에서 faq_id 추출
-    faq_match = chatbot.find_matching_faq(query, primary_category)
-    faq_id = faq_match.get("id") if faq_match else None
-
-    # 로그 저장 + 모니터링 이벤트
+    """Production chat endpoint with comprehensive error handling."""
     try:
-        chat_logger.log_query(
-            query=query,
-            category=primary_category,
-            faq_id=faq_id,
-            is_escalation=is_escalation,
-            response_preview=answer,
-        )
-        event_type = "escalation" if is_escalation else ("query" if faq_match else "unmatched")
-        realtime_monitor.record_event(event_type, {"query": query, "category": primary_category})
-        # 사용자 추천 시스템에 질문 기록
-        if session_id:
-            user_recommender.record_query(session_id, query, primary_category, faq_id)
-    except Exception as e:
-        logger.error(f"로그 저장 실패: {e}")
+        # Production: Simple rate limiting per IP (60 req/min)
+        client_ip = request.remote_addr or "unknown"
+        if not app.config.get("TESTING") and not os.environ.get("TESTING"):
+            if not _production_rate_limiter.is_allowed(client_ip):
+                logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+                return jsonify({
+                    "error": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
+                    "error_code": "RATE_LIMIT_EXCEEDED"
+                }), 429
 
-    # 사용자 세분화 분류 및 답변 깊이 조절
-    user_segment = None
-    if session_id:
+        # Validate request JSON
+        data = request.get_json(silent=True)
+        if not data:
+            logger.warning(f"Invalid JSON from {client_ip}")
+            return jsonify({
+                "error": "요청 형식이 올바르지 않습니다.",
+                "error_code": "INVALID_JSON"
+            }), 400
+
+        if "query" not in data:
+            return jsonify({
+                "error": "query 필드가 필요합니다.",
+                "error_code": "MISSING_FIELD"
+            }), 400
+
+        raw_query = data["query"]
+        if not isinstance(raw_query, str):
+            return jsonify({
+                "error": "query는 문자열이어야 합니다.",
+                "error_code": "INVALID_TYPE"
+            }), 400
+
+        # Production: Input validation (max 500 chars)
+        if len(raw_query) > MAX_QUERY_LENGTH:
+            return jsonify({
+                "error": f"질문은 {MAX_QUERY_LENGTH}자 이내로 입력해 주세요.",
+                "error_code": "QUERY_TOO_LONG",
+                "max_length": MAX_QUERY_LENGTH
+            }), 400
+
+        if not raw_query.strip():
+            return jsonify({
+                "error": "질문을 입력해 주세요.",
+                "error_code": "EMPTY_QUERY"
+            }), 400
+
+        # 입력 살균 적용
+        query = sanitize_input(raw_query, max_length=MAX_QUERY_LENGTH)
+
+        # 멀티 테넌트 지원: X-Tenant-Id 헤더 (선택, 기본값 "default")
+        tenant_id = request.headers.get("X-Tenant-Id", "default")
+        tenant = tenant_manager.get_tenant(tenant_id)
+        if tenant is None:
+            return jsonify({
+                "error": f"테넌트 '{tenant_id}'를 찾을 수 없습니다.",
+                "error_code": "TENANT_NOT_FOUND"
+            }), 404
+        if not tenant.get("active", True):
+            return jsonify({
+                "error": f"테넌트 '{tenant_id}'가 비활성 상태입니다.",
+                "error_code": "TENANT_INACTIVE"
+            }), 403
+
+        categories = classify_query(query)
+        escalation = check_escalation(query)
+        # 세션 ID 처리 (선택적)
+        session_id = data.get("session_id")
+
+        # 감정 분석
+        sentiment_result = sentiment_analyzer.analyze_and_store(query, session_id=session_id)
+
+        answer = chatbot.process_query(query, session_id=session_id)
+
+        # 감정에 따른 답변 톤 조절
+        answer = sentiment_analyzer.adjust_response_tone(answer, sentiment_result)
+
+        # 매우 부정적 감정 시 자동 에스컬레이션
+        sentiment_escalation = sentiment_analyzer.should_escalate(sentiment_result)
+        if sentiment_escalation and escalation is None:
+            escalation = {"target": "customer_support", "reason": "negative_sentiment"}
+
+        logger.info(f"질문: {query[:50]}... | 분류: {categories[0]} | 에스컬레이션: {escalation is not None}")
+
+        primary_category = categories[0] if categories else "GENERAL"
+        is_escalation = escalation is not None
+
+        # FAQ 매칭 결과에서 faq_id 추출
+        faq_match = chatbot.find_matching_faq(query, primary_category)
+        faq_id = faq_match.get("id") if faq_match else None
+
+        # 로그 저장 + 모니터링 이벤트
         try:
-            user_segment = user_segmenter.classify_user(session_id, query)
-            answer = user_segmenter.adjust_response_depth(answer, user_segment)
+            chat_logger.log_query(
+                query=query,
+                category=primary_category,
+                faq_id=faq_id,
+                is_escalation=is_escalation,
+                response_preview=answer,
+            )
+            event_type = "escalation" if is_escalation else ("query" if faq_match else "unmatched")
+            realtime_monitor.record_event(event_type, {"query": query, "category": primary_category})
+            # 사용자 추천 시스템에 질문 기록
+            if session_id:
+                user_recommender.record_query(session_id, query, primary_category, faq_id)
         except Exception as e:
-            logger.error(f"사용자 세분화 실패: {e}")
+            logger.error(f"로그 저장 실패: {e}")
 
-    # 다국어 지원: lang 파라미터에 따라 답변 헤더 번역
-    lang = data.get("lang", "ko")
-    if lang and lang != "ko" and translator.is_supported(lang):
-        translated_answer = translator.translate_response(answer, lang)
-    else:
-        translated_answer = answer
-        lang = "ko"
-
-    # 관련 질문 추천
-    related = []
-    if faq_id:
-        try:
-            related = chatbot.related_faq_finder.find_related(faq_id, top_k=3)
-        except Exception:
-            pass
-
-    # 스마트 제안 생성
-    suggestions = []
-    try:
-        session_history = []
+        # 사용자 세분화 분류 및 답변 깊이 조절
+        user_segment = None
         if session_id:
-            ctx = chatbot.session_manager.get_context(session_id) if hasattr(chatbot.session_manager, "get_context") else {}
-            session_history = ctx.get("queries", []) if isinstance(ctx, dict) else []
-        suggestions = smart_suggestion_engine.get_follow_up_suggestions(
-            query, translated_answer, primary_category, session_history=session_history,
-        )
-    except Exception as e:
-        logger.error(f"스마트 제안 생성 실패: {e}")
+            try:
+                user_segment = user_segmenter.classify_user(session_id, query)
+                answer = user_segmenter.adjust_response_depth(answer, user_segment)
+            except Exception as e:
+                logger.error(f"사용자 세분화 실패: {e}")
 
-    response = {
-        "answer": translated_answer,
-        "category": primary_category,
-        "categories": categories,
-        "is_escalation": is_escalation,
-        "escalation_target": escalation.get("target") if escalation else None,
-        "lang": lang,
-        "related_questions": [{"id": r["id"], "question": r["question"]} for r in related],
-        "suggestions": suggestions,
-        "tenant_id": tenant_id,
-        "sentiment": sentiment_result,
-        "user_segment": user_segment,
-    }
+        # 다국어 지원: lang 파라미터에 따라 답변 헤더 번역
+        lang = data.get("lang", "ko")
+        if lang and lang != "ko" and translator.is_supported(lang):
+            translated_answer = translator.translate_response(answer, lang)
+        else:
+            translated_answer = answer
+            lang = "ko"
 
-    if session_id:
-        response["session_id"] = session_id
-        # 개인화 추천 추가
+        # 관련 질문 추천
+        related = []
+        if faq_id:
+            try:
+                related = chatbot.related_faq_finder.find_related(faq_id, top_k=3)
+            except Exception:
+                pass
+
+        # 스마트 제안 생성
+        suggestions = []
         try:
-            recommended = user_recommender.get_recommendations(session_id, top_n=3)
-            response["recommended"] = recommended
-        except Exception:
-            response["recommended"] = []
-
-        # 컨텍스트 메모리: 토픽 저장 및 재방문 사용자 resume 제공
-        try:
-            conversation_memory_manager.remember_topic(session_id, query, primary_category)
-            resume = conversation_memory_manager.get_conversation_resume(session_id)
-            if resume and conversation_memory_manager.is_returning_user(session_id):
-                response["conversation_resume"] = resume
+            session_history = []
+            if session_id:
+                ctx = chatbot.session_manager.get_context(session_id) if hasattr(chatbot.session_manager, "get_context") else {}
+                session_history = ctx.get("queries", []) if isinstance(ctx, dict) else []
+            suggestions = smart_suggestion_engine.get_follow_up_suggestions(
+                query, translated_answer, primary_category, session_history=session_history,
+            )
         except Exception as e:
-            logger.error(f"컨텍스트 메모리 저장 실패: {e}")
+            logger.error(f"스마트 제안 생성 실패: {e}")
 
-    return jsonify(response)
+        response = {
+            "answer": translated_answer,
+            "category": primary_category,
+            "categories": categories,
+            "is_escalation": is_escalation,
+            "escalation_target": escalation.get("target") if escalation else None,
+            "lang": lang,
+            "related_questions": [{"id": r["id"], "question": r["question"]} for r in related],
+            "suggestions": suggestions,
+            "tenant_id": tenant_id,
+            "sentiment": sentiment_result,
+            "user_segment": user_segment,
+        }
+
+        if session_id:
+            response["session_id"] = session_id
+            # 개인화 추천 추가
+            try:
+                recommended = user_recommender.get_recommendations(session_id, top_n=3)
+                response["recommended"] = recommended
+            except Exception:
+                response["recommended"] = []
+
+            # 컨텍스트 메모리: 토픽 저장 및 재방문 사용자 resume 제공
+            try:
+                conversation_memory_manager.remember_topic(session_id, query, primary_category)
+                resume = conversation_memory_manager.get_conversation_resume(session_id)
+                if resume and conversation_memory_manager.is_returning_user(session_id):
+                    response["conversation_resume"] = resume
+            except Exception as e:
+                logger.error(f"컨텍스트 메모리 저장 실패: {e}")
+
+        _usage_stats['total_queries'] += 1
+        return jsonify(response)
+
+    except Exception as e:
+        logger.error(f"Chat processing error: {e}", exc_info=True)
+        _usage_stats['errors']['processing'] = _usage_stats['errors'].get('processing', 0) + 1
+        return jsonify({
+            "error": "답변 처리 중 오류가 발생했습니다.",
+            "error_code": "PROCESSING_ERROR"
+        }), 500
 
 
 @app.route("/api/recommendations", methods=["GET"])
@@ -722,8 +879,41 @@ def autocomplete():
 
 @app.route("/api/health", methods=["GET"])
 def health():
-    """헬스 체크 엔드포인트."""
-    return jsonify({"status": "ok", "faq_count": len(chatbot.faq_items)})
+    """Production health check endpoint with version and FAQ count."""
+    try:
+        faq_count = len(chatbot.faq_items) if hasattr(chatbot, 'faq_items') else 0
+        return jsonify({
+            "status": "ok",
+            "version": APP_VERSION,
+            "faq_count": faq_count,
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }), 200
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return jsonify({
+            "status": "error",
+            "version": APP_VERSION,
+            "error": str(e)
+        }), 500
+
+
+@app.route("/api/v1/stats", methods=["GET"])
+def api_stats():
+    """Production API stats endpoint returning basic usage statistics."""
+    try:
+        uptime_seconds = time.time() - _usage_stats['start_time']
+        uptime_hours = uptime_seconds / 3600
+
+        return jsonify({
+            "total_queries": _usage_stats['total_queries'],
+            "uptime_seconds": round(uptime_seconds, 2),
+            "uptime_hours": round(uptime_hours, 2),
+            "version": APP_VERSION,
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }), 200
+    except Exception as e:
+        logger.error(f"Stats endpoint failed: {e}")
+        return jsonify({"error": "Failed to retrieve statistics"}), 500
 
 
 @app.route("/metrics", methods=["GET"])
@@ -3408,11 +3598,4 @@ def main():
     parser = argparse.ArgumentParser(description="보세전시장 챗봇 웹 서버")
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--host", type=str, default="0.0.0.0")
-    args = parser.parse_args()
-
-    logger.info(f"보세전시장 챗봇 웹 서버 시작: http://{args.host}:{args.port}")
-    app.run(host=args.host, port=args.port, debug=False)
-
-
-if __name__ == "__main__":
-    main()
+    args = pa

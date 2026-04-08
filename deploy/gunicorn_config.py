@@ -11,13 +11,13 @@ import os
 bind = os.environ.get("GUNICORN_BIND", "0.0.0.0:8080")
 
 # 워커 프로세스
-workers = int(os.environ.get("GUNICORN_WORKERS", multiprocessing.cpu_count() * 2 + 1))
+workers = int(os.environ.get("GUNICORN_WORKERS", 4))
 worker_class = "sync"
 worker_connections = 1000
 
 # 타임아웃
-timeout = int(os.environ.get("GUNICORN_TIMEOUT", 30))
-graceful_timeout = 30
+timeout = int(os.environ.get("GUNICORN_TIMEOUT", 120))
+graceful_timeout = int(os.environ.get("GUNICORN_GRACEFUL_TIMEOUT", 30))
 keepalive = 5
 
 # 프리로드 (메모리 절약: FAQ 데이터를 한 번만 로드)
@@ -27,7 +27,8 @@ preload_app = True
 accesslog = os.environ.get("GUNICORN_ACCESS_LOG", "/app/logs/gunicorn_access.log")
 errorlog = os.environ.get("GUNICORN_ERROR_LOG", "/app/logs/gunicorn_error.log")
 loglevel = os.environ.get("GUNICORN_LOG_LEVEL", "info")
-access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
+# Production: Include response time (%(D)s = microseconds)
+access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" response_time=%(D)sus'
 
 # 프로세스 이름
 proc_name = "bonded-exhibition-chatbot"

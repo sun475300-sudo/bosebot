@@ -41,7 +41,7 @@ EXIT_UNHEALTHY = 2
 
 
 def check_api_health(host, port):
-    """API 헬스 엔드포인트를 확인한다.
+    """API 헬스 엔드포인트를 확인한다. Production version with timeout handling.
 
     Args:
         host: 서버 호스트
@@ -65,16 +65,19 @@ def check_api_health(host, port):
         req = urllib.request.Request(url, method="GET")
         req.add_header("User-Agent", "chatbot-healthcheck/2.0")
 
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=5) as response:
             elapsed = time.time() - start_time
             body = response.read().decode("utf-8")
             data = json.loads(body)
 
     except urllib.error.URLError as e:
-        result["message"] = f"연결 실패: {e}"
+        result["message"] = f"Connection failed: {e}"
+        return result
+    except urllib.error.HTTPError as e:
+        result["message"] = f"HTTP error {e.code}: {e.reason}"
         return result
     except Exception as e:
-        result["message"] = f"요청 오류: {e}"
+        result["message"] = f"Request error: {e}"
         return result
 
     result["response_time"] = round(elapsed, 4)
@@ -82,28 +85,28 @@ def check_api_health(host, port):
     # 상태 확인
     status = data.get("status")
     if status != "ok":
-        result["message"] = f"상태 비정상: status={status}"
+        result["message"] = f"Unhealthy status: status={status}"
         return result
 
     # FAQ 수 검증
     faq_count = data.get("faq_count", 0)
     result["faq_count"] = faq_count
     if faq_count < MIN_FAQ_COUNT:
-        result["message"] = f"FAQ 수 부족: {faq_count}개 (최소 {MIN_FAQ_COUNT}개)"
+        result["message"] = f"Insufficient FAQ count: {faq_count} (minimum {MIN_FAQ_COUNT})"
         return result
 
     # 응답 시간 검증
     if elapsed > MAX_RESPONSE_TIME:
-        result["message"] = f"응답 시간 초과: {elapsed:.2f}초"
+        result["message"] = f"Response time exceeded: {elapsed:.2f}s"
         return result
 
     if elapsed > DEGRADED_RESPONSE_TIME:
         result["status"] = "degraded"
-        result["message"] = f"응답 시간 경고: {elapsed:.2f}초 (임계치: {DEGRADED_RESPONSE_TIME}초)"
+        result["message"] = f"Response time warning: {elapsed:.2f}s (threshold: {DEGRADED_RESPONSE_TIME}s)"
         return result
 
     result["status"] = "pass"
-    result["message"] = f"정상 (FAQ: {faq_count}개, 응답시간: {elapsed:.3f}초)"
+    result["message"] = f"Healthy (FAQ: {faq_count}, response time: {elapsed:.3f}s)"
     return result
 
 
@@ -375,7 +378,7 @@ def run_all_checks(host, port, db_path, detailed=False):
 
 
 def check_health(host, port):
-    """기본 헬스체크를 수행한다 (하위 호환성 유지).
+    """기본 헬스체크를 수행한다 (하위 호환성 유지). Production version.
 
     Args:
         host: 서버 호스트
@@ -392,31 +395,33 @@ def check_health(host, port):
         req = urllib.request.Request(url, method="GET")
         req.add_header("User-Agent", "chatbot-healthcheck/1.0")
 
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=5) as response:
             elapsed = time.time() - start_time
             body = response.read().decode("utf-8")
             data = json.loads(body)
 
     except urllib.error.URLError as e:
-        return False, f"연결 실패: {e}"
+        return False, f"Connection failed: {e}"
+    except urllib.error.HTTPError as e:
+        return False, f"HTTP error {e.code}: {e.reason}"
     except Exception as e:
-        return False, f"요청 오류: {e}"
+        return False, f"Request error: {e}"
 
     # 상태 확인
     status = data.get("status")
     if status != "ok":
-        return False, f"상태 비정상: status={status}"
+        return False, f"Unhealthy status: status={status}"
 
     # FAQ 수 검증
     faq_count = data.get("faq_count", 0)
     if faq_count < MIN_FAQ_COUNT:
-        return False, f"FAQ 수 부족: {faq_count}개 (최소 {MIN_FAQ_COUNT}개 필요)"
+        return False, f"Insufficient FAQ: {faq_count} (minimum {MIN_FAQ_COUNT})"
 
     # 응답 시간 검증
     if elapsed > MAX_RESPONSE_TIME:
-        return False, f"응답 시간 초과: {elapsed:.2f}초 (최대 {MAX_RESPONSE_TIME}초)"
+        return False, f"Response time exceeded: {elapsed:.2f}s (max {MAX_RESPONSE_TIME}s)"
 
-    return True, f"정상 (FAQ: {faq_count}개, 응답시간: {elapsed:.3f}초)"
+    return True, f"Healthy (FAQ: {faq_count}, response time: {elapsed:.3f}s)"
 
 
 def main():
