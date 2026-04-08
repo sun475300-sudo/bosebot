@@ -455,8 +455,8 @@ def _add_response_time_header(response):
         try:
             metrics_collector.set_gauge("active_sessions", chatbot.session_manager.active_count())
             metrics_collector.set_gauge("faq_count", len(chatbot.faq_items))
-        except Exception:
-            pass
+        except (AttributeError, TypeError) as e:
+            logger.debug(f"Metrics gauge update skipped: {e}")
     return response
 
 
