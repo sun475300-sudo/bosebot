@@ -242,7 +242,9 @@ class TestRateLimiter:
         rate_limiter.window_seconds = 60
         rate_limiter.reset()
 
-        app.config["TESTING"] = True
+        # Disable TESTING to allow rate limiter to run
+        old_testing = os.environ.pop("TESTING", None)
+        app.config["TESTING"] = False
         with app.test_client() as client:
             for _ in range(2):
                 client.post("/api/chat", json={"query": "테스트"})
@@ -250,6 +252,9 @@ class TestRateLimiter:
             assert res.status_code == 429
             data = res.get_json()
             assert "요청이 너무 많습니다" in data["error"]
+        app.config["TESTING"] = True
+        if old_testing:
+            os.environ["TESTING"] = old_testing
 
         # 테스트 후 원복
         rate_limiter.max_requests = 60
