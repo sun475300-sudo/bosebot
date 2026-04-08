@@ -1,0 +1,2050 @@
+openapi: 3.0.3
+info:
+  title: Korean Bonded Exhibition Hall Chatbot API
+  description: |
+    RESTful API for Korean bonded exhibition hall chatbot system.
+    Supports conversation management, admin operations, RAG document handling, and analytics dashboard.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@bonded-exhibition.kr
+  license:
+    name: Proprietary
+    url: https://bonded-exhibition.kr/license
+
+servers:
+  - url: https://api.bonded-exhibition.kr/api/v1
+    description: Production server
+  - url: https://staging-api.bonded-exhibition.kr/api/v1
+    description: Staging server
+  - url: http://localhost:8000/api/v1
+    description: Local development server
+
+tags:
+  - name: Chat
+    description: Conversation management and messaging endpoints
+  - name: Admin
+    description: Administrative operations for FAQ, intents, and entities
+  - name: RAG
+    description: Retrieval-Augmented Generation document management
+  - name: Dashboard
+    description: Analytics and metrics endpoints
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication. Obtain token from /auth/login endpoint.
+
+  schemas:
+    # Common Response Schemas
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Error code identifier
+          enum:
+            - INVALID_INPUT
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - NOT_FOUND
+            - CONFLICT
+            - RATE_LIMIT
+            - INTERNAL_ERROR
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error details
+          additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of error occurrence
+
+    PaginationParams:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          default: 1
+          description: Page number (1-indexed)
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+          description: Items per page
+        sort_by:
+          type: string
+          description: Field name to sort by
+        sort_order:
+          type: string
+          enum: [asc, desc]
+          default: desc
+          description: Sort order
+
+    PaginatedResponse:
+      type: object
+      required:
+        - total
+        - page
+        - limit
+        - items
+      properties:
+        total:
+          type: integer
+          description: Total number of items
+        page:
+          type: integer
+          description: Current page number
+        limit:
+          type: integer
+          description: Items per page
+        has_next:
+          type: boolean
+          description: Whether there are more pages
+        has_prev:
+          type: boolean
+          description: Whether there are previous pages
+        items:
+          type: array
+          description: List of items
+
+    # Chat Related Schemas
+    ChatMessage:
+      type: object
+      required:
+        - role
+        - content
+      properties:
+        role:
+          type: string
+          enum: [user, assistant, system]
+          description: Message sender role
+        content:
+          type: string
+          description: Message content
+        timestamp:
+          type: string
+          format: date-time
+          description: Message timestamp
+        metadata:
+          type: object
+          description: Additional message metadata
+          properties:
+            intent:
+              type: string
+              description: Detected user intent
+            entities:
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  value:
+                    type: string
+            confidence:
+              type: number
+              minimum: 0
+              maximum: 1
+              description: Confidence score of intent detection
+
+    ChatRequest:
+      type: object
+      required:
+        - session_id
+        - message
+      properties:
+        session_id:
+          type: string
+          format: uuid
+          description: Unique conversation session identifier
+        message:
+          type: string
+          description: User message text
+          minLength: 1
+          maxLength: 5000
+        language:
+          type: string
+          default: ko
+          enum: [ko, en, ja, zh]
+          description: Message language code
+        user_id:
+          type: string
+          description: Optional user identifier
+        context:
+          type: object
+          description: Optional conversation context
+          properties:
+            previous_intent:
+              type: string
+            user_metadata:
+              type: object
+
+    ChatResponse:
+      type: object
+      required:
+        - session_id
+        - response
+        - message_id
+      properties:
+        session_id:
+          type: string
+          format: uuid
+          description: Conversation session ID
+        message_id:
+          type: string
+          format: uuid
+          description: Unique message identifier
+        response:
+          type: string
+          description: Chatbot response text
+        intent:
+          type: string
+          description: Detected user intent
+        entities:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              value:
+                type: string
+              confidence:
+                type: number
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Confidence score of response
+        sources:
+          type: array
+          items:
+            type: object
+            properties:
+              document_id:
+                type: string
+              title:
+                type: string
+              excerpt:
+                type: string
+          description: RAG document sources used
+        timestamp:
+          type: string
+          format: date-time
+        requires_escalation:
+          type: boolean
+          description: Whether this conversation should be escalated
+
+    ConversationHistory:
+      type: object
+      required:
+        - session_id
+        - messages
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean
+
+    FeedbackRequest:
+      type: object
+      required:
+        - message_id
+        - session_id
+        - rating
+      properties:
+        message_id:
+          type: string
+          format: uuid
+        session_id:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: User satisfaction rating
+        comment:
+          type: string
+          maxLength: 2000
+          description: Optional user comment
+        useful:
+          type: boolean
+          description: Was the response useful
+        issues:
+          type: array
+          items:
+            type: string
+            enum:
+              - incorrect_info
+              - incomplete_answer
+              - irrelevant
+              - tone_inappropriate
+              - other
+
+    # Admin Related Schemas
+    FAQ:
+      type: object
+      required:
+        - question
+        - answer
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        question:
+          type: string
+          minLength: 5
+          maxLength: 500
+          description: FAQ question in Korean
+        answer:
+          type: string
+          minLength: 10
+          maxLength: 5000
+          description: FAQ answer in Korean
+        category:
+          type: string
+          enum:
+            - general
+            - regulations
+            - procedures
+            - fees
+            - hours
+            - contact
+            - other
+          description: FAQ category
+        keywords:
+          type: array
+          items:
+            type: string
+          description: Search keywords
+        status:
+          type: string
+          enum: [draft, pending_approval, approved, rejected]
+          default: draft
+          description: Approval workflow status
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Display priority
+        created_by:
+          type: string
+          readOnly: true
+          description: Creator user ID
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        approved_by:
+          type: string
+          description: Approver user ID
+        approved_at:
+          type: string
+          format: date-time
+
+    Intent:
+      type: object
+      required:
+        - name
+        - patterns
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          description: Intent name in English
+        korean_name:
+          type: string
+          description: Intent name in Korean
+        description:
+          type: string
+          maxLength: 500
+        patterns:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          description: Regex or phrase patterns for intent detection
+        responses:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          description: Template responses for this intent
+        entities:
+          type: array
+          items:
+            type: string
+          description: Associated entity types
+        active:
+          type: boolean
+          default: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    Entity:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          description: Entity name
+        type:
+          type: string
+          enum:
+            - product
+            - location
+            - date
+            - time
+            - number
+            - person
+            - organization
+            - currency
+            - custom
+          description: Entity type
+        synonyms:
+          type: array
+          items:
+            type: string
+          description: Entity value synonyms
+        values:
+          type: array
+          items:
+            type: object
+            properties:
+              value:
+                type: string
+              synonyms:
+                type: array
+                items:
+                  type: string
+          description: Entity values with synonyms
+        regex_pattern:
+          type: string
+          description: Optional regex pattern for extraction
+        active:
+          type: boolean
+          default: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    Escalation:
+      type: object
+      required:
+        - session_id
+        - reason
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        session_id:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          enum:
+            - low_confidence
+            - user_request
+            - out_of_scope
+            - repeated_issue
+            - complex_query
+            - complaint
+          description: Reason for escalation
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+          default: medium
+        description:
+          type: string
+          maxLength: 1000
+          description: Escalation details
+        assigned_to:
+          type: string
+          description: Assigned human agent ID
+        status:
+          type: string
+          enum: [open, in_progress, resolved, closed]
+          default: open
+        resolution:
+          type: string
+          description: Resolution notes
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        resolved_at:
+          type: string
+          format: date-time
+
+    # RAG Related Schemas
+    RAGDocument:
+      type: object
+      required:
+        - title
+        - content
+        - source
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          minLength: 5
+          maxLength: 500
+          description: Document title
+        content:
+          type: string
+          minLength: 10
+          description: Document content
+        source:
+          type: string
+          enum:
+            - regulation
+            - manual
+            - faq
+            - notice
+            - external
+          description: Document source type
+        category:
+          type: string
+          enum:
+            - general
+            - customs
+            - procedures
+            - fees
+            - forms
+            - hours
+            - other
+          description: Document category
+        url:
+          type: string
+          format: uri
+          description: Original document URL if applicable
+        metadata:
+          type: object
+          description: Custom metadata
+          additionalProperties: true
+        embeddings:
+          type: array
+          items:
+            type: number
+          readOnly: true
+          description: Vector embeddings for similarity search
+        is_active:
+          type: boolean
+          default: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: string
+          description: User who uploaded document
+
+    RAGSearchRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          minLength: 3
+          maxLength: 1000
+          description: Search query text
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+          description: Maximum results to return
+        threshold:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.5
+          description: Similarity threshold for results
+        category:
+          type: string
+          description: Filter by document category
+        source:
+          type: string
+          description: Filter by document source
+
+    RAGSearchResult:
+      type: object
+      properties:
+        documents:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              excerpt:
+                type: string
+              similarity_score:
+                type: number
+              source:
+                type: string
+        query:
+          type: string
+        total_results:
+          type: integer
+
+    # Dashboard Related Schemas
+    MetricsData:
+      type: object
+      properties:
+        total_conversations:
+          type: integer
+          description: Total number of conversations
+        active_sessions:
+          type: integer
+          description: Currently active sessions
+        average_response_time:
+          type: number
+          description: Average response time in milliseconds
+        total_messages:
+          type: integer
+          description: Total messages processed
+        resolved_conversations:
+          type: integer
+          description: Conversations resolved without escalation
+        escalated_conversations:
+          type: integer
+          description: Conversations escalated to human
+        escalation_rate:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Percentage of escalated conversations
+        unique_users:
+          type: integer
+          description: Unique user count
+        period:
+          type: string
+          enum: [today, week, month, quarter, year]
+        timestamp:
+          type: string
+          format: date-time
+
+    SatisfactionData:
+      type: object
+      properties:
+        average_rating:
+          type: number
+          minimum: 1
+          maximum: 5
+          description: Average user satisfaction rating
+        total_ratings:
+          type: integer
+          description: Total number of ratings received
+        distribution:
+          type: object
+          description: Rating distribution
+          properties:
+            one_star:
+              type: integer
+            two_star:
+              type: integer
+            three_star:
+              type: integer
+            four_star:
+              type: integer
+            five_star:
+              type: integer
+        useful_count:
+          type: integer
+          description: Number of useful responses
+        useful_percentage:
+          type: number
+          description: Percentage of useful responses
+        common_issues:
+          type: array
+          items:
+            type: object
+            properties:
+              issue:
+                type: string
+              count:
+                type: integer
+        period:
+          type: string
+          enum: [today, week, month, quarter, year]
+        timestamp:
+          type: string
+          format: date-time
+
+    IntentDistribution:
+      type: object
+      properties:
+        intents:
+          type: array
+          items:
+            type: object
+            properties:
+              intent:
+                type: string
+              count:
+                type: integer
+              percentage:
+                type: number
+              avg_confidence:
+                type: number
+        total_detected:
+          type: integer
+        unclassified_count:
+          type: integer
+        period:
+          type: string
+          enum: [today, week, month, quarter, year]
+        timestamp:
+          type: string
+          format: date-time
+
+paths:
+  /chat:
+    post:
+      tags:
+        - Chat
+      summary: Send chat message
+      description: Send a message and receive chatbot response
+      operationId: sendMessage
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '400':
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - invalid or missing token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests - rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /chat/history/{session_id}:
+    get:
+      tags:
+        - Chat
+      summary: Get conversation history
+      description: Retrieve full conversation history for a session
+      operationId: getConversationHistory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique session identifier
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 500
+          description: Maximum messages to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Offset for pagination
+      responses:
+        '200':
+          description: Conversation history retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationHistory'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /chat/feedback:
+    post:
+      tags:
+        - Chat
+      summary: Submit feedback
+      description: Submit user feedback on chatbot responses
+      operationId: submitFeedback
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackRequest'
+      responses:
+        '201':
+          description: Feedback recorded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  feedback_id:
+                    type: string
+                    format: uuid
+                  timestamp:
+                    type: string
+                    format: date-time
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/faq:
+    get:
+      tags:
+        - Admin
+      summary: List FAQs
+      description: Get paginated list of FAQs with filtering
+      operationId: listFAQs
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, pending_approval, approved, rejected]
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search in question and answer
+      responses:
+        '200':
+          description: FAQ list retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/FAQ'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Admin
+      summary: Create FAQ
+      description: Create a new FAQ entry
+      operationId: createFAQ
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FAQ'
+      responses:
+        '201':
+          description: FAQ created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FAQ'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/faq/{id}:
+    get:
+      tags:
+        - Admin
+      summary: Get FAQ details
+      description: Retrieve a specific FAQ entry
+      operationId: getFAQ
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: FAQ details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FAQ'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: FAQ not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Admin
+      summary: Update FAQ
+      description: Update an existing FAQ entry
+      operationId: updateFAQ
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FAQ'
+      responses:
+        '200':
+          description: FAQ updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FAQ'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: FAQ not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Admin
+      summary: Delete FAQ
+      description: Delete an FAQ entry
+      operationId: deleteFAQ
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: FAQ deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: FAQ not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/intents:
+    get:
+      tags:
+        - Admin
+      summary: List intents
+      description: Get paginated list of intents
+      operationId: listIntents
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: active
+          in: query
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Intent list retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Intent'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Admin
+      summary: Create intent
+      description: Create a new intent definition
+      operationId: createIntent
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Intent'
+      responses:
+        '201':
+          description: Intent created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Intent'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/intents/{id}:
+    get:
+      tags:
+        - Admin
+      summary: Get intent details
+      operationId: getIntent
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Intent details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Intent'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Intent not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Admin
+      summary: Update intent
+      operationId: updateIntent
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Intent'
+      responses:
+        '200':
+          description: Intent updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Intent'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Intent not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Admin
+      summary: Delete intent
+      operationId: deleteIntent
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Intent deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Intent not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/entities:
+    get:
+      tags:
+        - Admin
+      summary: List entities
+      description: Get paginated list of entities
+      operationId: listEntities
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Entity list retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Entity'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Admin
+      summary: Create entity
+      description: Create a new entity definition
+      operationId: createEntity
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Entity'
+      responses:
+        '201':
+          description: Entity created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entity'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/entities/{id}:
+    get:
+      tags:
+        - Admin
+      summary: Get entity details
+      operationId: getEntity
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Entity details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entity'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Entity not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Admin
+      summary: Update entity
+      operationId: updateEntity
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Entity'
+      responses:
+        '200':
+          description: Entity updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entity'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Entity not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Admin
+      summary: Delete entity
+      operationId: deleteEntity
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Entity deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Entity not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/escalations:
+    get:
+      tags:
+        - Admin
+      summary: Get escalations queue
+      description: Retrieve list of escalated conversations
+      operationId: listEscalations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, in_progress, resolved, closed]
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, urgent]
+        - name: assigned_to
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Escalations retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Escalation'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/escalations/{id}:
+    patch:
+      tags:
+        - Admin
+      summary: Resolve escalation
+      description: Update escalation status and add resolution notes
+      operationId: resolveEscalation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [open, in_progress, resolved, closed]
+                resolution:
+                  type: string
+                  maxLength: 2000
+                assigned_to:
+                  type: string
+      responses:
+        '200':
+          description: Escalation updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Escalation'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Escalation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /rag/documents:
+    post:
+      tags:
+        - RAG
+      summary: Upload RAG document
+      description: Upload a new document for RAG indexing
+      operationId: uploadRAGDocument
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RAGDocument'
+      responses:
+        '201':
+          description: Document uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RAGDocument'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /rag/search:
+    get:
+      tags:
+        - RAG
+      summary: Search RAG documents
+      description: Search documents using semantic similarity
+      operationId: searchRAGDocuments
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RAGSearchRequest'
+      responses:
+        '200':
+          description: Search results retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RAGSearchResult'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /rag/documents/{id}:
+    put:
+      tags:
+        - RAG
+      summary: Update RAG document
+      description: Update an existing RAG document
+      operationId: updateRAGDocument
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RAGDocument'
+      responses:
+        '200':
+          description: Document updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RAGDocument'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - RAG
+      summary: Delete RAG document
+      operationId: deleteRAGDocument
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Document deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /dashboard/metrics:
+    get:
+      tags:
+        - Dashboard
+      summary: Get usage metrics
+      description: Retrieve chatbot usage metrics for specified period
+      operationId: getMetrics
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [today, week, month, quarter, year]
+            default: week
+          description: Time period for metrics
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Custom start date (overrides period)
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Custom end date (overrides period)
+      responses:
+        '200':
+          description: Metrics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsData'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /dashboard/satisfaction:
+    get:
+      tags:
+        - Dashboard
+      summary: Get satisfaction scores
+      description: Retrieve user satisfaction metrics
+      operationId: getSatisfaction
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [today, week, month, quarter, year]
+            default: week
+          description: Time period for metrics
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Custom start date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Custom end date
+      responses:
+        '200':
+          description: Satisfaction data retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SatisfactionData'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /dashboard/intent-distribution:
+    get:
+      tags:
+        - Dashboard
+      summary: Get intent distribution
+      description: Retrieve user intent analytics
+      operationId: getIntentDistribution
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [today, week, month, quarter, year]
+            default: week
+          description: Time period for analytics
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Custom start date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Custom end date
+      responses:
+        '200':
+          description: Intent distribution data retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntentDistribution'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

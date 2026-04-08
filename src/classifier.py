@@ -1,9 +1,14 @@
 """질문 의도 분류기 모듈.
 
 사용자 질문을 10개 카테고리 중 하나 이상으로 분류한다.
+또한 새 30-intent 시스템도 지원한다.
 """
 
-from src.utils import normalize_query
+import logging
+from typing import Optional
+from src.utils import normalize_query, load_json
+
+logger = logging.getLogger(__name__)
 
 CATEGORY_KEYWORDS = {
     "GENERAL": [
@@ -113,3 +118,170 @@ def get_primary_category(query: str) -> str:
     """사용자 질문의 주요 카테고리 1개를 반환한다."""
     categories = classify_query(query)
     return categories[0]
+
+
+# Mapping from new 30-intent system domain codes to old 10-category system
+INTENT_TO_CATEGORY_MAP = {
+    # System & Qualification domain -> GENERAL + LICENSE
+    "sysqual": "GENERAL",
+    "license": "LICENSE",
+
+    # Import/Export domain
+    "import_export": "IMPORT_EXPORT",
+
+    # Exhibition domain
+    "exhibition": "EXHIBITION",
+
+    # Sales domain
+    "sales": "SALES",
+
+    # Product domains
+    "sample": "SAMPLE",
+    "food": "FOOD_TASTING",
+
+    # Administrative
+    "doc": "DOCUMENTS",
+    "admin": "DOCUMENTS",
+
+    # Penalties & Compliance
+    "penalty": "PENALTIES",
+    "compliance": "PENALTIES",
+
+    # Support
+    "support": "CONTACT",
+}
+
+
+class IntentClassifier:
+    """새 30-intent 시스템을 지원하는 의도 분류기.
+
+    intents.json에서 의도를 로드하고, 키워드 + 퍼지 매칭을 통해
+    사용자 질문을 분류한다.
+    """
+
+    def __init__(self):
+        """IntentClassifier를 초기화한다."""
+        self.intents = {}
+        self.intent_keywords = {}
+        self._load_intents()
+
+    def _load_intents(self):
+        """intents.json에서 의도 정의를 로드한다."""
+        try:
+            data = load_json("data/intents.json")
+            intent_list = data.get("intents", [])
+
+            for intent in intent_list:
+                intent_id = intent.get("id")
+                self.intents[intent_id] = intent
+
+                # 예시 쿼리로부터 키워드 추출
+                example_queries = intent.get("example_queries", [])
+                keywords = set()
+                for query in example_queries:
+                    # 간단한 토큰화
+                    tokens = normalize_query(query).split()
+                    keywords.update(tokens)
+
+                self.intent_keywords[intent_id] = keywords
+
+            logger.info(f"Loaded {len(self.intents)} intents from data/intents.json")
+        except Exception as e:
+            logger.warning(f"Failed to load intents.json: {e}. Graceful degradation enabled.")
+            self.intents = {}
+            self.intent_keywords = {}
+
+    def classify_intent(self, query: str) -> tuple[str, float]:
+        """사용자 질문을 의도로 분류한다.
+
+        Args:
+            query: 사용자 질문 문자열
+
+        Returns:
+            (intent_id, confidence_score) 튜플.
+            의도를 찾지 못하면 ("unknown", 0.0) 반환.
+        """
+        if not query or not self.intents:
+            return ("unknown", 0.0)
+
+        query_lower = normalize_query(query)
+        query_tokens = set(query_lower.split())
+
+        best_intent = "unknown"
+        best_score = 0.0
+
+        for intent_id, keywords in self.intent_keywords.items():
+            # 키워드 매칭: 일치하는 키워드의 비율로 신뢰도 계산
+            if keywords:
+                matches = len(query_tokens & keywords)
+                score = matches / len(keywords)
+
+                if score > best_score:
+                    best_score = score
+                    best_intent = intent_id
+
+        return (best_intent, best_score)
+
+    def get_intent_category(self, intent_id: str) -> str:
+        """의도 ID를 기존 10-category 시스템으로 매핑한다.
+
+        Args:
+            intent_id: 의도 ID (예: "sysqual_001")
+
+        Returns:
+            기존 카테고리 코드 (예: "GENERAL", "LICENSE")
+        """
+        if not intent_id or intent_id not in self.intents:
+            return "GENERAL"
+
+        intent = self.intents[intent_id]
+        domain = intent.get("domain", "")
+
+        # domain 문자열에서 카테고리 매핑
+        if "System & Qualification" in domain or "제도" in domain or "자격" in domain:
+            return "GENERAL"
+        elif "License" in domain or "특허" in domain:
+            return "LICENSE"
+        elif "Import" in domain or "Export" in domain or "반입" in domain or "반출" in domain:
+            return "IMPORT_EXPORT"
+        elif "Exhibition" in domain or "전시" in domain:
+            return "EXHIBITION"
+        elif "Sales" in domain or "판매" in domain:
+            return "SALES"
+        elif "Sample" in domain or "견본" in domain:
+            return "SAMPLE"
+        elif "Food" in domain or "식품" in domain or "시식" in domain:
+            return "FOOD_TASTING"
+        elif "Document" in domain or "서류" in domain or "문서" in domain:
+            return "DOCUMENTS"
+        elif "Penalty" in domain or "벌칙" in domain or "제재" in domain:
+            return "PENALTIES"
+        elif "Support" in domain or "문의" in domain or "연락" in domain:
+            return "CONTACT"
+
+        return "GENERAL"
+
+
+# 전역 IntentClassifier 인스턴스
+_intent_classifier: Optional[IntentClassifier] = None
+
+
+def get_intent_classifier() -> IntentClassifier:
+    """전역 IntentClassifier 인스턴스를 반환한다 (싱글톤)."""
+    global _intent_classifier
+    if _intent_classifier is None:
+        _intent_classifier = IntentClassifier()
+    return _intent_classifier
+
+
+def classify_intent(query: str) -> tuple[str, float]:
+    """사용자 질문을 새 30-intent 시스템으로 분류한다.
+
+    Args:
+        query: 사용자 질문 문자열
+
+    Returns:
+        (intent_id, confidence_score) 튜플
+    """
+    classifier = get_intent_classifier()
+    return classifier.classify_intent(query)

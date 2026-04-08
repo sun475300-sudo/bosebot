@@ -1,0 +1,633 @@
+{
+  "version": "1.0",
+  "description": "Korean Bonded Exhibition Hall (보세전시장) Chatbot Intent Definitions",
+  "total_intents": 31,
+  "created_date": "2026-04-08",
+  "intents": [
+    {
+      "id": "sysqual_001",
+      "domain": "제도·자격 (System & Qualification)",
+      "name_ko": "보세전시장 정의 및 개념",
+      "name_en": "Bonded Exhibition Hall Definition",
+      "description": "보세전시장의 정의, 목적, 기본 개념 및 특징에 대한 설명",
+      "example_queries": [
+        "보세전시장이 뭐예요?",
+        "보세전시장의 정의가 뭐죠?",
+        "보세전시장은 어떤 제도인가요?",
+        "보세전시장의 특징을 알려주세요",
+        "보세전시장에서는 무엇을 할 수 있나요?"
+      ],
+      "required_entities": [],
+      "optional_entities": [],
+      "follow_up_intents": ["sysqual_002", "sysqual_003"],
+      "escalation_trigger": false,
+      "risk_level": "low"
+    },
+    {
+      "id": "sysqual_002",
+      "domain": "제도·자격 (System & Qualification)",
+      "name_ko": "보세전시장 설립 요건",
+      "name_en": "Bonded Exhibition Hall Establishment Requirements",
+      "description": "보세전시장을 설립하기 위한 요건, 절차, 인가 기준 및 필수 서류",
+      "example_queries": [
+        "보세전시장을 만들려면 어떻게 해야 하나요?",
+        "보세전시장 설립에 필요한 조건이 뭐죠?",
+        "보세전시장 인가를 받으려면?",
+        "보세전시장 설립에 필요한 시설이 뭐예요?",
+        "보세전시장을 만들 때 필요한 기준이 뭐죠?"
+      ],
+      "required_entities": [],
+      "optional_entities": ["area_size", "location", "operator_type"],
+      "follow_up_intents": ["license_003", "license_004"],
+      "escalation_trigger": false,
+      "risk_level": "medium"
+    },
+    {
+      "id": "sysqual_003",
+      "domain": "제도·자격 (System & Qualification)",
+      "name_ko": "보세전시장 관리 기관 및 담당 부서",
+      "name_en": "Bonded Exhibition Hall Managing Authorities",
+      "description": "보세전시장을 관할하는 정부 기관, 담당 부서, 연락처 및 역할",
+      "example_queries": [
+        "보세전시장을 어디서 관리하나요?",
+        "보세전시장 담당 부서는 어디죠?",
+        "보세전시장 문제가 생기면 누구에게 연락해야 하나요?",
+        "관세청에서 보세전시장을 담당하나요?",
+        "보세전시장 지원 기관이 뭐죠?"
+      ],
+      "required_entities": [],
+      "optional_entities": ["region", "office_type"],
+      "follow_up_intents": ["sysqual_004", "sysqual_005"],
+      "escalation_trigger": false,
+      "risk_level": "low"
+    },
+    {
+      "id": "sysqual_004",
+      "domain": "제도·자격 (System & Qualification)",
+      "name_ko": "보세전시장 관리자 자격",
+      "name_en": "Bonded Exhibition Hall Manager Qualification",
+      "description": "보세전시장 관리자가 갖춰야 할 자격, 교육 요건 및 역할",
+      "example_queries": [
+        "보세전시장 관리자 자격이 뭐예요?",
+        "보세전시장을 관리하려면 어떤 조건을 만족해야 하나요?",
+        "관리자 교육을 받아야 하나요?",
+        "보세전시장 관리자 자격증이 있나요?",
+        "관리자가 갖춰야 할 경험은?"
+      ],
+      "required_entities": [],
+      "optional_entities": ["position_type", "experience_level"],
+      "follow_up_intents": ["license_001", "license_002"],
+      "escalation_trigger": false,
+      "risk_level": "medium"
+    },
+    {
+      "id": "sysqual_005",
+      "domain": "제도·자격 (System & Qualification)",
+      "name_ko": "보세전시장 관련 법규 및 제도",
+      "name_en": "Bonded Exhibition Hall Regulations and Laws",
+      "description": "보세전시장 운영에 관련된 법규, 규칙, 시행령 및 행정규칙",
+      "example_queries": [
+        "보세전시장 관련 법규가 뭐예요?",
+        "보세전시장을 운영할 때 지켜야 할 법규는?",
+        "보세전시장 운영 규칙이 뭐죠?",
+        "어떤 법에 따라 보세전시장이 운영되나요?",
+        "보세전시장 관리 지침이 있나요?"
+      ],
+      "required_entities": [],
+      "optional_entities": ["law_type", "regulation_category"],
+      "follow_up_intents": ["license_005", "license_006"],
+      "escalation_trigger": false,
+      "risk_level": "low"
+    },
+    {
+      "id": "sysqual_006",
+      "domain": "제도·자격 (System & Qualification)",
+      "name_ko": "보세전시장과 다른 제도의 차이",
+      "name_en": "Comparison with Other Bonded Zones",
+      "description": "보세전시장과 보세지역, 보세공장, 자유무역지역 등의 차이점 및 구분",
+      "example_queries": [
+        "보세전시장과 보세지역의 차이가 뭐예요?",
+        "보세전시장과 자유무역지역은 뭐가 다르죠?",
+        "보세공장과는 어떻게 다른가요?",
+        "내가 보세전시장을 사용해야 할까요, 다른 제도를 사용해야 할까요?",
+        "보세전시장, 보세지역, 보세공장 중 뭘 선택해야 하나요?"
+      ],
+      "required_entities": [],
+      "optional_entities": ["comparison_target"],
+      "follow_up_intents": ["sysqual_001", "sysqual_002"],
+      "escalation_trigger": false,
+      "risk_level": "low"
+    },
+    {
+      "id": "license_001",
+      "domain": "특허·신청 (License & Application)",
+      "name_ko": "보세전시장 인가 신청",
+      "name_en": "Bonded Exhibition Hall Authorization Application",
+      "description": "보세전시장 인가를 받기 위한 신청 절차, 필수 서류, 신청 방법",
+      "example_queries": [
+        "보세전시장 인가를 어떻게 신청해요?",
+        "인가 신청에 필요한 서류가 뭐죠?",
+        "보세전시장 인가 신청은 어디에 해야 하나요?",
+        "인가 신청 절차를 알려주세요",
+        "보세전시장 인가 신청에 걸리는 기간은?"
+      ],
+      "required_entities": ["application_type"],
+      "optional_entities": ["company_name", "location", "business_scale"],
+      "follow_up_intents": ["license_002", "license_003", "license_004"],
+      "escalation_trigger": false,
+      "risk_level": "medium"
+    },
+    {
+      "id": "license_002",
+      "domain": "특허·신청 (License & Application)",
+      "name_ko": "보세전시장 인가 필수 서류",
+      "name_en": "Required Documents for Authorization",
+      "description": "보세전시장 인가 신청 시 제출해야 할 모든 서류, 서류 양식, 검증 기준",
+      "example_queries": [
+        "보세전시장 인가에 필요한 서류가 뭐예요?",
+        "사업자등록증을 제출해야 하나요?",
+        "시설도면이 필요한가요?",
+        "부동산 소유권 증명서를 제출해야 해요?",
+        "인가에 필요한 서류 목록을 알려주세요"
+      ],
+      "required_entities": ["document_type"],
+      "optional_entities": ["company_type", "facility_type"],
+      "follow_up_intents": ["license_001", "license_003"],
+      "escalation_trigger": false,
+      "risk_level": "medium"
+    },
+    {
+      "id": "license_003",
+      "domain": "특허·신청 (License & Application)",
+      "name_ko": "보세전시장 인가 심사 기준",
+      "name_en": "Authorization Review Criteria",
+      "description": "보세전시장 인가 신청 시 심사하는 기준, 평가 항목, 합격 조건",
+      "example_queries": [
+        "보세전시장 인가 심사 기준이 뭐예요?",
+        "인가를 받을 때 어떤 것들을 검토하나요?",
+        "시설 심사 항목이 뭐죠?",
+        "보안 심사는 어떻게 하나요?",
+        "인가 거부 사유가 뭐예요?"
+      ],
+      "required_entities": [],
+      "optional_entities": ["facility_type", "business_scale"],
+      "follow_up_intents": ["license_001", "license_004", "license_005"],
+      "escalation_trigger": true,
+      "risk_level": "medium"
+    },
+    {
+      "id": "license_004",
+      "domain": "특허·신청 (License & Application)",
+      "name_ko": "보세전시장 인가 갱신 및 변경",
+      "name_en": "Authorization Renewal and Modification",
+      "description": "보세전시장 인가의 갱신, 변경신고, 취소 절차 및 요건",
+      "example_queries": [
+        "보세전시장 인가를 갱신해야 하나요?",
+        "인가 갱신 기간은 얼마나 되나요?",
+        "사업 내용이 바뀌면 변경신고를 해야 하나요?",
+        "인가를 취소하려면 어떻게 해요?",
+        "인가를 포기할 수 있나요?"
+      ],
+      "required_entities": [],
+      "optional_entities": ["change_type", "renewal_type"],
+      "follow_up_intents": ["license_001", "license_002"],
+      "escalation_trigger": false,
+      "risk_level": "medium"
+    },
+    {
+      "id": "license_005",
+      "domain": "특허·신청 (License & Application)",
+      "name_ko": "보세전시장 사용 신청",
+      "name_en": "Bonded Exhibition Hall Usage Application",
+      "description": "보세전시장을 사용하기 위한 신청 절차, 필수 서류, 사용 승인 조건",
+      "example_queries": [
+        "보세전시장을 사용하려면 어떻게 신청해요?",
+        "사용 신청에 필요한 서류가 뭐죠?",
+        "보세전시장 사용 승인에 걸리는 기간은?",
+        "사용 신청을 어디에 제출해야 하나요?",
+        "사용 신청 절차가 복잡한가요?"
+      ],
+      "required_entities": ["usage_purpose"],
+      "optional_entities": ["duration", "quantity", "product_category"],
+      "follow_up_intents": ["license_006", "import_001", "import_002"],
+      "escalation_trigger": false,
+      "risk_level": "medium"
+    },
+    {
+      "id": "license_006",
+      "domain": "특허·신청 (License & Application)",
+      "name_ko": "보세전시장 사용 관련 보고 및 신고",
+      "name_en": "Usage Reporting and Notification",
+      "description": "보세전시장 사용 중 제출해야 할 각종 보고서, 신고, 상황보고",
+      "example_queries": [
+        "보세전시장을 사용하면서 보고해야 할 것이 뭐예요?",
+        "월별 보고를 제출해야 하나요?",
+        "특이 사항이 생기면 신고해야 하나요?",
+        "보고 기간이 정해져 있나요?",
+        "보고 양식은 어디서 받나요?"
+      ],
+      "required_entities": ["report_type"],
+      "optional_entities": ["reporting_period", "incident_type"],
+      "follow_up_intents": ["license_005", "facility_001"],
+      "escalation_trigger": false,
+      "risk_level": "low"
+    },
+    {
+      "id": "facility_001",
+      "domain": "시설·운영 (Facility & Operation)",
+      "name_ko": "보세전시장 시설 기준",
+      "name_en": "Bonded Exhibition Hall Facility Standards",
+      "description": "보세전시장이 갖춰야 할 시설, 규모, 보안 시설, 설비 기준",
+      "example_queries": [
+        "보세전시장은 최소 어느 정도 크기여야 하나요?",
+        "보안 시설이 뭐가 필요해요?",
+        "CCTV가 필수인가요?",
+        "건물 구조가 정해져 있나요?",
+        "시설 기준을 자세히 알려주세요"
+      ],
+      "required_entities": [],
+      "optional_entities": ["facility_type", "area_size"],
+      "follow_up_intents": ["facility_002", "facility_003", "facility_004"],
+      "escalation_trigger": false,
+      "risk_level": "medium"
+    },
+    {
+      "id": "facility_002",
+      "domain": "시설·운영 (Facility & Operation)",
+      "name_ko": "보세전시장 보안 관리",
+      "name_en": "Bonded Exhibition Hall Security Management",
+      "description": "보세전시장의 보안 관리 요구사항, 보안 기준, 보안 점검, 보안 담당자",
+      "example_queries": [
+        "보세전시장 보안 관리를 어떻게 해야 하나요?",
+        "CCTV 설치 기준이 뭐죠?",
+        "보안 담당자를 배치해야 하나요?",
+        "출입통제 시스템이 필요한가요?",
+        "보안 점검은 얼마나 자주 하나요?"
+      ],
+      "required_entities": [],
+      "optional_entities": ["security_type", "facility_area"],
+      "follow_up_intents": ["facility_001", "facility_003", "facility_005"],
+      "escalation_trigger": true,
+      "risk_level": "high"
+    },
+    {
+      "id": "facility_003",
+      "domain": "시설·운영 (Facility & Operation)",
+      "name_ko": "보세전시장 재고 관리",
+      "name_en": "Inventory Management in Bonded Exhibition Hall",
+      "description": "보세전시장 내 물품, 재고 관리, 재고 파악, 장부 유지 요건",
+      "example_queries": [
+        "보세전시장에 들어온 물품을 어떻게 관리해요?",
+        "재고 장부를 써야 하나요?",
+        "재고 파악을 어떻게 해요?",
+        "물품 현황을 자주 확인해야 하나요?",
+        "재고 관리 양식이 있나요?"
+      ],
+      "required_entities": [],
+      "optional_entities": ["product_type", "quantity_unit"],
+      "follow_up_intents": ["facility_001", "facility_002", "import_003"],
+      "escalation_trigger": false,
+      "risk_level": "medium"
+    },
+    {
+      "id": "facility_004",
+      "domain": "시설·운영 (Facility & Operation)",
+      "name_ko": "보세전시장 점검 및 감시",
+      "name_en": "Inspection and Monitoring of Bonded Exhibition Hall",
+      "description": "보세전시장에 대한 정부 점검, 감시, 감독, 점검 절차 및 주기",
+      "example_queries": [
+        "보세전시장을 정기적으로 점검받나요?",
+        "점검은 누가 하나요?",
+        "점검 주기가 정해져 있나요?",
+        "점검 때 뭘 확인하나요?",
+        "부정적 점검 결과가 나오면 어떻게 되나요?"
+      ],
+      "required_entities": [],
+      "optional_entities": ["inspection_type", "frequency"],
+      "follow_up_intents": ["facility_001", "facility_005"],
+      "escalation_trigger": true,
+      "risk_level": "medium"
+    },
+    {
+      "id": "facility_005",
+      "domain": "시설·운영 (Facility & Operation)",
+      "name_ko": "보세전시장 운영 조건 및 제한",
+      "name_en": "Operating Conditions and Restrictions",
+      "description": "보세전시장 운영 시 지켜야 할 조건, 제한사항, 금지 행위, 운영 규칙",
+      "example_queries": [
+        "보세전시장을 운영할 때 뭘 주의해야 하나요?",
+        "보세전시장에서 못하는 일이 뭐예요?",
+        "운영 중 금지된 행위가 뭐죠?",
+        "24시간 운영할 수 있나요?",
+        "운영 제한사항이 뭐예요?"
+      ],
+      "required_entities": [],
+      "optional_entities": ["operation_type"],
+      "follow_up_intents": ["facility_001", "facility_002", "facility_004"],
+      "escalation_trigger": true,
+      "risk_level": "high"
+    },
+    {
+      "id": "facility_006",
+      "domain": "시설·운영 (Facility & Operation)",
+      "name_ko": "보세전시장 운영 종료 및 반납",
+      "name_en": "Closing and Return of Bonded Exhibition Hall",
+      "description": "보세전시장 운영 종료, 반납 절차, 정산, 폐기 처리",
+      "example_queries": [
+        "보세전시장 운영을 종료하려면 어떻게 해요?",
+        "운영 종료 절차가 뭐죠?",
+        "마지막에 정산을 해야 하나요?",
+        "남은 물품은 어떻게 해요?",
+        "운영 종료에 걸리는 기간은?"
+      ],
+      "required_entities": [],
+      "optional_entities": ["remaining_inventory", "final_date"],
+      "follow_up_intents": ["export_001", "export_002"],
+      "escalation_trigger": false,
+      "risk_level": "medium"
+    },
+    {
+      "id": "import_001",
+      "domain": "반입·전시·사용 (Import, Exhibition & Use)",
+      "name_ko": "보세전시장 반입 절차",
+      "name_en": "Goods Import Procedure to Bonded Exhibition Hall",
+      "description": "보세전시장으로 물품을 반입하는 절차, 반입 신청, 통관, 필수 서류",
+      "example_queries": [
+        "물품을 보세전시장으로 반입하려면 어떻게 해요?",
+        "반입 신청을 어디에 하나요?",
+        "반입에 필요한 서류가 뭐죠?",
+        "반입 절차를 알려주세요",
+        "반입에 걸리는 시간은?"
+      ],
+      "required_entities": ["product_description"],
+      "optional_entities": ["quantity", "import_country", "incoterm"],
+      "follow_up_intents": ["import_002", "import_003", "exhibition_001"],
+      "escalation_trigger": false,
+      "risk_level": "medium"
+    },
+    {
+      "id": "import_002",
+      "domain": "반입·전시·사용 (Import, Exhibition & Use)",
+      "name_ko": "보세전시장 반입 시 통관 절차",
+      "name_en": "Customs Clearance on Import",
+      "description": "보세전시장 반입 시 통관, 관세 제도, 통관 서류, 면세 조건",
+      "example_queries": [
+        "보세전시장으로 물품을 반입할 때 관세를 내야 하나요?",
+        "통관 절차가 뭐죠?",
+        "면세로 반입할 수 있나요?",
+        "통관 서류가 뭐예요?",
+        "통관 거부가 될 수도 있나요?"
+      ],
+      "required_entities": ["product_hs_code"],
+      "optional_entities": ["tariff_rate", "origin_country"],
+      "follow_up_intents": ["import_001", "import_003"],
+      "escalation_trigger": true,
+      "risk_level": "high"
+    },
+    {
+      "id": "import_003",
+      "domain": "반입·전시·사용 (Import, Exhibition & Use)",
+      "name_ko": "보세전시장 반입 금지 물품",
+      "name_en": "Prohibited and Restricted Items",
+      "description": "보세전시장에 반입할 수 없는 물품, 제한 물품, 위험물, 금지사항",
+      "example_queries": [
+        "보세전시장에 반입할 수 없는 물품이 뭐예요?",
+        "위험물을 반입할 수 있나요?",
+        "불법 물품이 적발되면 어떻게 되나요?",
+        "의약품이나 화장품은 반입할 수 있나요?",
+        "어떤 물품이 제한되나요?"
+      ],
+      "required_entities": ["product_category"],
+      "optional_entities": [],
+      "follow_up_intents": ["import_001", "import_002"],
+      "escalation_trigger": true,
+      "risk_level": "critical"
+    },
+    {
+      "id": "exhibition_001",
+      "domain": "반입·전시·사용 (Import, Exhibition & Use)",
+      "name_ko": "보세전시장 전시 방법 및 기준",
+      "name_en": "Exhibition Methods and Standards",
+      "description": "보세전시장에서 물품을 전시하는 방법, 기준, 공간 배치, 레이아웃",
+      "example_queries": [
+        "물품을 보세전시장에서 어떻게 전시해요?",
+        "전시 공간 배치 기준이 뭐죠?",
+        "전시 기간은 어느 정도 되나요?",
+        "전시 공간을 자유롭게 사용할 수 있나요?",
+        "전시 방법에 규정이 있나요?"
+      ],
+      "required_entities": ["product_type"],
+      "optional_entities": ["display_period", "space_size"],
+      "follow_up_intents": ["exhibition_002", "import_001"],
+      "escalation_trigger": false,
+      "risk_level": "low"
+    },
+    {
+      "id": "exhibition_002",
+      "domain": "반입·전시·사용 (Import, Exhibition & Use)",
+      "name_ko": "보세전시장 전시 기간 연장",
+      "name_en": "Exhibition Period Extension",
+      "description": "보세전시장에서의 전시 기간 연장 절차, 신청 방법, 조건",
+      "example_queries": [
+        "전시 기간을 연장할 수 있나요?",
+        "기간 연장 신청은 어디에 하나요?",
+        "연장 기간의 제한이 있나요?",
+        "연장 신청 절차가 뭐죠?",
+        "연장에 추가 비용이 드나요?"
+      ],
+      "required_entities": ["extension_duration"],
+      "optional_entities": ["reason"],
+      "follow_up_intents": ["exhibition_001"],
+      "escalation_trigger": false,
+      "risk_level": "low"
+    },
+    {
+      "id": "exhibition_003",
+      "domain": "반입·전시·사용 (Import, Exhibition & Use)",
+      "name_ko": "보세전시장 물품 관리 및 손실 보고",
+      "name_en": "Goods Management and Loss Reporting",
+      "description": "보세전시장에서 전시 중 물품 손실, 파손, 분실 발생 시 보고, 조치 절차",
+      "example_queries": [
+        "전시 중 물품이 파손되면 어떻게 해요?",
+        "물품이 분실되었을 때 보고해야 하나요?",
+        "손실이 생기면 어떤 절차를 밟아야 하나요?",
+        "파손된 물품은 어떻게 처리해요?",
+        "손실 보고서를 어디에 제출하나요?"
+      ],
+      "required_entities": ["incident_type"],
+      "optional_entities": ["product_description", "damage_level"],
+      "follow_up_intents": ["facility_003", "export_001"],
+      "escalation_trigger": true,
+      "risk_level": "high"
+    },
+    {
+      "id": "sales_001",
+      "domain": "판매·증여·시식 (Sales, Gifts & Tasting)",
+      "name_ko": "보세전시장에서의 판매 가능 여부",
+      "name_en": "Sales Permission in Bonded Exhibition Hall",
+      "description": "보세전시장에서 물품 판매 가능 여부, 판매 조건, 제한사항",
+      "example_queries": [
+        "보세전시장에서 제품을 팔 수 있나요?",
+        "판매를 해도 되나요?",
+        "판매할 때 특별한 조건이 있나요?",
+        "어떤 물품은 팔 수 없나요?",
+        "판매 수량에 제한이 있나요?"
+      ],
+      "required_entities": ["product_category"],
+      "optional_entities": ["sales_quantity", "target_buyer"],
+      "follow_up_intents": ["sales_002", "sales_003"],
+      "escalation_trigger": false,
+      "risk_level": "medium"
+    },
+    {
+      "id": "sales_002",
+      "domain": "판매·증여·시식 (Sales, Gifts & Tasting)",
+      "name_ko": "보세전시장에서의 시식 및 샘플 제공",
+      "name_en": "Tasting and Sampling in Exhibition Hall",
+      "description": "보세전시장에서 제품 시식, 샘플 제공, 시음, 시연 가능 여부 및 기준",
+      "example_queries": [
+        "보세전시장에서 제품을 시식할 수 있나요?",
+        "샘플을 제공해도 되나요?",
+        "시식 행사를 해도 되나요?",
+        "시식 시 뭘 주의해야 하나요?",
+        "시식 서비스에 제한이 있나요?"
+      ],
+      "required_entities": ["product_type"],
+      "optional_entities": ["quantity_per_tasting"],
+      "follow_up_intents": ["sales_001", "sales_003"],
+      "escalation_trigger": false,
+      "risk_level": "medium"
+    },
+    {
+      "id": "sales_003",
+      "domain": "판매·증여·시식 (Sales, Gifts & Tasting)",
+      "name_ko": "보세전시장에서의 증여 및 판촉",
+      "name_en": "Gifting and Promotion in Exhibition Hall",
+      "description": "보세전시장에서 물품 증여, 판촉품 제공, 증정 기준 및 제한",
+      "example_queries": [
+        "제품을 손님에게 선물로 줄 수 있나요?",
+        "판촉품을 제공해도 되나요?",
+        "경품 행사를 할 수 있나요?",
+        "증여에 제한이 있나요?",
+        "증여한 물품은 어떻게 관리해요?"
+      ],
+      "required_entities": ["gift_type"],
+      "optional_entities": ["quantity", "recipient_category"],
+      "follow_up_intents": ["sales_001", "sales_002"],
+      "escalation_trigger": false,
+      "risk_level": "medium"
+    },
+    {
+      "id": "sales_004",
+      "domain": "판매·증여·시식 (Sales, Gifts & Tasting)",
+      "name_ko": "보세전시장 방문객 제한 및 접근 통제",
+      "name_en": "Visitor Access and Control",
+      "description": "보세전시장 방문객 제한, 접근 권한, 신원 확인, 보안 통제",
+      "example_queries": [
+        "보세전시장을 누구나 방문할 수 있나요?",
+        "방문객 수에 제한이 있나요?",
+        "신원 확인을 하나요?",
+        "접근 권한이 필요한가요?",
+        "보안상 방문을 제한할 수 있나요?"
+      ],
+      "required_entities": [],
+      "optional_entities": ["visitor_category"],
+      "follow_up_intents": ["facility_002"],
+      "escalation_trigger": false,
+      "risk_level": "medium"
+    },
+    {
+      "id": "export_001",
+      "domain": "반출·사후처리 (Export & Post-processing)",
+      "name_ko": "보세전시장에서의 반출 절차",
+      "name_en": "Goods Export Procedure from Bonded Exhibition Hall",
+      "description": "보세전시장에서 물품을 반출하는 절차, 반출 신청, 서류, 통관",
+      "example_queries": [
+        "물품을 보세전시장에서 꺼낼 때 어떻게 해요?",
+        "반출 신청을 어디에 하나요?",
+        "반출 절차가 복잡한가요?",
+        "반출에 필요한 서류가 뭐죠?",
+        "반출 통관이 필요한가요?"
+      ],
+      "required_entities": ["product_description"],
+      "optional_entities": ["destination_country", "quantity"],
+      "follow_up_intents": ["export_002"],
+      "escalation_trigger": false,
+      "risk_level": "medium"
+    },
+    {
+      "id": "export_002",
+      "domain": "반출·사후처리 (Export & Post-processing)",
+      "name_ko": "보세전시장 물품의 관세 납부 및 정산",
+      "name_en": "Tariff Payment and Settlement",
+      "description": "보세전시장 반출 시 관세 납부, 정산, 결제 방법, 세금 환급",
+      "example_queries": [
+        "반출할 때 관세를 내야 하나요?",
+        "관세는 얼마나 들어요?",
+        "관세 납부 방법이 뭐죠?",
+        "정산 절차가 뭐예요?",
+        "세금 환급이 가능한가요?"
+      ],
+      "required_entities": ["product_hs_code"],
+      "optional_entities": ["declared_value", "destination"],
+      "follow_up_intents": ["export_001"],
+      "escalation_trigger": true,
+      "risk_level": "high"
+    }
+  ],
+  "domain_summary": {
+    "제도·자격 (System & Qualification)": {
+      "count": 6,
+      "intent_ids": ["sysqual_001", "sysqual_002", "sysqual_003", "sysqual_004", "sysqual_005", "sysqual_006"],
+      "description": "보세전시장의 정의, 설립 요건, 관리 기관, 법규 등 기본 제도와 자격에 관한 정보"
+    },
+    "특허·신청 (License & Application)": {
+      "count": 6,
+      "intent_ids": ["license_001", "license_002", "license_003", "license_004", "license_005", "license_006"],
+      "description": "인가 신청, 필요 서류, 심사 기준, 갱신, 사용 신청 및 보고 등 허가와 신청 관련 정보"
+    },
+    "시설·운영 (Facility & Operation)": {
+      "count": 6,
+      "intent_ids": ["facility_001", "facility_002", "facility_003", "facility_004", "facility_005", "facility_006"],
+      "description": "시설 기준, 보안 관리, 재고 관리, 점검, 운영 조건, 종료 절차 등 시설 운영 관련 정보"
+    },
+    "반입·전시·사용 (Import, Exhibition & Use)": {
+      "count": 6,
+      "intent_ids": ["import_001", "import_002", "import_003", "exhibition_001", "exhibition_002", "exhibition_003"],
+      "description": "물품 반입, 통관, 금지 물품, 전시 방법, 기간 연장, 물품 관리 등 물품 반입과 전시 관련 정보"
+    },
+    "판매·증여·시식 (Sales, Gifts & Tasting)": {
+      "count": 4,
+      "intent_ids": ["sales_001", "sales_002", "sales_003", "sales_004"],
+      "description": "판매 가능 여부, 시식, 샘플 제공, 증여, 방문객 관리 등 판매와 홍보 관련 정보"
+    },
+    "반출·사후처리 (Export & Post-processing)": {
+      "count": 2,
+      "intent_ids": ["export_001", "export_002"],
+      "description": "물품 반출 절차, 통관, 관세 납부, 정산 등 반출과 사후처리 관련 정보"
+    }
+  },
+  "risk_level_distribution": {
+    "low": 10,
+    "medium": 16,
+    "high": 4,
+    "critical": 1
+  },
+  "escalation_required_intents": [
+    "license_003",
+    "facility_002",
+    "facility_004",
+    "facility_005",
+    "import_002",
+    "import_003",
+    "exhibition_003",
+    "export_002"
+  ],
+  "notes": {
+    "korean_language": "All Korean text follows standard government administrative terminology for bonded zones",
+    "entity_types": "Common entities include: application_type, document_type, product_type, facility_type, inspection_type, report_type, usage_purpose, change_type, renewal_type, extension_duration, product_hs_code, etc.",
+    "follow_up_strategy": "Each intent links to related intents to enable coherent multi-turn conversations",
+    "escalation_policy": "High-risk and critical-risk intents require human expert review to ensure compliance and security",
+    "government_chatbot": "Designed for official Korean government bonded exhibition hall operations and user guidance"
+  }
+}
