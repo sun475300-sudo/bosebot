@@ -46,6 +46,7 @@ MIN_KEYWORD_HITS = 1
 KEYWORD_SCORE_THRESHOLD = 3
 TFIDF_SCORE_THRESHOLD = 0.1
 CLASSIFIER_CACHE_MAX_SIZE = 100
+MIN_CONCLUSION_LENGTH = 3
 
 
 class BondedExhibitionChatbot:
@@ -74,9 +75,19 @@ class BondedExhibitionChatbot:
             self.vector_search_enabled = True
         except ImportError:
             # sentence-transformers가 설치되지 않은 경우 비활성화
+            logger.warning("VectorSearchEngine disabled: sentence-transformers not installed")
+            self.vector_search = None
+        except Exception as e:
+            logger.error(f"Failed to initialize VectorSearchEngine: {e}", exc_info=True)
             self.vector_search = None
 
-        self.llm_enabled = is_llm_available()
+        # LLM 가용성 확인
+        self.llm_enabled = False
+        try:
+            self.llm_enabled = is_llm_available()
+        except Exception as e:
+            logger.error(f"Failed to check LLM availability: {e}", exc_info=True)
+            self.llm_enabled = False
 
     @staticmethod
     def _normalize_faq_items(items: list[dict]) -> list[dict]:
@@ -222,9 +233,9 @@ class BondedExhibitionChatbot:
     def _extract_conclusion(self, answer: str) -> str:
         """FAQ 답변에서 의미 있는 결론을 추출한다."""
         sentences = answer.replace("·", ",").split(".")
-        # 첫 문장이 너무 짧으면 (3글자 이하, 예: "네") 두 번째 문장까지 포함
+        # 첫 문장이 너무 짧으면 (MIN_CONCLUSION_LENGTH글자 이하, 예: "네") 두 번째 문장까지 포함
         first = sentences[0].strip()
-        if len(first) <= 3 and len(sentences) > 1:
+        if len(first) <= MIN_CONCLUSION_LENGTH and len(sentences) > 1:
             return (first + ". " + sentences[1].strip()).strip() + "."
         return first + "."
 
@@ -254,16 +265,7 @@ class BondedExhibitionChatbot:
                 }
         """
         if not query or not query.strip():
-            result_dict = {
-                "response": "질문을 입력해 주세요.",
-                "intent_id": "unknown",
-                "intent_confidence": 0.0,
-                "category": "GENERAL",
-                "entities": {},
-                "risk_level": "low",
-                "policy_decision": {},
-                "escalation_triggered": False,
-            }
+            result_dict = self._build_empty_response()
             return result_dict if include_metadata else result_dict["response"]
 
         # 세션이 있으면 멀티턴 처리 시도
@@ -289,6 +291,19 @@ class BondedExhibitionChatbot:
         corrected, corrections = spell_correct(query)
         expanded = expand_query(corrected)
         return expanded, corrections
+
+    def _build_empty_response(self) -> dict:
+        """빈 쿼리에 대한 표준 응답을 생성한다."""
+        return {
+            "response": "질문을 입력해 주세요.",
+            "intent_id": "unknown",
+            "intent_confidence": 0.0,
+            "category": "GENERAL",
+            "entities": {},
+            "risk_level": "low",
+            "policy_decision": {},
+            "escalation_triggered": False,
+        }
 
     def _wrap_result(
         self,
