@@ -21,9 +21,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Data files to back up
 DATA_FILES = [
-    os.path.join("data", "faq.json"),
-    os.path.join("data", "legal_references.json"),
-    os.path.join("data", "escalation_rules.json"),
+    "data/faq.json",
+    "data/legal_references.json",
+    "data/escalation_rules.json",
 ]
 
 # Pattern for DB files
@@ -37,7 +37,7 @@ def _find_data_files(base_dir=None):
     for rel in DATA_FILES:
         full = os.path.join(base, rel)
         if os.path.isfile(full):
-            files.append(rel)
+            files.append(rel.replace(os.sep, "/"))
     # Add *.db files from data/
     data_dir = os.path.join(base, "data")
     if os.path.isdir(data_dir):
@@ -45,7 +45,7 @@ def _find_data_files(base_dir=None):
             if name.endswith(".db"):
                 rel = os.path.join("data", name)
                 if rel not in files:
-                    files.append(rel)
+                    files.append(rel.replace(os.sep, "/"))
     return sorted(files)
 
 
