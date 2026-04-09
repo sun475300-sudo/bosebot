@@ -3,6 +3,7 @@
 Sentence Transformers를 사용한 다국어 의미론적 유사도 매칭.
 FAQ 항목의 임베딩을 사전 계산하고, 사용자 질문의 코사인 유사도를 통해 최적 매칭을 반환한다.
 """
+from __future__ import annotations
 
 import hashlib
 import os
@@ -13,6 +14,7 @@ try:
     from sentence_transformers import SentenceTransformer
     HAS_EMBEDDINGS = True
 except ImportError:
+    np = None  # type: ignore
     HAS_EMBEDDINGS = False
 
 
