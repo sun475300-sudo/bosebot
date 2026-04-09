@@ -1,133 +1,119 @@
-{
-  "version": "1.0",
-  "description": "보세전시장 챗봇 엔티티 시드 데이터 (10개 타입)",
-  "entity_types": [
-    {
-      "entity_type": "user_type",
-      "display_name_ko": "사용자 유형",
-      "description": "챗봇 이용자의 역할 구분",
-      "values": [
-        {"value": "신청자", "description": "보세전시장 특허를 신청하는 자"},
-        {"value": "행사주최자", "description": "전시·박람회 행사를 기획·주최하는 자"},
-        {"value": "전시장운영사", "description": "보세전시장 시설을 운영·관리하는 법인"},
-        {"value": "출품업체", "description": "전시장에 물품을 출품하는 업체"},
-        {"value": "관세사", "description": "관세 업무를 대행하는 전문 자격사"},
-        {"value": "일반민원인", "description": "일반적인 문의를 하는 민원인"}
-      ]
-    },
-    {
-      "entity_type": "event_type",
-      "display_name_ko": "행사 유형",
-      "description": "보세전시장에서 개최 가능한 행사 유형",
-      "values": [
-        {"value": "박람회", "description": "대규모 종합 전시 행사"},
-        {"value": "전람회", "description": "특정 분야의 전시 행사"},
-        {"value": "견본품전시회", "description": "견본품(샘플)을 전시하는 행사"},
-        {"value": "홍보행사", "description": "제품·서비스 홍보 목적의 행사"},
-        {"value": "상담행사", "description": "바이어 상담·비즈니스 매칭 행사"}
-      ]
-    },
-    {
-      "entity_type": "item_type",
-      "display_name_ko": "물품 유형",
-      "description": "보세전시장 반입·전시 대상 물품 유형",
-      "values": [
-        {"value": "일반공산품", "description": "일반 공업 생산품"},
-        {"value": "기계장비", "description": "산업용 기계 및 장비"},
-        {"value": "식품", "description": "식용 가능한 물품"},
-        {"value": "음료", "description": "음용 가능한 물품"},
-        {"value": "샘플품", "description": "견본·시연 목적의 소량 물품"},
-        {"value": "판매용품", "description": "전시장 내 판매를 목적으로 반입된 물품"},
-        {"value": "증여물품", "description": "무상 배포를 목적으로 반입된 물품"},
-        {"value": "오락용품", "description": "체험·오락 목적의 물품"}
-      ]
-    },
-    {
-      "entity_type": "action_type",
-      "display_name_ko": "행위 유형",
-      "description": "보세전시장 관련 행위(절차) 유형",
-      "values": [
-        {"value": "신청", "description": "특허 또는 허가를 신청하는 행위"},
-        {"value": "반입", "description": "물품을 보세전시장에 들여오는 행위"},
-        {"value": "검사", "description": "세관의 물품 검사 행위"},
-        {"value": "전시", "description": "물품을 전시·진열하는 행위"},
-        {"value": "사용", "description": "전시장 내에서 물품을 사용하는 행위"},
-        {"value": "시연", "description": "물품의 기능·성능을 시연(데모)하는 행위"},
-        {"value": "판매", "description": "전시물품을 유상으로 판매하는 행위"},
-        {"value": "증여", "description": "전시물품을 무상으로 배포하는 행위"},
-        {"value": "시식", "description": "식품·음료를 시식용으로 제공하는 행위"},
-        {"value": "반출", "description": "물품을 보세전시장에서 반출하는 행위"},
-        {"value": "재수출", "description": "외국물품을 다시 수출하는 행위"}
-      ]
-    },
-    {
-      "entity_type": "location",
-      "display_name_ko": "지역",
-      "description": "보세전시장 소재지 또는 관할 세관 지역",
-      "values": [
-        {"value": "서울", "description": "서울세관 관할"},
-        {"value": "부산", "description": "부산세관 관할"},
-        {"value": "인천", "description": "인천세관 관할"},
-        {"value": "대구", "description": "대구세관 관할"},
-        {"value": "광주", "description": "광주세관 관할"},
-        {"value": "평택", "description": "평택세관 관할"}
-      ]
-    },
-    {
-      "entity_type": "date_range",
-      "display_name_ko": "기간 유형",
-      "description": "보세전시장 관련 주요 기간 구분",
-      "values": [
-        {"value": "행사기간", "description": "전시·박람회가 실제 운영되는 기간"},
-        {"value": "반입예정일", "description": "물품 반입이 예정된 날짜"},
-        {"value": "반출예정일", "description": "물품 반출이 예정된 날짜"},
-        {"value": "연장기간", "description": "특허 또는 반입 기간의 연장 기간"}
-      ]
-    },
-    {
-      "entity_type": "declaration_status",
-      "display_name_ko": "신고 상태",
-      "description": "물품의 신고 처리 상태",
-      "values": [
-        {"value": "신고전", "description": "아직 어떠한 신고도 이루어지지 않은 상태"},
-        {"value": "반입신고완료", "description": "보세전시장 반입 신고가 완료된 상태"},
-        {"value": "수입신고완료", "description": "수입 신고가 완료되어 관세 납부가 가능한 상태"},
-        {"value": "미신고", "description": "신고 의무가 있으나 신고하지 않은 상태"}
-      ]
-    },
-    {
-      "entity_type": "bonded_area_type",
-      "display_name_ko": "보세구역 유형",
-      "description": "관세법상 보세구역의 유형 구분",
-      "values": [
-        {"value": "보세전시장", "description": "관세법 제190조에 따른 보세전시장"},
-        {"value": "보세창고", "description": "외국물품 장치·보관을 위한 보세구역"},
-        {"value": "보세공장", "description": "외국물품 가공·제조를 위한 보세구역"},
-        {"value": "종합보세구역", "description": "복합 기능을 수행하는 종합보세구역"}
-      ]
-    },
-    {
-      "entity_type": "document_type",
-      "display_name_ko": "서류 유형",
-      "description": "보세전시장 특허 신청 시 필요한 서류 유형",
-      "values": [
-        {"value": "신청서", "description": "보세전시장 특허 신청서 서식"},
-        {"value": "사업자서류", "description": "사업자등록증, 법인등기부등본 등"},
-        {"value": "도면", "description": "전시장 시설 배치도 및 평면도"},
-        {"value": "물품목록", "description": "반입 예정 물품의 품목·수량 목록"},
-        {"value": "행사계획서", "description": "전시·박람회 행사 운영 계획서"}
-      ]
-    },
-    {
-      "entity_type": "risk_flag",
-      "display_name_ko": "위험 플래그",
-      "description": "챗봇 응답 시 에스컬레이션이 필요한 위험 유형",
-      "values": [
-        {"value": "법률판단요청", "description": "법률 해석이 필요하여 전문가 확인이 필요한 경우"},
-        {"value": "과세판단요청", "description": "관세·세율 판단이 필요하여 세관 확인이 필요한 경우"},
-        {"value": "기관이관필요", "description": "다른 기관(검역소, 식약처 등)으로 이관이 필요한 경우"},
-        {"value": "위반우려", "description": "관세법 위반 가능성이 있어 주의가 필요한 경우"}
-      ]
-    }
-  ]
-}
+[
+  {
+    "entity_id": "user_type",
+    "values": [
+      "신청자",
+      "행사주최자",
+      "전시장운영사",
+      "출품업체",
+      "관세사",
+      "일반민원인"
+    ],
+    "description": "질문자의 역할"
+  },
+  {
+    "entity_id": "event_type",
+    "values": [
+      "박람회",
+      "전람회",
+      "견본품전시회",
+      "홍보행사",
+      "상담행사"
+    ],
+    "description": "행사 유형"
+  },
+  {
+    "entity_id": "item_type",
+    "values": [
+      "일반공산품",
+      "기계장비",
+      "식품",
+      "음료",
+      "샘플품",
+      "판매용품",
+      "증여물품",
+      "오락용품"
+    ],
+    "description": "물품 유형"
+  },
+  {
+    "entity_id": "action_type",
+    "values": [
+      "신청",
+      "반입",
+      "검사",
+      "전시",
+      "사용",
+      "시연",
+      "판매",
+      "증여",
+      "시식",
+      "반출",
+      "재수출"
+    ],
+    "description": "사용자 행위"
+  },
+  {
+    "entity_id": "location",
+    "values": [
+      "서울",
+      "부산",
+      "인천",
+      "대구",
+      "광주",
+      "평택"
+    ],
+    "description": "전시장 또는 관할 세관 지역"
+  },
+  {
+    "entity_id": "date_range",
+    "values": [
+      "행사기간",
+      "반입예정일",
+      "반출예정일",
+      "연장기간"
+    ],
+    "description": "기한 정보"
+  },
+  {
+    "entity_id": "declaration_status",
+    "values": [
+      "신고전",
+      "반입신고완료",
+      "수입신고완료",
+      "미신고"
+    ],
+    "description": "신고 진행 상태"
+  },
+  {
+    "entity_id": "bonded_area_type",
+    "values": [
+      "보세전시장",
+      "보세창고",
+      "보세공장",
+      "종합보세구역"
+    ],
+    "description": "보세구역 유형"
+  },
+  {
+    "entity_id": "document_type",
+    "values": [
+      "신청서",
+      "사업자서류",
+      "도면",
+      "물품목록",
+      "행사계획서"
+    ],
+    "description": "문서 유형"
+  },
+  {
+    "entity_id": "risk_flag",
+    "values": [
+      "법률판단요청",
+      "과세판단요청",
+      "기관이관필요",
+      "위반우려"
+    ],
+    "description": "정책 엔진용 위험 플래그"
+  }
+]

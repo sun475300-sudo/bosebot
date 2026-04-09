@@ -1,4 +1,47 @@
+# Python
 __pycache__/
-*.pyc
-.pytest_cache/
-logs/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Database files (generated at runtime)
+data/*.db
+data/*.db-shm
+data/*.db-wal
+!data/faq.json
+!data/legal_references.json
+!data/escalation_rules.json
+!data/intents.json
+!data/entities.json
+!data/rag_documents_seed.jsonl
+
+# Test artifacts
+data/faq_api_test_*.json
+data/faq_inactive_*.json
+data/faq_update_*.json
+
+# Backups (generated at runtime)
+backups/
+
+# Reports
+reports/*.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+*.log
+
+# Locale compiled
+data/locales/*.pyc
