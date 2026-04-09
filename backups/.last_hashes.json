@@ -1,70 +1,70 @@
 {
-  "data\\ab_tests.db": {
+  "data/ab_tests.db": {
     "size": 32768,
-    "sha256": "6639ea2879178ce7ef4f7c84affaf4e8fb1961336b621fdb3cea7e3a6d2f5a9f"
+    "sha256": "3a3ab73326aa3f9972f7dd79d9d7f641ab94d62e20c8a679ad3ecf3ab3542430"
   },
-  "data\\alerts.db": {
+  "data/alerts.db": {
     "size": 24576,
-    "sha256": "739d33db645c3254af5a7abe061005c0fb7f463dec23595e55c280dcfbdd8963"
+    "sha256": "d15a52c5afee379767aaa3557d6380081e4c785c7ed7ff04bf3b1383d38f4985"
   },
-  "data\\audit.db": {
-    "size": 503808,
-    "sha256": "030f720aec9cb4da3e252d9129da3ea9f159564b78da669dfed48f1fa240db1b"
+  "data/audit.db": {
+    "size": 487424,
+    "sha256": "7ba3c1ee161c797f8d35a4f4975517defa88ed3895e80c19cb31e745c916faee"
   },
-  "data\\escalation_rules.json": {
-    "size": 2302,
-    "sha256": "6b9db0b6f67fa891a385bcdd158add29ce838895c9b541994b7b7cf74ca6b012"
+  "data/escalation_rules.json": {
+    "size": 2262,
+    "sha256": "dd7d439fdf2de49984ac88275ac5120528ee894bd793159ebe8432e89c20d145"
   },
-  "data\\faq.json": {
-    "size": 333172,
-    "sha256": "c21e76be721122d07ba92967f76f6dbbe60c6a4b8a23fc37010dafb730a438c5"
+  "data/faq.json": {
+    "size": 38612,
+    "sha256": "c7037025bfd1ebeaf1a4a50650c8a444b31c3ed628447d11863647ad6b459d6a"
   },
-  "data\\faq_pipeline.db": {
+  "data/faq_pipeline.db": {
     "size": 12288,
     "sha256": "77bcb3bcfe128807ea3dae1589e5623616654e891ae94cd12a1796833f18c9eb"
   },
-  "data\\faq_snapshots.db": {
-    "size": 6897664,
-    "sha256": "332c29ba0b3aefdf94f4fc8b006a533483e38b82789860a13276a667e1ad1886"
+  "data/faq_snapshots.db": {
+    "size": 5320704,
+    "sha256": "a679a75d22fa88d801f242e0209291ca0106357e2a56e723d2eb3b38a7e5b808"
   },
-  "data\\law_versions.db": {
+  "data/law_versions.db": {
     "size": 20480,
     "sha256": "6bd27f22aeba25f6b043b168413b23f275a0406ca9997e8bd6c483ad9761efa2"
   },
-  "data\\legal_references.json": {
-    "size": 3875,
-    "sha256": "10e66dd63d992fa02487a9e6dbe29391ddcd9b257c575a5ac4a4b79b6276264b"
+  "data/legal_references.json": {
+    "size": 3792,
+    "sha256": "f06b07261036a8e8e68069b51c4b50a3c8f0287a38d4fa3294d5926ba16fb817"
   },
-  "data\\memory.db": {
-    "size": 176128,
-    "sha256": "52ce18de78637755545ee55277d672735aa21b298d7de7e4ec66d4600d977fa3"
+  "data/memory.db": {
+    "size": 167936,
+    "sha256": "c5d33d90757298b29d2eea33168f419c5c341b230d93f0a031d5eb560af5ed31"
   },
-  "data\\migrations.db": {
+  "data/migrations.db": {
     "size": 8192,
     "sha256": "62b0e0c80d5b9ab7348a33538b1bcd04661b39da44c434f03273f5546c221428"
   },
-  "data\\scheduler.db": {
+  "data/scheduler.db": {
     "size": 28672,
-    "sha256": "44aa59de5a64c25860836a36a5ee46cd3959cd22de1288db1e47298c3f015f64"
+    "sha256": "2ad02ee46ca3737c662a14c6ea0b3f4dbd8e8266647c90bc9d19773c16e34740"
   },
-  "data\\segments.db": {
-    "size": 167936,
-    "sha256": "803240a617859a8a2520267b960b0d5c9af03c2fda9ed08d03c313459850f8cf"
+  "data/segments.db": {
+    "size": 163840,
+    "sha256": "e964adddd6f34fc07a1df968be1f16b18112956debce65f7f7621f92dc538fd8"
   },
-  "data\\sentiment.db": {
-    "size": 3801088,
-    "sha256": "70f69041090d5c469bad289885c9983517368a1791d33f1483209dae69dcb74e"
+  "data/sentiment.db": {
+    "size": 3624960,
+    "sha256": "1976f0d0592bf395041807ec3b3d4c1d55fea1f6c31caf625ae96e6b4d0b2cae"
   },
-  "data\\tenants.db": {
+  "data/tenants.db": {
     "size": 28672,
-    "sha256": "29427dc17f6fd8bd884a2f5fde617457993d30cc5b163769be07fb557c5e40a4"
+    "sha256": "37ab729ce9761f944262f06b3d5019c1c112bb6e23b4e14b986b11a25604c056"
   },
-  "data\\user_profiles.db": {
-    "size": 139264,
-    "sha256": "e3c12c2c2d41a67f1443fdc2e96127dcf487ba007c3ca77304f203e1f15561ad"
+  "data/user_profiles.db": {
+    "size": 135168,
+    "sha256": "2d44662f74b4550d5608a0a383ce5555f6c58fd0e87270e13309c1d73c035bd4"
   },
-  "data\\webhooks.db": {
-    "size": 2289664,
-    "sha256": "7d303d5f5c1adf1c7b43f5ad3d5b7c47b77ae959f81e26063e589319f54e826e"
+  "data/webhooks.db": {
+    "size": 2138112,
+    "sha256": "30c58675e82729a4d9efe2bc82f97c358d36bf3bb75475c24d6339acac272e95"
   }
 }

@@ -1,716 +1,133 @@
 {
+  "version": "1.0",
+  "description": "보세전시장 챗봇 엔티티 시드 데이터 (10개 타입)",
   "entity_types": [
     {
-      "id": "user_type",
-      "name_ko": "이용자 유형",
-      "name_en": "User Type",
-      "description": "보세전시장 이용자 신분/역할 분류",
+      "entity_type": "user_type",
+      "display_name_ko": "사용자 유형",
+      "description": "챗봇 이용자의 역할 구분",
       "values": [
-        {
-          "value": "operator",
-          "synonyms": ["운영인", "시설운영자", "운영담당자", "보세전시장운영인"],
-          "description": "보세전시장을 운영·관리하는 자"
-        },
-        {
-          "value": "exhibitor",
-          "synonyms": ["출품자", "전시자", "상품출품자", "전시기업"],
-          "description": "물품을 전시·판매하기 위해 출품하는 자"
-        },
-        {
-          "value": "visitor",
-          "synonyms": ["관람객", "방문객", "구매자", "관광객"],
-          "description": "전시장을 방문하여 물품을 관람·구매하는 자"
-        },
-        {
-          "value": "customs_broker",
-          "synonyms": ["관세사", "통관사", "관세대리인"],
-          "description": "통관절차를 대행하는 관세사"
-        },
-        {
-          "value": "customs_official",
-          "synonyms": ["세관공무원", "관세청직원", "세관직원", "관세공무원"],
-          "description": "세관에 근무하는 공무원"
-        },
-        {
-          "value": "logistics_provider",
-          "synonyms": ["물류업자", "운송업자", "배송업체", "택배기사"],
-          "description": "물품의 운송·배송을 담당하는 업체"
-        },
-        {
-          "value": "security_personnel",
-          "synonyms": ["보안요원", "경비원", "경비담당자", "경찰"],
-          "description": "보안 및 질서유지를 담당하는 인력"
-        },
-        {
-          "value": "insurance_agent",
-          "synonyms": ["보험업자", "보험담당자", "손해사정인"],
-          "description": "보험 가입 및 청구를 담당하는 자"
-        },
-        {
-          "value": "maintenance_staff",
-          "synonyms": ["시설유지보수원", "정비요원", "관리사원"],
-          "description": "보세전시장 시설을 관리·유지보수하는 직원"
-        },
-        {
-          "value": "government_inspector",
-          "synonyms": ["정부감시원", "감시관", "검역관"],
-          "description": "물품 검역 및 감시를 담당하는 관계기관 직원"
-        }
-      ],
-      "extraction_patterns": [
-        "운영인",
-        "출품자|전시자",
-        "관람객|방문객",
-        "관세사",
-        "세관공무원|관세청",
-        "물류|운송",
-        "보안|경비",
-        "보험",
-        "유지보수|정비",
-        "감시원|검역"
+        {"value": "신청자", "description": "보세전시장 특허를 신청하는 자"},
+        {"value": "행사주최자", "description": "전시·박람회 행사를 기획·주최하는 자"},
+        {"value": "전시장운영사", "description": "보세전시장 시설을 운영·관리하는 법인"},
+        {"value": "출품업체", "description": "전시장에 물품을 출품하는 업체"},
+        {"value": "관세사", "description": "관세 업무를 대행하는 전문 자격사"},
+        {"value": "일반민원인", "description": "일반적인 문의를 하는 민원인"}
       ]
     },
     {
-      "id": "event_type",
-      "name_ko": "행사 유형",
-      "name_en": "Event Type",
-      "description": "보세전시장에서 개최되는 행사의 분류",
+      "entity_type": "event_type",
+      "display_name_ko": "행사 유형",
+      "description": "보세전시장에서 개최 가능한 행사 유형",
       "values": [
-        {
-          "value": "trade_fair",
-          "synonyms": ["박람회", "무역박람회", "국제박람회", "B2B박람회"],
-          "description": "국내외 기업이 참여하는 대규모 무역행사"
-        },
-        {
-          "value": "exhibition",
-          "synonyms": ["전람회", "기획전시", "특별전시"],
-          "description": "특정 주제에 따른 물품 전시행사"
-        },
-        {
-          "value": "sample_exhibition",
-          "synonyms": ["견본품전시회", "샘플전시", "샘플전"],
-          "description": "국제무역용 견본품 전시 및 시연"
-        },
-        {
-          "value": "international_trade_fair",
-          "synonyms": ["국제무역전시회", "해외바이어전시회"],
-          "description": "해외 바이어 대상 국제 무역전시회"
-        },
-        {
-          "value": "product_launch",
-          "synonyms": ["신제품발표회", "신상품론칭", "제품출시회"],
-          "description": "신상품 또는 신기술 발표 및 홍보행사"
-        },
-        {
-          "value": "tasting_event",
-          "synonyms": ["시식회", "제품시식", "맛평가회", "워인테이스팅"],
-          "description": "식품·음료 제품 시식 및 평가 행사"
-        },
-        {
-          "value": "promotional_event",
-          "synonyms": ["프로모션", "할인판매", "판촉행사"],
-          "description": "제품 홍보 및 판촉을 위한 행사"
-        },
-        {
-          "value": "conference_seminar",
-          "synonyms": ["컨퍼런스", "세미나", "포럼", "발표회"],
-          "description": "업계 정보 공유 및 비즈니스 미팅 행사"
-        },
-        {
-          "value": "special_event",
-          "synonyms": ["특별행사", "이벤트", "팝업행사"],
-          "description": "임시 또는 특별 목적의 행사"
-        },
-        {
-          "value": "cultural_performance",
-          "synonyms": ["공연", "문화행사", "뮤직페스티벌"],
-          "description": "문화·예술 관련 공연 및 행사"
-        }
-      ],
-      "extraction_patterns": [
-        "박람회",
-        "전람회|전시",
-        "견본품",
-        "국제무역",
-        "신제품|론칭",
-        "시식|테이스팅",
-        "프로모션|판촉",
-        "세미나|컨퍼런스",
-        "이벤트|행사",
-        "공연|문화"
+        {"value": "박람회", "description": "대규모 종합 전시 행사"},
+        {"value": "전람회", "description": "특정 분야의 전시 행사"},
+        {"value": "견본품전시회", "description": "견본품(샘플)을 전시하는 행사"},
+        {"value": "홍보행사", "description": "제품·서비스 홍보 목적의 행사"},
+        {"value": "상담행사", "description": "바이어 상담·비즈니스 매칭 행사"}
       ]
     },
     {
-      "id": "item_type",
-      "name_ko": "물품 유형",
-      "name_en": "Item Type",
-      "description": "보세전시장에서 취급하는 물품 분류",
+      "entity_type": "item_type",
+      "display_name_ko": "물품 유형",
+      "description": "보세전시장 반입·전시 대상 물품 유형",
       "values": [
-        {
-          "value": "foreign_goods",
-          "synonyms": ["외국물품", "수입물품", "해외제품", "외국산"],
-          "description": "외국에서 수입된 물품"
-        },
-        {
-          "value": "domestic_goods",
-          "synonyms": ["내국물품", "국내물품", "국산", "한국산"],
-          "description": "국내에서 생산된 물품"
-        },
-        {
-          "value": "sample_goods",
-          "synonyms": ["견본품", "샘플", "시안품", "모델"],
-          "description": "국제무역용 샘플/견본 물품"
-        },
-        {
-          "value": "sale_goods",
-          "synonyms": ["판매용품", "판매상품", "소매상품"],
-          "description": "보세전시장 내에서 판매할 목적의 물품"
-        },
-        {
-          "value": "tasting_food",
-          "synonyms": ["시식용식품", "시식용음료", "식품", "음료"],
-          "description": "시식 행사용 식품·음료 물품"
-        },
-        {
-          "value": "gift_goods",
-          "synonyms": ["증여품", "선물", "기념품", "사은품"],
-          "description": "관람객에게 증여·배포할 물품"
-        },
-        {
-          "value": "machinery_equipment",
-          "synonyms": ["기계", "장비", "기구", "공구"],
-          "description": "산업용 기계·장비 물품"
-        },
-        {
-          "value": "electronics",
-          "synonyms": ["전자제품", "가전", "IT제품", "전자기기"],
-          "description": "전자·가전 관련 제품"
-        },
-        {
-          "value": "textiles_fashion",
-          "synonyms": ["의류", "패션", "직물", "섬유", "패션상품"],
-          "description": "의류·패션·섬유 제품"
-        },
-        {
-          "value": "waste_disposal",
-          "synonyms": ["폐기물", "폐기대상", "처분물품"],
-          "description": "전시종료 후 폐기할 물품"
-        }
-      ],
-      "extraction_patterns": [
-        "외국물품|수입",
-        "내국물품|국산",
-        "견본|샘플",
-        "판매용",
-        "식품|음료",
-        "증여|선물",
-        "기계|장비",
-        "전자|가전",
-        "의류|패션",
-        "폐기|처분"
+        {"value": "일반공산품", "description": "일반 공업 생산품"},
+        {"value": "기계장비", "description": "산업용 기계 및 장비"},
+        {"value": "식품", "description": "식용 가능한 물품"},
+        {"value": "음료", "description": "음용 가능한 물품"},
+        {"value": "샘플품", "description": "견본·시연 목적의 소량 물품"},
+        {"value": "판매용품", "description": "전시장 내 판매를 목적으로 반입된 물품"},
+        {"value": "증여물품", "description": "무상 배포를 목적으로 반입된 물품"},
+        {"value": "오락용품", "description": "체험·오락 목적의 물품"}
       ]
     },
     {
-      "id": "action_type",
-      "name_ko": "행위 유형",
-      "name_en": "Action Type",
-      "description": "보세전시장에서 발생하는 물품 처리 행위",
+      "entity_type": "action_type",
+      "display_name_ko": "행위 유형",
+      "description": "보세전시장 관련 행위(절차) 유형",
       "values": [
-        {
-          "value": "import",
-          "synonyms": ["반입", "수입", "인수", "반입신고"],
-          "description": "외국물품을 보세전시장에 반입하는 행위"
-        },
-        {
-          "value": "export",
-          "synonyms": ["반출", "수출", "인도", "반출허가"],
-          "description": "물품을 보세전시장에서 반출하는 행위"
-        },
-        {
-          "value": "exhibition",
-          "synonyms": ["전시", "전시중", "전시보관"],
-          "description": "물품을 전시장에서 전시하는 행위"
-        },
-        {
-          "value": "sale",
-          "synonyms": ["판매", "판매중", "소매", "도매"],
-          "description": "관람객에게 물품을 판매하는 행위"
-        },
-        {
-          "value": "tasting",
-          "synonyms": ["시식", "시음", "시연", "샘플링"],
-          "description": "식품·음료 물품을 시식하게 하는 행위"
-        },
-        {
-          "value": "gifting",
-          "synonyms": ["증여", "배포", "증정", "기념품배포"],
-          "description": "관람객에게 물품을 증여하는 행위"
-        },
-        {
-          "value": "disposal",
-          "synonyms": ["폐기", "처분", "소각", "폐기처리"],
-          "description": "물품을 폐기 처분하는 행위"
-        },
-        {
-          "value": "temporary_storage",
-          "synonyms": ["임시보관", "보관", "장치", "저장"],
-          "description": "물품을 일시적으로 보관하는 행위"
-        },
-        {
-          "value": "transfer",
-          "synonyms": ["이전", "이동", "수수", "송수"],
-          "description": "물품 소유권 또는 관리권을 이전하는 행위"
-        },
-        {
-          "value": "inspection",
-          "synonyms": ["검사", "검수", "심사", "확인"],
-          "description": "물품을 검사·확인하는 행위"
-        }
-      ],
-      "extraction_patterns": [
-        "반입|수입",
-        "반출|수출",
-        "전시",
-        "판매|소매",
-        "시식|시연",
-        "증여|배포",
-        "폐기|처분",
-        "보관|저장",
-        "이전|이동",
-        "검사|심사"
+        {"value": "신청", "description": "특허 또는 허가를 신청하는 행위"},
+        {"value": "반입", "description": "물품을 보세전시장에 들여오는 행위"},
+        {"value": "검사", "description": "세관의 물품 검사 행위"},
+        {"value": "전시", "description": "물품을 전시·진열하는 행위"},
+        {"value": "사용", "description": "전시장 내에서 물품을 사용하는 행위"},
+        {"value": "시연", "description": "물품의 기능·성능을 시연(데모)하는 행위"},
+        {"value": "판매", "description": "전시물품을 유상으로 판매하는 행위"},
+        {"value": "증여", "description": "전시물품을 무상으로 배포하는 행위"},
+        {"value": "시식", "description": "식품·음료를 시식용으로 제공하는 행위"},
+        {"value": "반출", "description": "물품을 보세전시장에서 반출하는 행위"},
+        {"value": "재수출", "description": "외국물품을 다시 수출하는 행위"}
       ]
     },
     {
-      "id": "location",
-      "name_ko": "장소",
-      "name_en": "Location",
-      "description": "보세전시장 관련 지리적 위치 및 시설",
+      "entity_type": "location",
+      "display_name_ko": "지역",
+      "description": "보세전시장 소재지 또는 관할 세관 지역",
       "values": [
-        {
-          "value": "bonded_exhibition_hall",
-          "synonyms": ["보세전시장", "보세전시구역", "전시장"],
-          "description": "보세전시장 전체 구역"
-        },
-        {
-          "value": "customs_office",
-          "synonyms": ["세관", "세관청", "관세청", "세관사무소"],
-          "description": "통관 처리를 담당하는 세관"
-        },
-        {
-          "value": "bonded_warehouse",
-          "synonyms": ["보세창고", "보세하우스", "항만보세창고"],
-          "description": "수입 물품 임시보관 창고"
-        },
-        {
-          "value": "bonded_factory",
-          "synonyms": ["보세공장", "보세가공구역", "가공시설"],
-          "description": "보세 상태에서 가공하는 공장"
-        },
-        {
-          "value": "exhibition_booth",
-          "synonyms": ["전시부스", "부스", "전시대", "전시공간"],
-          "description": "출품자 물품 전시 부스"
-        },
-        {
-          "value": "entrance",
-          "synonyms": ["입구", "출입구", "게이트", "진출입"],
-          "description": "보세전시장 출입 통로"
-        },
-        {
-          "value": "loading_unloading_area",
-          "synonyms": ["하역장", "적하장", "로딩지역", "배송센터"],
-          "description": "물품 적하·하역 지역"
-        },
-        {
-          "value": "inspection_area",
-          "synonyms": ["검사지역", "검수장", "검사실"],
-          "description": "세관 검사 실시 지역"
-        },
-        {
-          "value": "office_building",
-          "synonyms": ["관리사무실", "사무실", "운영사무소", "종합안내"],
-          "description": "운영사무실 및 안내 시설"
-        },
-        {
-          "value": "temporary_storage_area",
-          "synonyms": ["임시보관소", "보관창고", "장치소"],
-          "description": "물품 임시보관 구역"
-        }
-      ],
-      "extraction_patterns": [
-        "보세전시장",
-        "세관",
-        "보세창고|창고",
-        "보세공장|가공",
-        "부스|전시",
-        "입구|출입",
-        "하역|적하",
-        "검사|검수",
-        "사무실",
-        "보관소"
+        {"value": "서울", "description": "서울세관 관할"},
+        {"value": "부산", "description": "부산세관 관할"},
+        {"value": "인천", "description": "인천세관 관할"},
+        {"value": "대구", "description": "대구세관 관할"},
+        {"value": "광주", "description": "광주세관 관할"},
+        {"value": "평택", "description": "평택세관 관할"}
       ]
     },
     {
-      "id": "date_range",
-      "name_ko": "기간 유형",
-      "name_en": "Date Range Type",
-      "description": "보세전시장 운영 관련 기간 분류",
+      "entity_type": "date_range",
+      "display_name_ko": "기간 유형",
+      "description": "보세전시장 관련 주요 기간 구분",
       "values": [
-        {
-          "value": "license_period",
-          "synonyms": ["특허기간", "허가기간", "운영기간", "지정기간"],
-          "description": "보세전시장 운영 허가 기간"
-        },
-        {
-          "value": "exhibition_period",
-          "synonyms": ["전시기간", "행사기간", "개최기간"],
-          "description": "행사 전시 개최 기간"
-        },
-        {
-          "value": "storage_period",
-          "synonyms": ["장치기간", "보관기간", "보유기간"],
-          "description": "물품 보관 허용 기간"
-        },
-        {
-          "value": "renewal_period",
-          "synonyms": ["갱신기간", "재허가기간", "연장기간"],
-          "description": "특허 재갱신 대상 기간"
-        },
-        {
-          "value": "inspection_period",
-          "synonyms": ["검사기간", "확인기간"],
-          "description": "세관 검사 실시 기간"
-        },
-        {
-          "value": "reporting_deadline",
-          "synonyms": ["신고기한", "제출기한", "보고기한"],
-          "description": "물품 신고 및 서류 제출 기한"
-        },
-        {
-          "value": "approval_waiting_period",
-          "synonyms": ["허가대기기간", "승인대기"],
-          "description": "허가 결정 대기 기간"
-        },
-        {
-          "value": "disposal_period",
-          "synonyms": ["폐기기간", "처분기간"],
-          "description": "물품 폐기 처분 기간"
-        },
-        {
-          "value": "business_hours",
-          "synonyms": ["영업시간", "운영시간", "개장시간"],
-          "description": "보세전시장 운영 시간"
-        },
-        {
-          "value": "contract_period",
-          "synonyms": ["계약기간", "약정기간"],
-          "description": "출품자 참여 계약 기간"
-        }
-      ],
-      "extraction_patterns": [
-        "특허기간|허가기간",
-        "전시기간|행사기간",
-        "장치기간|보관기간",
-        "갱신|연장",
-        "검사기간",
-        "기한|신고",
-        "대기",
-        "폐기|처분",
-        "시간",
-        "계약|약정"
+        {"value": "행사기간", "description": "전시·박람회가 실제 운영되는 기간"},
+        {"value": "반입예정일", "description": "물품 반입이 예정된 날짜"},
+        {"value": "반출예정일", "description": "물품 반출이 예정된 날짜"},
+        {"value": "연장기간", "description": "특허 또는 반입 기간의 연장 기간"}
       ]
     },
     {
-      "id": "declaration_status",
-      "name_ko": "신고/허가 상태",
-      "name_en": "Declaration Status",
-      "description": "물품 신고 및 허가 절차의 진행 상태",
+      "entity_type": "declaration_status",
+      "display_name_ko": "신고 상태",
+      "description": "물품의 신고 처리 상태",
       "values": [
-        {
-          "value": "not_reported",
-          "synonyms": ["미신고", "신고미완료", "미처리"],
-          "description": "물품 신고 미완료 상태"
-        },
-        {
-          "value": "reported",
-          "synonyms": ["신고완료", "신고됨", "신고접수"],
-          "description": "물품 신고 완료 상태"
-        },
-        {
-          "value": "approval_pending",
-          "synonyms": ["허가대기", "승인대기", "검토중"],
-          "description": "허가 승인 대기 중 상태"
-        },
-        {
-          "value": "approved",
-          "synonyms": ["허가완료", "허가됨", "승인됨"],
-          "description": "허가 승인 완료 상태"
-        },
-        {
-          "value": "rejected",
-          "synonyms": ["반려", "거절", "불승인", "반려됨"],
-          "description": "허가 반려 상태"
-        },
-        {
-          "value": "under_inspection",
-          "synonyms": ["검사중", "심사중", "검증중"],
-          "description": "세관 검사 진행 중 상태"
-        },
-        {
-          "value": "inspection_passed",
-          "synonyms": ["검사완료", "검사통과", "적합"],
-          "description": "세관 검사 통과 상태"
-        },
-        {
-          "value": "inspection_failed",
-          "synonyms": ["검사불통과", "부적합", "검사탈락"],
-          "description": "세관 검사 불통과 상태"
-        },
-        {
-          "value": "cleared",
-          "synonyms": ["통관", "통관완료", "클리어"],
-          "description": "통관 완료 상태"
-        },
-        {
-          "value": "suspended",
-          "synonyms": ["중단", "보류", "일시정지"],
-          "description": "절차 진행 중단 상태"
-        }
-      ],
-      "extraction_patterns": [
-        "미신고|신고미",
-        "신고완료|신고됨",
-        "허가대기|승인대기",
-        "허가완료|허가됨",
-        "반려|거절",
-        "검사중|심사중",
-        "검사통과|검사완료",
-        "불통과|부적합",
-        "통관",
-        "중단|보류"
+        {"value": "신고전", "description": "아직 어떠한 신고도 이루어지지 않은 상태"},
+        {"value": "반입신고완료", "description": "보세전시장 반입 신고가 완료된 상태"},
+        {"value": "수입신고완료", "description": "수입 신고가 완료되어 관세 납부가 가능한 상태"},
+        {"value": "미신고", "description": "신고 의무가 있으나 신고하지 않은 상태"}
       ]
     },
     {
-      "id": "bonded_area_type",
-      "name_ko": "보세구역 유형",
-      "name_en": "Bonded Area Type",
-      "description": "관세법상 보세구역 분류",
+      "entity_type": "bonded_area_type",
+      "display_name_ko": "보세구역 유형",
+      "description": "관세법상 보세구역의 유형 구분",
       "values": [
-        {
-          "value": "designated_bonded_area",
-          "synonyms": ["지정보세구역", "일반보세구역"],
-          "description": "세관장이 지정한 보세구역"
-        },
-        {
-          "value": "special_bonded_area",
-          "synonyms": ["특허보세구역", "특별보세지역"],
-          "description": "특별허가를 받은 보세구역"
-        },
-        {
-          "value": "comprehensive_bonded_area",
-          "synonyms": ["종합보세구역", "통합보세지역"],
-          "description": "여러 기능을 통합한 보세구역"
-        },
-        {
-          "value": "free_trade_zone",
-          "synonyms": ["자유무역지역", "FTZ"],
-          "description": "자유로운 무역을 허용하는 지역"
-        },
-        {
-          "value": "bonded_warehouse",
-          "synonyms": ["보세창고", "창고형보세"],
-          "description": "창고 형태의 보세구역"
-        },
-        {
-          "value": "bonded_factory",
-          "synonyms": ["보세공장", "공장형보세", "가공보세"],
-          "description": "공장 형태의 보세구역"
-        },
-        {
-          "value": "bonded_exhibition_zone",
-          "synonyms": ["보세전시구역", "전시형보세"],
-          "description": "전시 목적의 보세구역"
-        },
-        {
-          "value": "bonded_transport_zone",
-          "synonyms": ["보세운송지역", "수송보세"],
-          "description": "운송·통과 목적의 보세구역"
-        },
-        {
-          "value": "temporary_bonded_area",
-          "synonyms": ["임시보세지역", "임시보세"],
-          "description": "임시 사용 보세구역"
-        },
-        {
-          "value": "inland_bonded_area",
-          "synonyms": ["내륙보세", "내지보세"],
-          "description": "항만 외 지역의 보세구역"
-        }
-      ],
-      "extraction_patterns": [
-        "지정보세|일반보세",
-        "특허보세|특별보세",
-        "종합보세",
-        "자유무역|FTZ",
-        "보세창고",
-        "보세공장|가공보세",
-        "보세전시",
-        "보세운송",
-        "임시보세",
-        "내륙보세|내지보세"
+        {"value": "보세전시장", "description": "관세법 제190조에 따른 보세전시장"},
+        {"value": "보세창고", "description": "외국물품 장치·보관을 위한 보세구역"},
+        {"value": "보세공장", "description": "외국물품 가공·제조를 위한 보세구역"},
+        {"value": "종합보세구역", "description": "복합 기능을 수행하는 종합보세구역"}
       ]
     },
     {
-      "id": "document_type",
-      "name_ko": "서류 유형",
-      "name_en": "Document Type",
-      "description": "보세전시장 운영 관련 필수 서류",
+      "entity_type": "document_type",
+      "display_name_ko": "서류 유형",
+      "description": "보세전시장 특허 신청 시 필요한 서류 유형",
       "values": [
-        {
-          "value": "import_export_declaration",
-          "synonyms": ["반출입신고서", "통관신고서", "반입신고"],
-          "description": "물품 반입·반출 통관 신고 서류"
-        },
-        {
-          "value": "license_application",
-          "synonyms": ["특허신청서", "허가신청", "운영허가신청"],
-          "description": "보세전시장 운영 특허 신청 서류"
-        },
-        {
-          "value": "sample_export_permit_application",
-          "synonyms": ["견본품반출허가신청서", "샘플반출신청"],
-          "description": "국제견본 반출 허가 신청 서류"
-        },
-        {
-          "value": "inventory_report",
-          "synonyms": ["재고현황보고", "물품목록", "목록신고"],
-          "description": "보관 물품 재고 현황 보고서"
-        },
-        {
-          "value": "transaction_record",
-          "synonyms": ["거래기록", "판매기록", "증여기록"],
-          "description": "물품 판매·증여 등 거래 기록서"
-        },
-        {
-          "value": "inspection_result",
-          "synonyms": ["검사결과서", "검사성적서", "합격증명서"],
-          "description": "세관 검사 결과 서류"
-        },
-        {
-          "value": "contract_agreement",
-          "synonyms": ["출품계약서", "참여계약", "협약서"],
-          "description": "출품자 참여 계약서"
-        },
-        {
-          "value": "insurance_certificate",
-          "synonyms": ["보험증권", "보험가입증명", "손해보험증"],
-          "description": "물품 보험 가입 증명서"
-        },
-        {
-          "value": "event_authorization",
-          "synonyms": ["행사허가서", "개최허가", "이벤트승인"],
-          "description": "행사 개최 허가서"
-        },
-        {
-          "value": "disposal_report",
-          "synonyms": ["폐기처분보고서", "처분결과보고", "완료보고"],
-          "description": "물품 폐기 처분 완료 보고서"
-        }
-      ],
-      "extraction_patterns": [
-        "반출입신고|통관신고",
-        "특허신청|허가신청",
-        "견본품반출",
-        "재고|물품목록",
-        "거래|판매기록",
-        "검사결과|성적서",
-        "계약|협약",
-        "보험증권",
-        "행사허가|이벤트",
-        "폐기|처분보고"
+        {"value": "신청서", "description": "보세전시장 특허 신청서 서식"},
+        {"value": "사업자서류", "description": "사업자등록증, 법인등기부등본 등"},
+        {"value": "도면", "description": "전시장 시설 배치도 및 평면도"},
+        {"value": "물품목록", "description": "반입 예정 물품의 품목·수량 목록"},
+        {"value": "행사계획서", "description": "전시·박람회 행사 운영 계획서"}
       ]
     },
     {
-      "id": "risk_flag",
-      "name_ko": "위험 플래그",
-      "name_en": "Risk Flag",
-      "description": "통관 및 운영 리스크 수준 분류",
+      "entity_type": "risk_flag",
+      "display_name_ko": "위험 플래그",
+      "description": "챗봇 응답 시 에스컬레이션이 필요한 위험 유형",
       "values": [
-        {
-          "value": "low",
-          "synonyms": ["저위험", "낮음", "안전", "정상"],
-          "description": "리스크 없음 - 통상적 절차"
-        },
-        {
-          "value": "medium",
-          "synonyms": ["중위험", "중간", "주의", "경고"],
-          "description": "경미한 리스크 - 강화 검사"
-        },
-        {
-          "value": "high",
-          "synonyms": ["고위험", "높음", "주의필요", "우려"],
-          "description": "상당한 리스크 - 정밀 검사"
-        },
-        {
-          "value": "critical",
-          "synonyms": ["극도위험", "매우높음", "긴급", "차단"],
-          "description": "매우 높은 리스크 - 특별 검사/차단"
-        },
-        {
-          "value": "prohibited_item",
-          "synonyms": ["금지물품", "적발", "위반", "불가"],
-          "description": "반입 금지 물품 - 즉시 차단"
-        },
-        {
-          "value": "under_investigation",
-          "synonyms": ["조사중", "적발중", "수사중"],
-          "description": "수사·조사 진행 중"
-        },
-        {
-          "value": "appeal_pending",
-          "synonyms": ["이의제기중", "이의대기", "진정중"],
-          "description": "이의 제기 대기 중"
-        },
-        {
-          "value": "sanction_issued",
-          "synonyms": ["제재실시", "제재중", "과태료부과"],
-          "description": "행정제재 또는 과태료 부과"
-        },
-        {
-          "value": "cleared",
-          "synonyms": ["적법", "확인완료", "문제없음"],
-          "description": "전체 검사 완료 - 적법성 확인"
-        },
-        {
-          "value": "flagged_for_review",
-          "synonyms": ["검토필요", "재검사필요", "보류중"],
-          "description": "재검토 또는 재검사 필요"
-        }
-      ],
-      "extraction_patterns": [
-        "저위험|낮음|안전",
-        "중위험|중간|주의",
-        "고위험|높음",
-        "극도위험|매우높음|긴급",
-        "금지물품|적발",
-        "조사중|수사중",
-        "이의제기|진정",
-        "제재|과태료",
-        "적법|문제없음",
-        "검토|보류"
+        {"value": "법률판단요청", "description": "법률 해석이 필요하여 전문가 확인이 필요한 경우"},
+        {"value": "과세판단요청", "description": "관세·세율 판단이 필요하여 세관 확인이 필요한 경우"},
+        {"value": "기관이관필요", "description": "다른 기관(검역소, 식약처 등)으로 이관이 필요한 경우"},
+        {"value": "위반우려", "description": "관세법 위반 가능성이 있어 주의가 필요한 경우"}
       ]
     }
-  ],
-  "version": "1.0.0",
-  "last_updated": "2026-04-08",
-  "description": "보세전시장 챗봇 엔티티 정의 - 10개 엔티티 타입 (user_type, event_type, item_type, action_type, location, date_range, declaration_status, bonded_area_type, document_type, risk_flag)",
-  "metadata": {
-    "language": "ko-KR",
-    "domain": "bonded_exhibition_hall",
-    "government_service": true,
-    "compliance_level": "governmental",
-    "regulatory_framework": "관세법, 관세청 규정",
-    "total_entity_types": 10,
-    "total_values": 100
-  }
+  ]
 }
