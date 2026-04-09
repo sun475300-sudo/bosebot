@@ -175,18 +175,26 @@ class JWTAuth:
         def decorator(f):
             @wraps(f)
             def decorated_function(*args, **kwargs):
-                # Skip auth when ADMIN_AUTH_DISABLED or TESTING
-                if os.environ.get("ADMIN_AUTH_DISABLED", "").lower() == "true":
-                    return f(*args, **kwargs)
-                if os.environ.get("TESTING", "").lower() == "true":
-                    return f(*args, **kwargs)
-                # Also check Flask's TESTING config for test client usage
+                # Check if auth enforcement is explicitly requested
+                auth_testing = False
                 try:
                     from flask import current_app
-                    if current_app.config.get("TESTING") and not current_app.config.get("AUTH_TESTING"):
-                        return f(*args, **kwargs)
+                    auth_testing = current_app.config.get("AUTH_TESTING", False)
                 except RuntimeError:
                     pass
+
+                # Skip auth when ADMIN_AUTH_DISABLED or TESTING (unless AUTH_TESTING)
+                if not auth_testing:
+                    if os.environ.get("ADMIN_AUTH_DISABLED", "").lower() == "true":
+                        return f(*args, **kwargs)
+                    if os.environ.get("TESTING", "").lower() == "true":
+                        return f(*args, **kwargs)
+                    try:
+                        from flask import current_app
+                        if current_app.config.get("TESTING"):
+                            return f(*args, **kwargs)
+                    except RuntimeError:
+                        pass
 
                 auth_header = request.headers.get("Authorization", "")
                 if not auth_header.startswith("Bearer "):

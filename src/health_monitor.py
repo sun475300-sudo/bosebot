@@ -186,10 +186,17 @@ class HealthMonitor:
             dict: status, message, details, timestamp
         """
         try:
-            stat = os.statvfs(self.base_dir)
-            total = stat.f_frsize * stat.f_blocks
-            free = stat.f_frsize * stat.f_bavail
-            used = total - free
+            if os.name == "nt":
+                import shutil as _shutil
+                _usage = _shutil.disk_usage(self.base_dir)
+                total = _usage.total
+                free = _usage.free
+                used = _usage.used
+            else:
+                stat = os.statvfs(self.base_dir)
+                total = stat.f_frsize * stat.f_blocks
+                free = stat.f_frsize * stat.f_bavail
+                used = total - free
             usage_pct = round((used / total) * 100, 1) if total > 0 else 0
 
             details = {

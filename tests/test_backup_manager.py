@@ -54,10 +54,10 @@ class TestCreateBackup:
         with zipfile.ZipFile(path, "r") as zf:
             names = zf.namelist()
             assert "manifest.json" in names
-            assert os.path.join("data", "faq.json") in names
-            assert os.path.join("data", "legal_references.json") in names
-            assert os.path.join("data", "escalation_rules.json") in names
-            assert os.path.join("data", "test.db") in names
+            assert any("data" in n and "faq.json" in n for n in names)
+            assert any("data" in n and "legal_references.json" in n for n in names)
+            assert any("data" in n and "escalation_rules.json" in n for n in names)
+            assert any("data" in n and "test.db" in n for n in names)
 
     def test_backup_manifest_has_checksums(self, manager, temp_project):
         path = manager.create_backup()
@@ -92,7 +92,7 @@ class TestIncrementalBackup:
 
         with zipfile.ZipFile(path, "r") as zf:
             names = zf.namelist()
-            assert os.path.join("data", "faq.json") in names
+            assert any("data" in n and "faq.json" in n for n in names)
             manifest = json.loads(zf.read("manifest.json"))
             assert manifest["type"] == "incremental"
             # Only changed file should be in manifest

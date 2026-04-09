@@ -25,7 +25,10 @@ def tmp_db():
     os.close(fd)
     yield path
     if os.path.exists(path):
-        os.unlink(path)
+        try:
+            os.unlink(path)
+        except PermissionError:
+            pass  # Windows: file still locked by SQLite
 
 
 @pytest.fixture

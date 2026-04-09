@@ -191,8 +191,19 @@ class FAQManager:
                     return candidate
         raise ValueError("Cannot generate next ID")
 
+    @staticmethod
+    def _map_v4_fields(item: dict) -> dict:
+        """Map v4.0 field names to legacy names for backward compatibility."""
+        mapped = dict(item)
+        if "canonical_question" in mapped and "question" not in mapped:
+            mapped["question"] = mapped["canonical_question"]
+        if "answer_long" in mapped and "answer" not in mapped:
+            mapped["answer"] = mapped["answer_long"]
+        return mapped
+
     def _validate(self, item: dict):
         """Validate required fields and category."""
+        item = self._map_v4_fields(item)
         for field in REQUIRED_FIELDS:
             if not item.get(field):
                 raise ValueError(f"Required field '{field}' is missing or empty")
@@ -205,15 +216,22 @@ class FAQManager:
 
     def _normalize(self, item: dict) -> dict:
         """Return a cleaned FAQ item dict with all expected keys."""
-        return {
-            "id": item.get("id", ""),
-            "category": item["category"],
-            "question": item["question"],
-            "answer": item["answer"],
-            "legal_basis": item.get("legal_basis", []),
-            "notes": item.get("notes", ""),
-            "keywords": item.get("keywords", []),
+        mapped = self._map_v4_fields(item)
+        result = {
+            "id": mapped.get("id", ""),
+            "category": mapped["category"],
+            "question": mapped["question"],
+            "answer": mapped["answer"],
+            "legal_basis": mapped.get("legal_basis", []),
+            "notes": mapped.get("notes", ""),
+            "keywords": mapped.get("keywords", []),
         }
+        # Preserve v4.0 fields if present
+        for key in ("canonical_question", "user_variants", "answer_short",
+                     "answer_long", "intent_id", "related_faqs"):
+            if key in item:
+                result[key] = item[key]
+        return result
 
     def _save(self):
         """Write FAQ data to file atomically."""
@@ -223,7 +241,19 @@ class FAQManager:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(self._data, f, ensure_ascii=False, indent=2)
                 f.write("\n")
-            os.replace(tmp_path, self.faq_path)
+            # Windows-safe atomic replace
+            if os.name == "nt":
+                import shutil
+                try:
+                    os.replace(tmp_path, self.faq_path)
+                except PermissionError:
+                    shutil.copy2(tmp_path, self.faq_path)
+                    try:
+                        os.unlink(tmp_path)
+                    except OSError:
+                        pass
+            else:
+                os.replace(tmp_path, self.faq_path)
         except Exception:
             try:
                 os.unlink(tmp_path)
