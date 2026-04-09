@@ -527,6 +527,229 @@ docker-compose up -d
 # http://서버IP:8080/admin (관리자)
 ```
 
+
+---
+
+## 배포 가이드
+
+### 1. 로컬 개발 서버
+
+```bash
+# 의존성 설치
+pip install -r requirements.txt
+
+# 개발 모드 실행 (디버그 + 자동 리로드)
+CHATBOT_DEBUG=true python web_server.py --port 8080
+
+# 접속
+# 챗봇 UI:   http://localhost:8080
+# 관리자:    http://localhost:8080/admin
+# Swagger:   http://localhost:8080/swagger
+# 메트릭:    http://localhost:8080/metrics
+```
+
+### 2. Docker 단독 배포
+
+```bash
+# 이미지 빌드
+docker build -t bonded-chatbot:latest .
+
+# 컨테이너 실행
+docker run -d \
+  --name bonded-chatbot \
+  -p 8080:8080 \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/logs:/app/logs \
+  -v $(pwd)/backups:/app/backups \
+  -e CHATBOT_PORT=8080 \
+  -e CHATBOT_LOG_LEVEL=INFO \
+  -e JWT_SECRET_KEY=your-secret-key-here \
+  --restart unless-stopped \
+  bonded-chatbot:latest
+
+# 상태 확인
+docker logs -f bonded-chatbot
+curl http://localhost:8080/api/health
+```
+
+### 3. Docker Compose 프로덕션 배포 (권장)
+
+```bash
+# docker-compose.yml 사용 (nginx + gunicorn + Redis 캐시)
+docker-compose up -d
+
+# 서비스 상태 확인
+docker-compose ps
+docker-compose logs -f chatbot
+
+# 중지 / 재시작
+docker-compose down
+docker-compose restart chatbot
+```
+
+**docker-compose.yml 주요 서비스:**
+
+| 서비스 | 포트 | 설명 |
+|--------|------|------|
+| `chatbot` | 8080 (내부) | Flask + gunicorn 앱 서버 |
+| `nginx` | 80, 443 | 리버스 프록시, SSL 종단, 정적 파일 |
+| `redis` | 6379 (내부) | 세션/캐시 스토어 |
+
+### 4. 수동 프로덕션 배포 (gunicorn + nginx)
+
+```bash
+# 1) gunicorn으로 앱 서버 실행
+pip install gunicorn
+gunicorn -c deploy/gunicorn_config.py web_server:app
+
+# 2) nginx 리버스 프록시 설정
+sudo cp deploy/nginx.conf /etc/nginx/sites-available/bonded-chatbot
+sudo ln -s /etc/nginx/sites-available/bonded-chatbot /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+
+# 3) systemd 서비스 등록 (자동 시작)
+sudo tee /etc/systemd/system/bonded-chatbot.service << 'EOF'
+[Unit]
+Description=Bonded Exhibition Chatbot
+After=network.target
+
+[Service]
+User=chatbot
+WorkingDirectory=/opt/bonded-chatbot
+ExecStart=/opt/bonded-chatbot/venv/bin/gunicorn -c deploy/gunicorn_config.py web_server:app
+Restart=always
+RestartSec=5
+Environment=CHATBOT_PORT=8080
+Environment=CHATBOT_LOG_LEVEL=INFO
+Environment=JWT_SECRET_KEY=your-secret-key
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now bonded-chatbot
+```
+
+### 5. 클라우드 배포
+
+#### AWS EC2 / Lightsail
+
+```bash
+# EC2 인스턴스 접속 후
+sudo apt update && sudo apt install -y python3-pip docker.io docker-compose
+git clone https://github.com/sun475300-sudo/bonded-exhibition-chatbot-data.git
+cd bonded-exhibition-chatbot-data
+docker-compose up -d
+
+# 보안 그룹에서 80, 443 포트 오픈 필요
+```
+
+#### GCP Cloud Run
+
+```bash
+# Container Registry에 이미지 푸시
+gcloud builds submit --tag gcr.io/PROJECT_ID/bonded-chatbot
+gcloud run deploy bonded-chatbot \
+  --image gcr.io/PROJECT_ID/bonded-chatbot \
+  --port 8080 \
+  --allow-unauthenticated \
+  --memory 512Mi
+```
+
+#### Azure Container Instances
+
+```bash
+az container create \
+  --resource-group myResourceGroup \
+  --name bonded-chatbot \
+  --image bonded-chatbot:latest \
+  --ports 8080 \
+  --cpu 1 --memory 1
+```
+
+### 6. 환경 변수
+
+| 변수 | 기본값 | 설명 |
+|------|--------|------|
+| `CHATBOT_PORT` | `8080` | 서버 포트 |
+| `CHATBOT_HOST` | `0.0.0.0` | 바인드 주소 |
+| `CHATBOT_DEBUG` | `false` | 디버그 모드 |
+| `CHATBOT_LOG_LEVEL` | `INFO` | 로그 레벨 (DEBUG/INFO/WARNING/ERROR) |
+| `CHATBOT_DB_PATH` | `logs/chat_logs.db` | SQLite DB 경로 |
+| `JWT_SECRET_KEY` | (자동생성) | JWT 서명 키 (**프로덕션에서 반드시 설정**) |
+| `ADMIN_PASSWORD` | `admin` | 관리자 비밀번호 (**프로덕션에서 반드시 변경**) |
+| `SLACK_WEBHOOK_URL` | (비활성) | Slack 알림 웹훅 URL |
+| `BACKUP_INTERVAL_HOURS` | `24` | 자동 백업 주기 |
+| `RATE_LIMIT_PER_MINUTE` | `60` | IP당 분당 요청 제한 |
+
+### 7. SSL/HTTPS 설정 (Let's Encrypt)
+
+```bash
+# certbot 설치 및 인증서 발급
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d your-domain.com
+
+# 자동 갱신 확인
+sudo certbot renew --dry-run
+```
+
+### 8. 블루/그린 무중단 배포
+
+```bash
+# deploy/blue_green.sh 사용
+chmod +x deploy/blue_green.sh
+./deploy/blue_green.sh
+
+# 롤백이 필요한 경우
+./deploy/rollback.sh
+```
+
+### 9. 헬스체크 및 모니터링
+
+```bash
+# 기본 헬스체크
+curl http://localhost:8080/api/health
+
+# 상세 진단 (Docker 내부용)
+python deploy/healthcheck.py --host 127.0.0.1 --port 8080
+
+# Prometheus 메트릭 수집
+# prometheus.yml에 추가:
+#   - job_name: 'bonded-chatbot'
+#     static_configs:
+#       - targets: ['chatbot-server:8080']
+
+# Grafana 대시보드 임포트
+# deploy/grafana_dashboard.json 파일을 Grafana에서 Import
+```
+
+### 10. 백업 및 복원
+
+```bash
+# 수동 백업
+python -c "from src.backup_manager import BackupManager; BackupManager().create_backup()"
+
+# 자동 백업 (cron)
+echo "0 3 * * * cd /opt/bonded-chatbot && python -c \"from src.backup_manager import BackupManager; BackupManager().create_backup()\"" | crontab -
+
+# 복원
+python -c "from src.backup_manager import BackupManager; BackupManager().restore_from_backup('backups/backup_YYYYMMDD.zip')"
+```
+
+### 배포 체크리스트
+
+- [ ] `JWT_SECRET_KEY` 환경 변수 설정 (랜덤 32자 이상)
+- [ ] `ADMIN_PASSWORD` 변경
+- [ ] 방화벽에서 80/443 포트만 오픈
+- [ ] SSL 인증서 설정 (HTTPS)
+- [ ] `CHATBOT_DEBUG=false` 확인
+- [ ] 로그 디렉토리 쓰기 권한 확인
+- [ ] 백업 스케줄 설정
+- [ ] Slack 웹훅 연동 (장애 알림)
+- [ ] Prometheus + Grafana 모니터링 연동
+- [ ] 부하 테스트 실행: `python -m pytest tests/test_stress.py -v`
+
 ---
 
 ## 핵심 법적 근거
