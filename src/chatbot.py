@@ -37,6 +37,8 @@ from src.validator import get_needed_confirmations
 from src.utils import load_json, load_text, normalize_query
 from src.vector_search import VectorSearchEngine
 from src.llm_fallback import generate_llm_response_with_disclaimer, is_llm_available
+from src.pii_redactor import PIIRedactor
+from src.prompt_defender import PromptDefender
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +90,10 @@ class BondedExhibitionChatbot:
         except Exception as e:
             logger.error(f"Failed to check LLM availability: {e}", exc_info=True)
             self.llm_enabled = False
+
+        # 보안 애드온 (Phase 62-63)
+        self.pii_redactor = PIIRedactor(enabled=True)
+        self.prompt_defender = PromptDefender(enabled=True)
 
     @staticmethod
     def _normalize_faq_items(items: list[dict]) -> list[dict]:
@@ -268,18 +274,30 @@ class BondedExhibitionChatbot:
             result_dict = self._build_empty_response()
             return result_dict if include_metadata else result_dict["response"]
 
+        # Phase 63: 악의적 프롬프트 차단
+        if self.prompt_defender.is_malicious(query):
+            logger.warning(f"Malicious prompt detected and blocked. (query length: {len(query)})")
+            result_dict = self._wrap_result(
+                "허용되지 않는 접근 방식이거나 악의적인 문자열이 감지되어 요청이 차단되었습니다.",
+                "unknown", 0.0, "GENERAL", {}, "critical", {}, True
+            )
+            return result_dict if include_metadata else result_dict["response"]
+
+        # Phase 62: PII 마스킹 처리 (이후 모든 처리는 마스킹된 텍스트 기반)
+        safe_query = self.pii_redactor.redact(query)
+
         # 세션이 있으면 멀티턴 처리 시도
         session = None
         if session_id:
             session = self.session_manager.get_session(session_id)
 
         if session and session.has_pending():
-            result = self._process_confirmation_turn(session, query)
+            result = self._process_confirmation_turn(session, safe_query)
             # 세션 기반 응답은 단순 문자열이므로 래핑
             result_dict = self._wrap_result(result, "unknown", 0.0, "GENERAL", {}, "low", {}, False)
             return result_dict if include_metadata else result_dict["response"]
 
-        result_dict = self._process_new_query(query, session)
+        result_dict = self._process_new_query(safe_query, session)
         return result_dict if include_metadata else result_dict["response"]
 
     def _preprocess_query(self, query: str) -> tuple[str, list[dict]]:
