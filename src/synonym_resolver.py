@@ -64,6 +64,13 @@ SYNONYMS: dict[str, str] = {
     "통관신고": "수입신고",
     # 재수출 (re-export)
     "재반출": "재수출",
+    # 기한/기간 (deadline)
+    "언제까지": "기한",
+    "마감": "기한",
+    "며칠까지": "기한",
+    # 특허 (patent/license)
+    "등록": "특허",
+    "지정": "특허",
 }
 
 # Pre-sorted keys: longest first so that longer matches take priority

@@ -18,6 +18,7 @@ def build_response(
     confirmation_items: list[str] | None = None,
     is_escalation: bool = False,
     escalation_message: str = "",
+    legal_guide: list[str] | None = None,
 ) -> str:
     """구조화된 답변 문자열을 생성한다."""
     parts = []
@@ -46,6 +47,14 @@ def build_response(
         parts.append("근거:")
         for basis in legal_basis:
             parts.append(f"- {basis}")
+        parts.append("")
+
+    if legal_guide:
+        parts.append("--------------------------------------------------")
+        parts.append("⚖️ [전문가 법령 가이드]")
+        for guide in legal_guide:
+            parts.append(f"▶ {guide}")
+        parts.append("--------------------------------------------------")
         parts.append("")
 
     if is_escalation and escalation_message:

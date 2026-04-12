@@ -219,7 +219,7 @@ template_engine = TemplateEngine()
 response_formatter = ResponseFormatter(template_engine)
 
 # 지식 그래프 초기화
-knowledge_graph = KnowledgeGraph.build_from_faq(chatbot.faq_items)
+knowledge_graph = KnowledgeGraph.build_from_faq(chatbot.faq_items, chatbot.legal_refs)
 
 # 스마트 제안 엔진 초기화
 smart_suggestion_engine = SmartSuggestionEngine(
@@ -883,7 +883,7 @@ def faq_reload():
 
         # 6. SmartSuggestionEngine 재구축
         from src.knowledge_graph import KnowledgeGraph
-        _new_kg = KnowledgeGraph.build_from_faq(chatbot.faq_items)
+        _new_kg = KnowledgeGraph.build_from_faq(chatbot.faq_items, chatbot.legal_refs)
         from src.smart_suggestions import SmartSuggestionEngine
         smart_suggestion_engine.__init__(
             faq_items=chatbot.faq_items,
@@ -3160,7 +3160,7 @@ def admin_knowledge_rebuild():
     """지식 그래프를 재구축한다."""
     global knowledge_graph
     try:
-        knowledge_graph = KnowledgeGraph.build_from_faq(chatbot.faq_items)
+        knowledge_graph = KnowledgeGraph.build_from_faq(chatbot.faq_items, chatbot.legal_refs)
         stats = knowledge_graph.get_graph_stats()
         return jsonify({"message": "지식 그래프가 재구축되었습니다.", "stats": stats})
     except Exception as e:

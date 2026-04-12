@@ -57,6 +57,11 @@ class BondedExhibitionChatbot:
     def __init__(self):
         self.config = load_json("config/chatbot_config.json")
         self.faq_data = load_json("data/faq.json")
+        try:
+            self.legal_refs = load_json("data/legal_references.json").get("references", [])
+        except Exception as e:
+            logger.warning(f"Failed to load legal_references.json: {e}")
+            self.legal_refs = []
         self.system_prompt = load_text("config/system_prompt.txt")
         self.faq_items = self._normalize_faq_items(self.faq_data.get("items", []))
         self.tfidf_matcher = TFIDFMatcher(self.faq_items)
@@ -479,6 +484,17 @@ class BondedExhibitionChatbot:
                     risk_level, policy_decision, escalation_triggered,
                 )
 
+            # 법령 가이드 요약 추출 (지식 그래프 연계)
+            legal_guide = []
+            if self.knowledge_graph:
+                for basis in faq_match.get("legal_basis", []):
+                    law_node_id = f"law_{basis}"
+                    if law_node_id in self.knowledge_graph.nodes:
+                        node_data = self.knowledge_graph.nodes[law_node_id].get("data", {})
+                        summary = node_data.get("summary")
+                        if summary:
+                            legal_guide.append(f"{basis}: {summary}")
+
             response = build_response(
                 topic=category_name,
                 conclusion=self._extract_conclusion(faq_match.get("answer", "")),
@@ -487,6 +503,7 @@ class BondedExhibitionChatbot:
                 confirmation_items=confirmation_texts if confirmation_texts else None,
                 is_escalation=escalation_triggered,
                 escalation_message=escalation["message"] if escalation else "",
+                legal_guide=legal_guide if legal_guide else None,
             )
 
             # 7단계: 답변 필터링 (면책조항 추가)
