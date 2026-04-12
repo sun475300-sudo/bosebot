@@ -166,7 +166,7 @@ class BondedExhibitionChatbot:
 
             keywords = item.get("keywords", [])
             for kw in keywords:
-                if kw in query_lower:
+                if kw.lower() in query_lower:
                     score += 1
                     keyword_hits += 1
 
