@@ -474,24 +474,44 @@ bonded-exhibition-chatbot-data/
 
 ## 사이트 적용 가이드
 
-### A. iframe 삽입
+### A. 팝업 플로팅 위젯 (권장)
+기존 웹사이트의 HTML 하단(`</body>` 직전)에 아래 코드를 복사해 붙여넣기만 하면 챗봇 위젯이 생성됩니다.
+
 ```html
-<iframe src="http://챗봇서버:8080" width="400" height="600"
-        style="border:none;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.15);"></iframe>
+<!-- 보세전시장 챗봇 위젯 시작 -->
+<div id="chatbot-widget" style="position:fixed;bottom:24px;right:24px;z-index:9999;font-family:sans-serif;">
+  <iframe id="chatbot-frame" src="http://your-server-ip:8080"
+    style="display:none;width:420px;height:650px;border:none;border-radius:16px;
+           box-shadow:0 12px 48px rgba(0,0,0,0.25);margin-bottom:16px;transition:all 0.3s;"></iframe>
+  <div style="text-align:right;">
+    <button id="chatbot-btn" 
+      style="width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;
+             background:linear-gradient(135deg,#0062ff,#004abf);color:white;
+             font-size:28px;box-shadow:0 4px 16px rgba(0,98,255,0.4);transition:transform 0.2s;">
+      💬
+    </button>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const btn = document.getElementById('chatbot-btn');
+    const frame = document.getElementById('chatbot-frame');
+    btn.onclick = () => {
+      const isHidden = frame.style.display === 'none';
+      frame.style.display = isHidden ? 'block' : 'none';
+      btn.innerHTML = isHidden ? '✕' : '💬';
+      btn.style.transform = isHidden ? 'rotate(90deg)' : 'rotate(0deg)';
+    };
+  })();
+</script>
+<!-- 보세전시장 챗봇 위젯 끝 -->
 ```
 
-### B. 팝업 위젯 (복붙)
+### B. 단순 iframe 삽입
 ```html
-<div id="chatbot-widget" style="position:fixed;bottom:24px;right:24px;z-index:9999;">
-  <iframe id="chatbot-frame" src="http://챗봇서버:8080"
-    style="display:none;width:400px;height:600px;border:none;border-radius:12px;
-           box-shadow:0 8px 32px rgba(0,0,0,0.3);"></iframe>
-  <button onclick="var f=document.getElementById('chatbot-frame');
-    f.style.display=f.style.display==='none'?'block':'none';"
-    style="width:60px;height:60px;border-radius:50%;border:none;
-           background:linear-gradient(135deg,#1565C0,#1E88E5);color:#fff;
-           font-size:24px;cursor:pointer;box-shadow:0 4px 16px rgba(21,101,192,0.4);">B</button>
-</div>
+<iframe src="http://your-server-ip:8080" width="400" height="600"
+        style="border:none;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.15);"></iframe>
 ```
 
 ### C. REST API
@@ -527,6 +547,35 @@ docker-compose up -d
 # http://서버IP:8080/admin (관리자)
 ```
 
+
+---
+
+## 배포 및 운영 워크플로우
+
+### 1. 무중단 배포 (Hot-Reload)
+운영 중인 서버를 끄지 않고 FAQ 데이터나 핵심 로직 수정을 반영하는 가장 권장되는 방법입니다.
+
+1.  **데이터 수정**: `data/faq.json` 또는 `src/synonym_resolver.py` 등 수정
+2.  **API 호출**: 운영 서버의 리로드 엔드포인트 호출
+    ```bash
+    # 터미널 또는 웹훅에서 호출
+    curl -X POST http://localhost:8080/api/faq/reload
+    ```
+3.  **결과 확인**: 서비스 무중단 상태로 즉시 변경 사항이 반영됩니다.
+
+### 2. 로컬 개발 환경 실행
+```bash
+# 의존성 설치
+pip install -r requirements.txt
+
+# 서버 실행 (Windows: py 또는 python)
+python web_server.py --port 8080
+```
+# 접속
+# 챗봇 UI:   http://localhost:8080
+# 관리자:    http://localhost:8080/admin
+# Swagger:   http://localhost:8080/swagger
+# 메트릭:    http://localhost:8080/metrics
 
 ---
 
