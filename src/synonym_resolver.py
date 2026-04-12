@@ -39,32 +39,31 @@ SYNONYMS: dict[str, str] = {
     # 서류 (documents)
     "종이": "서류",
     "서류들": "서류",
-    # 특허기간 (license period)
-    "기한": "특허기간",
-    "기간": "특허기간",
-    "만료": "특허기간",
+    # NOTE: "기한"과 "기간"을 "특허기간"으로 일괄 변환하면 "반입 신고 기한" 등에서
+    # 오매칭이 발생하므로 해당 매핑을 제거함.
     # 연장 (extension/renewal)
     "갱신": "연장",
-    "다시": "연장",
     # 전시회 (exhibition)
     "쇼": "전시회",
-    "행사": "전시회",
     # 시식 (tasting)
     "맛보기": "시식",
     "시음": "시식",
     # 무료 배포 (free distribution)
     "공짜": "무료 배포",
-    "무료": "무료 배포",
-    # 무료배포 (free distribution - verb forms)
-    "나눠주다": "무료배포",
-    "배포": "무료배포",
     # 전시 (display/exhibit)
     "보여주다": "전시",
     "전시하다": "전시",
-    # 관할 세관 (jurisdictional customs office)
-    "세관": "관할 세관",
-    # 세관장확인 (customs clearance verification)
-    "통관": "세관장확인",
+    # ATA Carnet / ATA 까르네
+    "ATA Carnet": "ATA 까르네",
+    "ATA carnet": "ATA 까르네",
+    "ata carnet": "ATA 까르네",
+    "카르네": "ATA 까르네",
+    # 보세운송
+    "운송신고": "보세운송",
+    # 수입신고 (import declaration)
+    "통관신고": "수입신고",
+    # 재수출 (re-export)
+    "재반출": "재수출",
 }
 
 # Pre-sorted keys: longest first so that longer matches take priority

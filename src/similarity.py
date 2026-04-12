@@ -25,8 +25,40 @@ class TFIDFMatcher:
         self._build_documents()
         self._compute_tfidf()
 
+    # 한국어 조사/어미 목록 (길이 내림차순으로 정렬하여 긴 것부터 시도)
+    _KO_PARTICLES = sorted([
+        "으로부터", "에서부터", "로부터",
+        "에서", "이란", "이고", "이며", "이나", "으로", "이라",
+        "에게", "한테", "부터", "까지",
+        "이는", "하는", "하면", "하여", "되는",
+        "에는", "에도", "에서", "로는",
+        "을는", "이를",
+        "은", "는", "이", "가", "을", "를",
+        "에", "의", "와", "과", "도", "로", "만", "도",
+    ], key=len, reverse=True)
+
+    def _strip_particle(self, token: str) -> str:
+        """한국어 조사/어미를 토큰 끝에서 제거한다.
+
+        영문자로만 이루어진 토큰의 경우 한국어 조사가 붙어있을 수 있으므로
+        (예: 'carnet이', 'uni-pass에서') 제거를 시도한다.
+
+        Args:
+            token: 처리할 토큰.
+
+        Returns:
+            조사가 제거된 토큰. 제거 후 길이가 1 이하이면 원본 반환.
+        """
+        for particle in self._KO_PARTICLES:
+            if token.endswith(particle):
+                stripped = token[: -len(particle)]
+                # 최소 2글자 이상인 경우에만 적용
+                if len(stripped) >= 2:
+                    return stripped
+        return token
+
     def _tokenize(self, text: str) -> list[str]:
-        """한국어 공백 기반 토크나이즈.
+        """한국어 공백 기반 토크나이즈 (조사 처리 포함).
 
         Args:
             text: 토크나이즈할 텍스트.
@@ -37,7 +69,11 @@ class TFIDFMatcher:
         tokens = []
         for token in text.strip().lower().split():
             token = token.strip("?.,!·()\"'")
-            if token and len(token) > 1:
+            if not token:
+                continue
+            # 한국어 조사 제거 시도
+            token = self._strip_particle(token)
+            if len(token) >= 2:
                 tokens.append(token)
         return tokens
 

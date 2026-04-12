@@ -844,6 +844,66 @@ def faq_list():
     return jsonify({"items": items, "count": len(items)})
 
 
+@app.route("/api/faq/reload", methods=["POST"])
+def faq_reload():
+    """FAQ 데이터 및 관련 모듈을 서버 재시작 없이 리로드한다.
+
+    변경된 faq.json 및 Python 모듈(synonym_resolver, similarity)을
+    importlib를 이용해 동적으로 다시 로드한다.
+    """
+    import importlib
+    try:
+        # 1. 핵심 모듈 리로드
+        import src.synonym_resolver as _syn_mod
+        import src.similarity as _sim_mod
+        import src.spell_corrector as _spell_mod
+        importlib.reload(_syn_mod)
+        importlib.reload(_sim_mod)
+        importlib.reload(_spell_mod)
+
+        # 2. chatbot 인스턴스 리로드 (FAQ + TF-IDF 재계산)
+        from src.utils import load_json
+        faq_data = load_json("data/faq.json")
+        chatbot.faq_data = faq_data
+        chatbot.faq_items = chatbot._normalize_faq_items(faq_data.get("items", []))
+
+        # 3. TF-IDF 매처 재구축
+        from src.similarity import TFIDFMatcher
+        chatbot.tfidf_matcher = TFIDFMatcher(chatbot.faq_items)
+
+        # 4. FAQ 캐시 갱신
+        _refresh_faq_cache()
+
+        # 5. RelatedFAQFinder, QuestionClusterer, DuplicateDetector 재구축
+        from src.related_faq import RelatedFAQFinder
+        chatbot.related_faq_finder = RelatedFAQFinder(chatbot.faq_items)
+        from src.question_cluster import QuestionClusterer, DuplicateDetector
+        _new_clusterer = QuestionClusterer(chatbot.faq_items)
+        _new_detector = DuplicateDetector(chatbot.faq_items)
+
+        # 6. SmartSuggestionEngine 재구축
+        from src.knowledge_graph import KnowledgeGraph
+        _new_kg = KnowledgeGraph.build_from_faq(chatbot.faq_items)
+        from src.smart_suggestions import SmartSuggestionEngine
+        smart_suggestion_engine.__init__(
+            faq_items=chatbot.faq_items,
+            knowledge_graph=_new_kg,
+            question_clusterer=_new_clusterer,
+            related_faq_finder=chatbot.related_faq_finder,
+        )
+
+        faq_count = len(chatbot.faq_items)
+        logger.info(f"FAQ reload successful: {faq_count} items loaded")
+        return jsonify({
+            "status": "ok",
+            "message": f"FAQ 및 모듈이 재로드되었습니다. ({faq_count}개 항목)",
+            "faq_count": faq_count,
+        })
+    except Exception as e:
+        logger.error(f"FAQ reload failed: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route("/api/config", methods=["GET"])
 def config():
     """챗봇 설정 정보를 반환한다."""
