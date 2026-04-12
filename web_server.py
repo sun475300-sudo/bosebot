@@ -3598,4 +3598,10 @@ def main():
     parser = argparse.ArgumentParser(description="보세전시장 챗봇 웹 서버")
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--host", type=str, default="0.0.0.0")
-    args = pa
+    args = parser.parse_args()
+    
+    logger.info(f"Starting web server on {args.host}:{args.port}")
+    app.run(host=args.host, port=args.port, debug=False)
+
+if __name__ == "__main__":
+    main()
