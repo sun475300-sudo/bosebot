@@ -80,6 +80,7 @@ from src.quality_scorer import ResponseQualityScorer, QualityReport
 from src.conversation_analytics import ConversationAnalytics
 from src.error_recovery import ErrorRecovery, CircuitBreakerOpenError
 from src.smart_suggestions import SmartSuggestionEngine
+from src.entity_extractor_v2 import EntityExtractorV2, get_entity_extractor_v2
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MAX_QUERY_LENGTH = 500  # Production: reduced from 2000 to 500 chars for better security
@@ -246,6 +247,9 @@ api_gateway.register_version("v1", status="active")
 api_gateway.register_version("v2", status="active")
 pagination_helper = PaginationHelper()
 sort_helper = SortHelper()
+
+# 엔티티 추출기 V2 초기화
+entity_extractor_v2 = get_entity_extractor_v2()
 
 # 에러 복구 시스템 초기화
 error_recovery = ErrorRecovery(db_path=os.path.join(BASE_DIR, "logs", "error_logs.db"))
@@ -616,6 +620,13 @@ def chat():
         # 세션 ID 처리 (선택적)
         session_id = data.get("session_id")
 
+        # 엔티티 추출 V2
+        try:
+            extracted_entities = entity_extractor_v2.extract(query)
+        except Exception as e:
+            logger.error(f"엔티티 추출 실패: {e}")
+            extracted_entities = []
+
         # 감정 분석
         sentiment_result = sentiment_analyzer.analyze_and_store(query, session_id=session_id)
 
@@ -705,6 +716,7 @@ def chat():
             "tenant_id": tenant_id,
             "sentiment": sentiment_result,
             "user_segment": user_segment,
+            "entities": extracted_entities,
         }
 
         if session_id:
@@ -3700,6 +3712,17 @@ def api_onboarding():
     except Exception as e:
         logger.error(f"온보딩 제안 조회 실패: {e}")
         return jsonify({"error": "온보딩 제안 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/entities/dictionary", methods=["GET"])
+def api_admin_entity_dictionary():
+    """엔티티 사전을 반환한다."""
+    try:
+        dictionary = entity_extractor_v2.get_entity_dictionary()
+        return jsonify({"entity_dictionary": dictionary})
+    except Exception as e:
+        logger.error(f"엔티티 사전 조회 실패: {e}")
+        return jsonify({"error": "엔티티 사전 조회 중 오류가 발생했습니다."}), 500
 
 
 def main():

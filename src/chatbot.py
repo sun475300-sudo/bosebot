@@ -100,6 +100,14 @@ class BondedExhibitionChatbot:
         self.pii_redactor = PIIRedactor(enabled=True)
         self.prompt_defender = PromptDefender(enabled=True)
 
+        # 지식 그래프 (선택적)
+        self.knowledge_graph = None
+        try:
+            from src.knowledge_graph import KnowledgeGraph
+            self.knowledge_graph = KnowledgeGraph.build_from_faq(self.faq_items)
+        except Exception:
+            pass
+
     @staticmethod
     def _normalize_faq_items(items: list[dict]) -> list[dict]:
         """FAQ 항목을 정규화하여 신/구 포맷 모두 호환되도록 한다.
