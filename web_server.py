@@ -1618,6 +1618,54 @@ def admin_law_updates_acknowledge():
         return jsonify({"error": "알림 확인 처리 중 오류가 발생했습니다."}), 500
 
 
+# --- 국가법령정보센터 API 동기화 ---
+from src.law_api_sync import LawSyncManager
+law_sync_manager = LawSyncManager()
+
+
+@app.route("/api/admin/law-sync/check", methods=["POST"])
+@jwt_auth.require_auth()
+def admin_law_sync_check():
+    """국가법령정보센터에서 법령 변경을 실시간 확인한다."""
+    try:
+        result = law_sync_manager.check_all()
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"법령 동기화 확인 실패: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/law-sync/sync", methods=["POST"])
+@jwt_auth.require_auth()
+def admin_law_sync_apply():
+    """법령 변경을 확인하고 legal_references.json을 자동 업데이트한다."""
+    try:
+        check_result = law_sync_manager.check_all()
+        update_result = law_sync_manager.update_legal_references()
+        return jsonify({
+            "check": check_result,
+            "update": update_result,
+        })
+    except Exception as e:
+        logger.error(f"법령 동기화 실패: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/law-sync/history", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_law_sync_history():
+    """법령 동기화 이력을 조회한다."""
+    limit = request.args.get("limit", 50, type=int)
+    return jsonify({"history": law_sync_manager.get_sync_history(limit=limit)})
+
+
+@app.route("/api/admin/law-sync/monitored", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_law_sync_monitored():
+    """모니터링 대상 법령 목록을 조회한다."""
+    return jsonify({"laws": law_sync_manager.get_monitored_laws()})
+
+
 @app.route("/api/admin/backup", methods=["POST"])
 @jwt_auth.require_auth()
 def admin_backup_create():
