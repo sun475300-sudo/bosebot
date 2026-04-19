@@ -226,7 +226,7 @@ class KnowledgeGraph:
     # ------------------------------------------------------------------
 
     @classmethod
-    def build_from_faq(cls, faq_items: List[Dict]) -> "KnowledgeGraph":
+    def build_from_faq(cls, faq_items: List[Dict], law_references: Optional[List[Dict]] = None) -> "KnowledgeGraph":
         """Construct a knowledge graph from FAQ items.
 
         Auto-detects relationships based on:
@@ -235,6 +235,15 @@ class KnowledgeGraph:
         - Same category    -> ``part_of``
         """
         graph = cls()
+
+        # 법령 참조 데이터를 맵으로 변환 (빠른 조회를 위해)
+        law_ref_map = {}
+        if law_references:
+            for ref in law_references:
+                # 'article' 필드를 키로 사용 (예: "제190조")
+                article = ref.get("article")
+                if article:
+                    law_ref_map[article] = ref
 
         # Collect unique categories and legal bases
         categories: Dict[str, List[str]] = {}
@@ -261,7 +270,14 @@ class KnowledgeGraph:
             for basis in item.get("legal_basis", []):
                 law_id = f"law_{basis}"
                 if law_id not in graph.nodes:
-                    graph.add_node(law_id, "law", {"name": basis})
+                    # 법령 참조 데이터에서 요약 정보 가져오기
+                    ref_data = law_ref_map.get(basis, {})
+                    node_data = {
+                        "name": basis,
+                        "title": ref_data.get("title", ""),
+                        "summary": ref_data.get("summary", "")
+                    }
+                    graph.add_node(law_id, "law", node_data)
                 laws.setdefault(basis, []).append(faq_id)
 
             # Keyword tracking -> concept nodes

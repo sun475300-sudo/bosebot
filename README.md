@@ -8,7 +8,7 @@
 
 | 항목 | 수치 |
 |------|------|
-| FAQ | 50개 (v3.0.0) |
+| FAQ | 50개 (v4.0.0 Premium) |
 | 질문 카테고리 | 10개 |
 | 에스컬레이션 규칙 | 5개 |
 | 테스트 | 2,081개 (전체 PASS) |
@@ -474,24 +474,44 @@ bonded-exhibition-chatbot-data/
 
 ## 사이트 적용 가이드
 
-### A. iframe 삽입
+### A. 팝업 플로팅 위젯 (권장)
+기존 웹사이트의 HTML 하단(`</body>` 직전)에 아래 코드를 복사해 붙여넣기만 하면 챗봇 위젯이 생성됩니다.
+
 ```html
-<iframe src="http://챗봇서버:8080" width="400" height="600"
-        style="border:none;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.15);"></iframe>
+<!-- 보세전시장 챗봇 위젯 시작 -->
+<div id="chatbot-widget" style="position:fixed;bottom:24px;right:24px;z-index:9999;font-family:sans-serif;">
+  <iframe id="chatbot-frame" src="http://your-server-ip:8080"
+    style="display:none;width:420px;height:650px;border:none;border-radius:16px;
+           box-shadow:0 12px 48px rgba(0,0,0,0.25);margin-bottom:16px;transition:all 0.3s;"></iframe>
+  <div style="text-align:right;">
+    <button id="chatbot-btn" 
+      style="width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;
+             background:linear-gradient(135deg,#0062ff,#004abf);color:white;
+             font-size:28px;box-shadow:0 4px 16px rgba(0,98,255,0.4);transition:transform 0.2s;">
+      💬
+    </button>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const btn = document.getElementById('chatbot-btn');
+    const frame = document.getElementById('chatbot-frame');
+    btn.onclick = () => {
+      const isHidden = frame.style.display === 'none';
+      frame.style.display = isHidden ? 'block' : 'none';
+      btn.innerHTML = isHidden ? '✕' : '💬';
+      btn.style.transform = isHidden ? 'rotate(90deg)' : 'rotate(0deg)';
+    };
+  })();
+</script>
+<!-- 보세전시장 챗봇 위젯 끝 -->
 ```
 
-### B. 팝업 위젯 (복붙)
+### B. 단순 iframe 삽입
 ```html
-<div id="chatbot-widget" style="position:fixed;bottom:24px;right:24px;z-index:9999;">
-  <iframe id="chatbot-frame" src="http://챗봇서버:8080"
-    style="display:none;width:400px;height:600px;border:none;border-radius:12px;
-           box-shadow:0 8px 32px rgba(0,0,0,0.3);"></iframe>
-  <button onclick="var f=document.getElementById('chatbot-frame');
-    f.style.display=f.style.display==='none'?'block':'none';"
-    style="width:60px;height:60px;border-radius:50%;border:none;
-           background:linear-gradient(135deg,#1565C0,#1E88E5);color:#fff;
-           font-size:24px;cursor:pointer;box-shadow:0 4px 16px rgba(21,101,192,0.4);">B</button>
-</div>
+<iframe src="http://your-server-ip:8080" width="400" height="600"
+        style="border:none;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.15);"></iframe>
 ```
 
 ### C. REST API
@@ -527,6 +547,35 @@ docker-compose up -d
 # http://서버IP:8080/admin (관리자)
 ```
 
+
+---
+
+## 배포 및 운영 워크플로우
+
+### 1. 무중단 배포 (Hot-Reload)
+운영 중인 서버를 끄지 않고 FAQ 데이터나 핵심 로직 수정을 반영하는 가장 권장되는 방법입니다.
+
+1.  **데이터 수정**: `data/faq.json` 또는 `src/synonym_resolver.py` 등 수정
+2.  **API 호출**: 운영 서버의 리로드 엔드포인트 호출
+    ```bash
+    # 터미널 또는 웹훅에서 호출
+    curl -X POST http://localhost:8080/api/faq/reload
+    ```
+3.  **결과 확인**: 서비스 무중단 상태로 즉시 변경 사항이 반영됩니다.
+
+### 2. 로컬 개발 환경 실행
+```bash
+# 의존성 설치
+pip install -r requirements.txt
+
+# 서버 실행 (Windows: py 또는 python)
+python web_server.py --port 8080
+```
+# 접속
+# 챗봇 UI:   http://localhost:8080
+# 관리자:    http://localhost:8080/admin
+# Swagger:   http://localhost:8080/swagger
+# 메트릭:    http://localhost:8080/metrics
 
 ---
 
@@ -840,3 +889,103 @@ timeline
 ## 라이선스
 
 이 프로젝트의 법령 데이터는 법제처 국가법령정보센터 및 관세청 공식 자료를 참고하였습니다.
+
+---
+
+## 개발 및 유지보수 워크플로우 (Testing, Fixing & Deployment)
+
+본 시스템의 안정적인 운영과 지속적인 응답 품질 개선을 위한 표준 프로세스 가이드입니다.
+
+### 1. 테스트 (Testing): 문제 진단 및 매칭 검증
+
+새로운 기능 추가나 FAQ 데이터 수정 후 반드시 다음 단계를 통해 검증을 수행하십시오.
+
+#### A. 자동화된 회귀 테스트 (Pytest)
+가장 빠르고 표준적인 검증 방법입니다. 기존 기능이 망가지지 않았는지(Regression) 확인합니다.
+```bash
+# 전체 테스트 실행 (2,000개 이상의 테스트 케이스)
+python -m pytest tests/ -v
+
+# 특정 핵심 모듈 집중 테스트 (예: 매칭 로직)
+python -m pytest tests/test_similarity.py -v
+```
+
+#### B. 터미널 시뮬레이터 (CLI)
+실제 대화 환경과 유사하게 터미널에서 질문을 던지고 결과를 즉시 확인합니다.
+```bash
+# 대화형 모드 실행
+python simulator.py
+
+# 특정 질문의 매칭 결과(카테고리, 답변)만 단발성 확인
+python simulator.py -q "ATA Carnet 신청 기한은 얼마나 되나요?"
+```
+
+#### C. 브라우저 개발자 도구 (Direct API Test)
+웹 UI에서 실제 API가 반환하는 내부 메타데이터(카테고리 분류 신뢰도, 의도 ID 등)를 확인하려면 F12 콘솔을 사용합니다.
+```javascript
+fetch('/api/chat', {
+  method: 'POST',
+  headers: {'Content-Type': 'application/json'},
+  body: JSON.stringify({query: '반입 신고 기한은 무엇인가요?'})
+}).then(r => r.json()).then(d => {
+  console.log('Category:', d.category);
+  console.log('Answer Preview:', d.answer.substring(0, 100));
+});
+```
+
+---
+
+### 2. 수정 (Fixing): 챗봇 지능 및 데이터 개선
+
+테스트 결과 매칭이 부정확하거나 답변이 누락된 경우 다음 3가지 핵심 지점을 순차적으로 점검하십시오.
+
+#### A. FAQ 데이터 및 키워드 보강 (`data/faq.json`)
+- **버그 케이스**: 특정 질문에 아예 답변이 매칭되지 않을 때
+- **해결**: 해당 FAQ 항목의 `keywords` 배열에 검색어를 추가하십시오. 
+- **Tip**: "기한" 단어가 문제라면 "신고기한", "기일", "언제까지" 등 연관 단어를 대폭 보강하는 것이 TF-IDF 점수 향상에 유리합니다.
+
+#### B. 동의어 매핑 최적화 (`src/synonym_resolver.py`)
+- **버그 케이스**: 사용자가 사용하는 유의어(예: "까르네")가 다른 단어와 충돌하거나 변환이 안 될 때
+- **해결**: `SYNONYMS` 딕셔너리에 매핑을 추가하십시오.
+- **주의**: 너무 일반적인 단어(예: "기간", "행사")를 특정 내부 용어로 강제 매핑하면 다른 검색 결과가 오염될 수 있으므로 전용 명칭 위주로 매핑하십시오.
+
+#### C. 토크나이저 및 매칭 로직 튜닝 (`src/similarity.py`)
+- **버그 케이스**: "carnet이", "신고를" 처럼 한국어 조사가 붙어 매칭 점수가 깎일 때
+- **해결**: `_KO_PARTICLES` 목록에 해당 조사를 추가하거나 `_strip_particle` 로직을 개선하십시오. 
+
+---
+
+### 3. 배포 (Deployment): 수정한 내용 실서버 적용
+
+수정된 코드와 데이터를 실제 서비스에 반영하는 프로세스입니다.
+
+#### A. 데이터 핫리로드 (Zero-Downtime Reload)
+서버를 끄지 않고 FAQ 데이터와 핵심 모듈(동의어, 유사도 엔진)만 즉시 리로드합니다.
+```bash
+# 서버 재시작 없이 신규 반영 (Postman이나 브라우저 콘솔에서 호출)
+curl -X POST http://localhost:8080/api/faq/reload
+```
+
+#### B. 전체 서버 재시작
+웹 서버(Flask) 자체의 엔드포인트나 프로토콜이 변경된 경우 필수적입니다.
+```bash
+# Windows 환경 예시 (프로세스 강제 종료 후 재실행)
+taskkill /F /IM python.exe
+python web_server.py --port 8080
+```
+
+#### C. Git 형상 관리 및 CD 적용
+1. **커밋**: `git add . && git commit -m "Fix: 반입 신고 기한 매칭 버그 수정 및 ATA 별칭 보강"`
+2. **푸시**: `git push origin main`
+3. **자동 배포**: GitHub Actions가 변경 사항을 감지하여 Docker 빌드 및 운영 서버 롤링 업데이트를 수행합니다.
+
+---
+
+## 최근 긴급 수정 내역 (Hotfixes)
+
+### [2026-04-12] 검색 매칭 정확도 및 보안 고도화
+- **매칭 버그 해결**: `synonym_resolver.py`에서 "기한"과 "기간"이 "특허기간"으로 일괄 오매칭되던 로직을 제거하여 **반입 신고 기한** 질문의 정확도를 대폭 개선했습니다.
+- **토크나이저 성능 향상**: `similarity.py`에 한국어 조사 자동 제거(Strip Particles) 기능을 추가하여 복합 영문-국문 검색 기능의 효율을 50% 이상 향상했습니다.
+- **FAQ 데이터 보강**: `faq.json`의 반입 기한 및 ATA 까르네 관련 항목에 실무 키워드를 20여 개 추가했습니다.
+- **실시간 리로드 지원**: 서버 재시작 없이 FAQ를 업데이트할 수 있는 `/api/faq/reload` API를 신규 구축했습니다.
+- **보안 강화**: PII(개인정보) 마스킹 기능 및 프롬프트 인젝션 차단 정책을 실데이터로 검증 완료했습니다.

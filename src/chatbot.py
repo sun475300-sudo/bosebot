@@ -37,6 +37,8 @@ from src.validator import get_needed_confirmations
 from src.utils import load_json, load_text, normalize_query
 from src.vector_search import VectorSearchEngine
 from src.llm_fallback import generate_llm_response_with_disclaimer, is_llm_available
+from src.pii_redactor import PIIRedactor
+from src.prompt_defender import PromptDefender
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,11 @@ class BondedExhibitionChatbot:
     def __init__(self):
         self.config = load_json("config/chatbot_config.json")
         self.faq_data = load_json("data/faq.json")
+        try:
+            self.legal_refs = load_json("data/legal_references.json").get("references", [])
+        except Exception as e:
+            logger.warning(f"Failed to load legal_references.json: {e}")
+            self.legal_refs = []
         self.system_prompt = load_text("config/system_prompt.txt")
         self.faq_items = self._normalize_faq_items(self.faq_data.get("items", []))
         self.tfidf_matcher = TFIDFMatcher(self.faq_items)
@@ -88,6 +95,10 @@ class BondedExhibitionChatbot:
         except Exception as e:
             logger.error(f"Failed to check LLM availability: {e}", exc_info=True)
             self.llm_enabled = False
+
+        # 보안 애드온 (Phase 62-63)
+        self.pii_redactor = PIIRedactor(enabled=True)
+        self.prompt_defender = PromptDefender(enabled=True)
 
     @staticmethod
     def _normalize_faq_items(items: list[dict]) -> list[dict]:
@@ -160,7 +171,7 @@ class BondedExhibitionChatbot:
 
             keywords = item.get("keywords", [])
             for kw in keywords:
-                if kw in query_lower:
+                if kw.lower() in query_lower:
                     score += 1
                     keyword_hits += 1
 
@@ -268,18 +279,30 @@ class BondedExhibitionChatbot:
             result_dict = self._build_empty_response()
             return result_dict if include_metadata else result_dict["response"]
 
+        # Phase 63: 악의적 프롬프트 차단
+        if self.prompt_defender.is_malicious(query):
+            logger.warning(f"Malicious prompt detected and blocked. (query length: {len(query)})")
+            result_dict = self._wrap_result(
+                "허용되지 않는 접근 방식이거나 악의적인 문자열이 감지되어 요청이 차단되었습니다.",
+                "unknown", 0.0, "GENERAL", {}, "critical", {}, True
+            )
+            return result_dict if include_metadata else result_dict["response"]
+
+        # Phase 62: PII 마스킹 처리 (이후 모든 처리는 마스킹된 텍스트 기반)
+        safe_query = self.pii_redactor.redact(query)
+
         # 세션이 있으면 멀티턴 처리 시도
         session = None
         if session_id:
             session = self.session_manager.get_session(session_id)
 
         if session and session.has_pending():
-            result = self._process_confirmation_turn(session, query)
+            result = self._process_confirmation_turn(session, safe_query)
             # 세션 기반 응답은 단순 문자열이므로 래핑
             result_dict = self._wrap_result(result, "unknown", 0.0, "GENERAL", {}, "low", {}, False)
             return result_dict if include_metadata else result_dict["response"]
 
-        result_dict = self._process_new_query(query, session)
+        result_dict = self._process_new_query(safe_query, session)
         return result_dict if include_metadata else result_dict["response"]
 
     def _preprocess_query(self, query: str) -> tuple[str, list[dict]]:
@@ -461,6 +484,17 @@ class BondedExhibitionChatbot:
                     risk_level, policy_decision, escalation_triggered,
                 )
 
+            # 법령 가이드 요약 추출 (지식 그래프 연계)
+            legal_guide = []
+            if self.knowledge_graph:
+                for basis in faq_match.get("legal_basis", []):
+                    law_node_id = f"law_{basis}"
+                    if law_node_id in self.knowledge_graph.nodes:
+                        node_data = self.knowledge_graph.nodes[law_node_id].get("data", {})
+                        summary = node_data.get("summary")
+                        if summary:
+                            legal_guide.append(f"{basis}: {summary}")
+
             response = build_response(
                 topic=category_name,
                 conclusion=self._extract_conclusion(faq_match.get("answer", "")),
@@ -469,6 +503,7 @@ class BondedExhibitionChatbot:
                 confirmation_items=confirmation_texts if confirmation_texts else None,
                 is_escalation=escalation_triggered,
                 escalation_message=escalation["message"] if escalation else "",
+                legal_guide=legal_guide if legal_guide else None,
             )
 
             # 7단계: 답변 필터링 (면책조항 추가)
