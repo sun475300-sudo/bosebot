@@ -840,7 +840,11 @@ def api_search_hybrid():
                     variant=float(weights.get("variant", original_weights["variant"])),
                 )
             except (TypeError, ValueError):
-                hybrid_search_v3.set_weights(**original_weights)
+                hybrid_search_v3.set_weights(
+                    kw=original_weights["keyword"],
+                    bm25=original_weights["bm25"],
+                    variant=original_weights["variant"],
+                )
 
         try:
             results = hybrid_search_v3.search(query, top_k=top_k)
@@ -3939,6 +3943,58 @@ def api_admin_policy_rules():
     except Exception as e:
         logger.error(f"PolicyEngineV2 규칙 조회 실패: {e}")
         return jsonify({"error": "정책 규칙 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/benchmark/run", methods=["POST"])
+@jwt_auth.require_auth()
+def api_admin_benchmark_run():
+    """답변 정확도 벤치마크를 실행한다.
+
+    Request JSON (선택):
+        {
+            "testset_path": "data/golden_testset.json",  # 기본값
+            "persist": true                                  # 기본값: true
+        }
+
+    Response:
+        {
+            "metrics": {...},
+            "comparison": {...}
+        }
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        testset_path = data.get("testset_path") or os.path.join(
+            BASE_DIR, "data", "golden_testset.json"
+        )
+        persist = bool(data.get("persist", True))
+
+        previous = accuracy_benchmark.get_latest()
+        previous_metrics = previous.get("metrics") if previous else None
+
+        metrics = accuracy_benchmark.run_benchmark(testset_path, persist=persist)
+        comparison = accuracy_benchmark.compare_results(metrics, previous_metrics)
+        return jsonify({"metrics": metrics, "comparison": comparison})
+    except FileNotFoundError:
+        return jsonify({"error": "지정된 테스트셋 파일을 찾을 수 없습니다."}), 404
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"정확도 벤치마크 실행 실패: {e}", exc_info=True)
+        return jsonify({"error": "벤치마크 실행 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/benchmark/history", methods=["GET"])
+@jwt_auth.require_auth()
+def api_admin_benchmark_history():
+    """과거 벤치마크 실행 이력을 반환한다."""
+    try:
+        limit = request.args.get("limit", 20, type=int)
+        history = accuracy_benchmark.get_history(limit=limit)
+        return jsonify({"history": history, "count": len(history)})
+    except Exception as e:
+        logger.error(f"벤치마크 이력 조회 실패: {e}", exc_info=True)
+        return jsonify({"error": "벤치마크 이력 조회 중 오류가 발생했습니다."}), 500
 
 
 def main():
