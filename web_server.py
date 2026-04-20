@@ -72,6 +72,7 @@ from src.task_scheduler import TaskScheduler, create_default_scheduler
 from src.knowledge_graph import KnowledgeGraph
 from src.template_engine import TemplateEngine, ResponseFormatter
 from src.context_memory import ContextMemory, ConversationMemoryManager
+from src.conversation_manager_v3 import ConversationManagerV3, TopicTracker
 from src.user_segment import UserSegmenter
 from src.domain_config import DomainConfig, DomainInitializer
 from src.utils import load_json
@@ -81,6 +82,8 @@ from src.conversation_analytics import ConversationAnalytics
 from src.error_recovery import ErrorRecovery, CircuitBreakerOpenError
 from src.smart_suggestions import SmartSuggestionEngine
 from src.entity_extractor_v2 import EntityExtractorV2, get_entity_extractor_v2
+from src.hybrid_search_v3 import HybridSearchV3
+from src.policy_engine_v2 import PolicyEngineV2, get_policy_engine_v2
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MAX_QUERY_LENGTH = 500  # Production: reduced from 2000 to 500 chars for better security
@@ -234,6 +237,11 @@ smart_suggestion_engine = SmartSuggestionEngine(
 context_memory = ContextMemory(db_path=os.path.join(BASE_DIR, "data", "memory.db"))
 conversation_memory_manager = ConversationMemoryManager(context_memory)
 
+# 고급 다중턴 대화 관리자 (v3) 초기화
+conversation_manager_v3 = ConversationManagerV3(
+    db_path=os.path.join(BASE_DIR, "data", "conversation_v3.db"),
+)
+
 # 사용자 세분화 초기화
 user_segmenter = UserSegmenter(db_path=os.path.join(BASE_DIR, "data", "segments.db"))
 
@@ -250,6 +258,12 @@ sort_helper = SortHelper()
 
 # 엔티티 추출기 V2 초기화
 entity_extractor_v2 = get_entity_extractor_v2()
+
+# 하이브리드 검색 엔진 V3 초기화 (BM25 + 키워드 + 변형 매칭)
+hybrid_search_v3 = HybridSearchV3(
+    faq_items=chatbot.faq_items,
+    variants_path=os.path.join(BASE_DIR, "data", "question_variants.json"),
+)
 
 # 에러 복구 시스템 초기화
 error_recovery = ErrorRecovery(db_path=os.path.join(BASE_DIR, "logs", "error_logs.db"))
@@ -2736,6 +2750,50 @@ def admin_usage():
     })
 
 
+# --- Conversation Manager V3 API endpoints ---
+
+@app.route("/api/session/<session_id>/conversation-summary", methods=["GET"])
+def session_conversation_summary_v3(session_id):
+    """Return a summary of the v3 conversation for the session."""
+    try:
+        summary = conversation_manager_v3.get_conversation_summary(session_id)
+        return jsonify(summary)
+    except Exception as e:  # pragma: no cover - defensive
+        logger.error(f"conversation-summary 조회 실패: {e}")
+        return jsonify({"error": "대화 요약 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/session/<session_id>/topic-path", methods=["GET"])
+def session_topic_path_v3(session_id):
+    """Return the category journey for the session."""
+    try:
+        path = conversation_manager_v3.topic_tracker.get_topic_path(session_id)
+        coherent = conversation_manager_v3.topic_tracker.is_coherent(session_id)
+        return jsonify({
+            "session_id": session_id,
+            "topic_path": path,
+            "coherent": coherent,
+            "length": len(path),
+        })
+    except Exception as e:  # pragma: no cover - defensive
+        logger.error(f"topic-path 조회 실패: {e}")
+        return jsonify({"error": "토픽 경로 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/session/<session_id>/followup", methods=["POST"])
+def session_followup_v3(session_id):
+    """Return a suggested follow-up question for the session."""
+    try:
+        question = conversation_manager_v3.generate_followup_question(session_id)
+        return jsonify({
+            "session_id": session_id,
+            "followup": question,
+        })
+    except Exception as e:  # pragma: no cover - defensive
+        logger.error(f"followup 생성 실패: {e}")
+        return jsonify({"error": "후속 질문 생성 중 오류가 발생했습니다."}), 500
+
+
 # --- Conversation Summary API endpoints ---
 
 @app.route("/api/session/<session_id>/summary", methods=["GET"])
@@ -3723,6 +3781,45 @@ def api_admin_entity_dictionary():
     except Exception as e:
         logger.error(f"엔티티 사전 조회 실패: {e}")
         return jsonify({"error": "엔티티 사전 조회 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/policy/evaluate", methods=["POST"])
+@jwt_auth.require_auth()
+def api_admin_policy_evaluate():
+    """PolicyEngineV2로 질문을 평가한다 (관리자 전용)."""
+    data = request.get_json(silent=True) or {}
+    query = data.get("query", "")
+    if not isinstance(query, str) or not query.strip():
+        return jsonify({"error": "query 필드가 필요합니다."}), 400
+
+    intent_id = data.get("intent_id")
+    entities = data.get("entities") or []
+    category = data.get("category")
+
+    try:
+        engine = get_policy_engine_v2()
+        decision = engine.evaluate(
+            query=query,
+            intent_id=intent_id,
+            entities=entities,
+            category=category,
+        )
+        return jsonify(decision)
+    except Exception as e:
+        logger.error(f"PolicyEngineV2 평가 실패: {e}")
+        return jsonify({"error": "정책 평가 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/policy/rules", methods=["GET"])
+@jwt_auth.require_auth()
+def api_admin_policy_rules():
+    """현재 PolicyEngineV2 규칙을 반환한다 (관리자 전용)."""
+    try:
+        engine = get_policy_engine_v2()
+        return jsonify(engine.get_rules())
+    except Exception as e:
+        logger.error(f"PolicyEngineV2 규칙 조회 실패: {e}")
+        return jsonify({"error": "정책 규칙 조회 중 오류가 발생했습니다."}), 500
 
 
 def main():
