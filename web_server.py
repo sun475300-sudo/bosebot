@@ -84,6 +84,7 @@ from src.smart_suggestions import SmartSuggestionEngine
 from src.entity_extractor_v2 import EntityExtractorV2, get_entity_extractor_v2
 from src.hybrid_search_v3 import HybridSearchV3
 from src.policy_engine_v2 import PolicyEngineV2, get_policy_engine_v2
+from src.accuracy_benchmark import AccuracyBenchmark
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MAX_QUERY_LENGTH = 500  # Production: reduced from 2000 to 500 chars for better security
@@ -133,6 +134,9 @@ api_key_auth = APIKeyAuth(app)
 rate_limit_value = int(os.environ.get("CHATBOT_RATE_LIMIT", "60"))
 rate_limiter = RateLimiter(max_requests=rate_limit_value)
 advanced_rate_limiter = AdvancedRateLimiter()
+
+# 답변 정확도 벤치마크 초기화 (골든 테스트셋 기반)
+accuracy_benchmark = AccuracyBenchmark(chatbot=chatbot)
 
 # Phase 13-18 모듈 초기화
 realtime_monitor = RealtimeMonitor()
@@ -660,7 +664,21 @@ def chat():
         is_escalation = escalation is not None
 
         # FAQ 매칭 결과에서 faq_id 추출
-        faq_match = chatbot.find_matching_faq(query, primary_category)
+        # ?engine=hybrid 파라미터 지원 (기본값: 기존 엔진)
+        engine = request.args.get("engine", "").lower()
+        hybrid_results = None
+        if engine == "hybrid":
+            try:
+                hybrid_results = hybrid_search_v3.search(query, top_k=3)
+                if hybrid_results:
+                    faq_match = hybrid_results[0]["item"]
+                else:
+                    faq_match = chatbot.find_matching_faq(query, primary_category)
+            except Exception as e:
+                logger.error(f"Hybrid search fallback: {e}")
+                faq_match = chatbot.find_matching_faq(query, primary_category)
+        else:
+            faq_match = chatbot.find_matching_faq(query, primary_category)
         faq_id = faq_match.get("id") if faq_match else None
 
         # 로그 저장 + 모니터링 이벤트
@@ -733,6 +751,22 @@ def chat():
             "entities": extracted_entities,
         }
 
+        if engine == "hybrid":
+            response["engine"] = "hybrid"
+            if hybrid_results:
+                response["hybrid_results"] = [
+                    {
+                        "faq_id": r["faq_id"],
+                        "score": r["score"],
+                        "matched_via": r["matched_via"],
+                        "matched_text": r["matched_text"],
+                        "breakdown": r["breakdown"],
+                    }
+                    for r in hybrid_results
+                ]
+            else:
+                response["hybrid_results"] = []
+
         if session_id:
             response["session_id"] = session_id
             # 개인화 추천 추가
@@ -760,6 +794,91 @@ def chat():
         return jsonify({
             "error": "답변 처리 중 오류가 발생했습니다.",
             "error_code": "PROCESSING_ERROR"
+        }), 500
+
+
+@app.route("/api/search/hybrid", methods=["POST", "GET"])
+def api_search_hybrid():
+    """하이브리드 검색 엔진 (BM25 + 키워드 + 변형) 엔드포인트.
+
+    POST body: {"query": "...", "top_k": 5, "weights": {...}}
+    GET query string: ?query=...&top_k=5
+    """
+    try:
+        if request.method == "POST":
+            data = request.get_json(silent=True) or {}
+            query = data.get("query", "")
+            top_k = int(data.get("top_k", 5))
+            weights = data.get("weights")
+            explain_id = data.get("explain_faq_id")
+        else:
+            query = request.args.get("query", "")
+            top_k = int(request.args.get("top_k", 5))
+            weights = None
+            explain_id = request.args.get("explain_faq_id")
+
+        if not isinstance(query, str) or not query.strip():
+            return jsonify({
+                "error": "query 필드가 필요합니다.",
+                "error_code": "MISSING_QUERY",
+            }), 400
+
+        if top_k <= 0 or top_k > 50:
+            return jsonify({
+                "error": "top_k는 1에서 50 사이여야 합니다.",
+                "error_code": "INVALID_TOP_K",
+            }), 400
+
+        query = sanitize_input(query, max_length=MAX_QUERY_LENGTH)
+
+        original_weights = hybrid_search_v3.get_weights()
+        if isinstance(weights, dict):
+            try:
+                hybrid_search_v3.set_weights(
+                    kw=float(weights.get("keyword", original_weights["keyword"])),
+                    bm25=float(weights.get("bm25", original_weights["bm25"])),
+                    variant=float(weights.get("variant", original_weights["variant"])),
+                )
+            except (TypeError, ValueError):
+                hybrid_search_v3.set_weights(**original_weights)
+
+        try:
+            results = hybrid_search_v3.search(query, top_k=top_k)
+            serializable = []
+            for r in results:
+                serializable.append({
+                    "faq_id": r["faq_id"],
+                    "score": r["score"],
+                    "matched_via": r["matched_via"],
+                    "matched_text": r["matched_text"],
+                    "breakdown": r["breakdown"],
+                    "question": r["item"].get("question", ""),
+                    "category": r["item"].get("category", ""),
+                })
+
+            response = {
+                "query": query,
+                "top_k": top_k,
+                "count": len(serializable),
+                "results": serializable,
+                "weights": hybrid_search_v3.get_weights(),
+            }
+
+            if explain_id:
+                explanation = hybrid_search_v3.explain_result(query, explain_id)
+                response["explanation"] = {
+                    k: v for k, v in explanation.items() if k != "item"
+                }
+
+            return jsonify(response)
+        finally:
+            hybrid_search_v3.set_weights(**original_weights)
+
+    except Exception as e:
+        logger.error(f"Hybrid search error: {e}", exc_info=True)
+        return jsonify({
+            "error": "검색 처리 중 오류가 발생했습니다.",
+            "error_code": "SEARCH_ERROR",
         }), 500
 
 
