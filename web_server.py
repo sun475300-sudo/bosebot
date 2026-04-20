@@ -876,7 +876,11 @@ def api_search_hybrid():
 
             return jsonify(response)
         finally:
-            hybrid_search_v3.set_weights(**original_weights)
+            hybrid_search_v3.set_weights(
+                kw=original_weights["keyword"],
+                bm25=original_weights["bm25"],
+                variant=original_weights["variant"],
+            )
 
     except Exception as e:
         logger.error(f"Hybrid search error: {e}", exc_info=True)
