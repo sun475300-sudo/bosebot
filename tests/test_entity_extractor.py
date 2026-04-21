@@ -39,9 +39,17 @@ class TestEntityExtractorInitialization:
         """Test that extraction patterns are compiled."""
         extractor = EntityExtractor()
         assert extractor.extraction_patterns is not None
-        # Should have patterns for entity types with patterns defined
-        if extractor.entity_types:
+        # extraction_patterns는 entities.json에 extraction_patterns 필드가 있는 경우에만 존재
+        # entities.json에 해당 필드가 없으면 extraction_patterns는 비어 있을 수 있음
+        import json
+        entities_data = json.load(open("data/entities.json"))
+        entities_list = entities_data if isinstance(entities_data, list) else entities_data.get("entity_types", [])
+        has_patterns = any("extraction_patterns" in e for e in entities_list)
+        if has_patterns:
             assert len(extractor.extraction_patterns) > 0
+        else:
+            # extraction_patterns 필드가 없으면 비어 있어도 정상
+            assert isinstance(extractor.extraction_patterns, dict)
 
     def test_graceful_degradation_missing_entities_file(self):
         """Test graceful degradation when entities.json is missing."""
@@ -307,7 +315,12 @@ class TestEntityExtractorMethods:
             for entity_id, entity_type in extractor.entity_types.items():
                 values = entity_type.get("values", [])
                 if values:
-                    value = values[0].get("value")
+                    # values는 string 또는 dict 형식일 수 있음
+                    value_obj = values[0]
+                    if isinstance(value_obj, str):
+                        value = value_obj
+                    else:
+                        value = value_obj.get("value")
                     description = extractor.get_entity_value_description(entity_id, value)
                     # May have description or None
                     if description:
@@ -449,7 +462,11 @@ class TestEntityValueDescription:
             for entity_id, entity_type in extractor.entity_types.items():
                 values = entity_type.get("values", [])
                 for value_obj in values[:2]:  # Test first 2 values
-                    value = value_obj.get("value")
+                    # values는 string 또는 dict 형식일 수 있음
+                    if isinstance(value_obj, str):
+                        value = value_obj
+                    else:
+                        value = value_obj.get("value")
                     description = extractor.get_entity_value_description(entity_id, value)
                     # Description may be None or a string
                     assert description is None or isinstance(description, str)

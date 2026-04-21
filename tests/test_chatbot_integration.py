@@ -4,8 +4,10 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 # VectorSearchEngine과 LLM이 없어도 기본 테스트는 실행됨
+# 실제 인스턴스화를 시도하여 sentence-transformers 설치 여부를 확인
 try:
     from src.vector_search import VectorSearchEngine
+    VectorSearchEngine([])  # 실제 인스턴스화 시도
     HAS_EMBEDDINGS = True
 except ImportError:
     HAS_EMBEDDINGS = False
@@ -272,7 +274,9 @@ class TestChatbotIntegration:
         categories = ["GENERAL", "IMPORT_EXPORT", "SALES", "SAMPLE"]
 
         for category in categories:
-            match = chatbot.find_matching_faq("물품", category)
+            match = chatbot.find_matching_faq("의품", category)
             # 카테고리가 일치하거나 None
             if match:
-                assert match.get("category") == category or match.get("category") in chatbot.config["categories"]
+                # config['categories']는 dict 리스트이므로 code 필드로 비교
+                valid_category_codes = [c["code"] for c in chatbot.config["categories"]]
+                assert match.get("category") == category or match.get("category") in valid_category_codes

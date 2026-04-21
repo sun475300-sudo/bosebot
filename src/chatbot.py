@@ -406,7 +406,10 @@ class BondedExhibitionChatbot:
         primary_category = categories[0]
 
         # mapped_category가 더 우선도가 높으면 사용
-        if mapped_category != "GENERAL":
+        # 단, 의도 분류 신뢰도가 임계값(0.3) 이상인 경우에만 적용
+        # 신뢰도가 낙으면 기존 키워드 기반 분류를 유지하여 오매칭을 방지
+        INTENT_CONFIDENCE_THRESHOLD = 0.3
+        if mapped_category != "GENERAL" and intent_confidence >= INTENT_CONFIDENCE_THRESHOLD:
             primary_category = mapped_category
 
         # 5단계: FAQ 매칭

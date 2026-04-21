@@ -24,10 +24,17 @@ class EntityExtractor:
         """data/entities.json에서 엔티티 정의를 로드한다."""
         try:
             data = load_json("data/entities.json")
-            entity_types = data.get("entity_types", [])
+            # entities.json은 list 또는 dict({'entity_types': [...]}) 형식을 모두 지원
+            if isinstance(data, list):
+                entity_types = data
+            else:
+                entity_types = data.get("entity_types", [])
 
             for entity_type in entity_types:
-                entity_id = entity_type.get("id")
+                # 'entity_id' 키를 우선 사용하고, 없으면 'id' 키를 사용
+                entity_id = entity_type.get("entity_id") or entity_type.get("id")
+                if not entity_id:
+                    continue
                 self.entity_types[entity_id] = entity_type
 
                 # 추출 패턴 컴파일
@@ -90,8 +97,16 @@ class EntityExtractor:
             # 엔티티 값과 동의어 확인
             values = entity_type.get("values", [])
             for value_obj in values:
-                value = value_obj.get("value")
-                synonyms = value_obj.get("synonyms", [])
+                # values는 string 또는 dict({'value': ..., 'synonyms': [...]}) 형식 모두 지원
+                if isinstance(value_obj, str):
+                    value = value_obj
+                    synonyms = []
+                else:
+                    value = value_obj.get("value")
+                    synonyms = value_obj.get("synonyms", [])
+
+                if not value:
+                    continue
 
                 # 정확한 값 매칭
                 if value.lower() in normalize_query(query):
@@ -141,8 +156,14 @@ class EntityExtractor:
         values = entity_type.get("values", [])
 
         for value_obj in values:
-            if value_obj.get("value") == value:
-                return value_obj.get("description")
+            # values는 string 또는 dict({'value': ..., 'description': ...}) 형식 모두 지원
+            if isinstance(value_obj, str):
+                if value_obj == value:
+                    # string 형식에는 description이 없음
+                    return None
+            else:
+                if value_obj.get("value") == value:
+                    return value_obj.get("description")
 
         return None
 

@@ -169,18 +169,30 @@ class IntentClassifier:
         """intents.json에서 의도 정의를 로드한다."""
         try:
             data = load_json("data/intents.json")
-            intent_list = data.get("intents", [])
+            # intents.json은 list 또는 dict({'intents': [...]}) 형식을 모두 지원
+            if isinstance(data, list):
+                intent_list = data
+            else:
+                intent_list = data.get("intents", [])
 
             for intent in intent_list:
-                intent_id = intent.get("id")
+                # 'intent_id' 키를 우선 사용하고, 없으면 'id' 키를 사용
+                intent_id = intent.get("intent_id") or intent.get("id")
+                if not intent_id:
+                    continue
                 self.intents[intent_id] = intent
 
-                # 예시 쿼리로부터 키워드 추출
+                # 예시 쿼리로부터 키워드 추출 (example_queries 필드가 있는 경우)
                 example_queries = intent.get("example_queries", [])
                 keywords = set()
                 for query in example_queries:
                     # 간단한 토큰화
                     tokens = normalize_query(query).split()
+                    keywords.update(tokens)
+                # description 필드에서도 키워드 추출
+                description = intent.get("description", "")
+                if description:
+                    tokens = normalize_query(description).split()
                     keywords.update(tokens)
 
                 self.intent_keywords[intent_id] = keywords
@@ -226,7 +238,7 @@ class IntentClassifier:
         """의도 ID를 기존 10-category 시스템으로 매핑한다.
 
         Args:
-            intent_id: 의도 ID (예: "sysqual_001")
+            intent_id: 의도 ID (예: "sysqual_001", "bonded_exhibition_definition")
 
         Returns:
             기존 카테고리 코드 (예: "GENERAL", "LICENSE")
@@ -235,7 +247,12 @@ class IntentClassifier:
             return "GENERAL"
 
         intent = self.intents[intent_id]
+        # 'domain' 필드가 없으면 intent_id 또는 description으로 카테고리 추론
         domain = intent.get("domain", "")
+        if not domain:
+            # intent_id 또는 description에서 카테고리 추론
+            description = intent.get("description", "")
+            domain = intent_id + " " + description
 
         # domain 문자열에서 카테고리 매핑
         if "System & Qualification" in domain or "제도" in domain or "자격" in domain:

@@ -485,7 +485,7 @@ class PolicyEngine:
         return False
 
     def _get_escalation_target(self, applied_rules: list[PolicyRule]) -> Optional[str]:
-        """에스컬레이션 대상을 결정한다.
+        """에스켈레이션 대상을 결정한다.
 
         우선순위: CRITICAL > HIGH > MEDIUM
         같은 위험도 내에서: 첫 번째 규칙의 대상.
@@ -494,14 +494,18 @@ class PolicyEngine:
             applied_rules: 적용된 규칙 리스트.
 
         Returns:
-            에스컬레이션 대상 키.
+            에스켈레이션 대상 키.
         """
         # 위험도 순서로 규칙 정렬
+        # key = (risk_score, -index), reverse=True이므로:
+        # - risk_score가 클수록 앞에 오고 (CRITICAL 우선)
+        # - 같은 risk_score에서는 -index가 클수록 앞에 오고, -index가 클수록 index가 작음
+        # 따라서 같은 위험도 내에서는 첫 번째 규칙(index=0)이 우선적으로 선택됨
         sorted_rules = sorted(
             applied_rules,
             key=lambda r: (
                 {"CRITICAL": 3, "HIGH": 2, "MEDIUM": 1, "LOW": 0}[r.risk_level.value],
-                -applied_rules.index(r),  # 같은 위험도 내에서 순서 유지
+                -applied_rules.index(r),  # 같은 위험도 내에서 첫 번째 규칙 우선
             ),
             reverse=True,
         )
