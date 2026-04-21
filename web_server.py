@@ -573,8 +573,15 @@ def chat():
         # Production: Simple rate limiting per IP (60 req/min)
         client_ip = request.remote_addr or "unknown"
         if not app.config.get("TESTING") and not os.environ.get("TESTING"):
-            if not _production_rate_limiter.is_allowed(client_ip):
+            # rate_limiter(테스트용 전역 인스턴스)를 먼저 체크하여 테스트에서 제어 가능하게 함
+            if not rate_limiter.is_allowed(client_ip):
                 logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+                return jsonify({
+                    "error": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
+                    "error_code": "RATE_LIMIT_EXCEEDED"
+                }), 429
+            if not _production_rate_limiter.is_allowed(client_ip):
+                logger.warning(f"Production rate limit exceeded for IP: {client_ip}")
                 return jsonify({
                     "error": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
                     "error_code": "RATE_LIMIT_EXCEEDED"
