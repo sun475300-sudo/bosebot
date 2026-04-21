@@ -169,7 +169,11 @@ class IntentClassifier:
         """intents.json에서 의도 정의를 로드한다."""
         try:
             data = load_json("data/intents.json")
-            intent_list = data.get("intents", [])
+            # intents.json이 리스트 형식이거나 딕셔너리 형식 모두 처리
+            if isinstance(data, list):
+                intent_list = data
+            else:
+                intent_list = data.get("intents", [])
 
             for intent in intent_list:
                 intent_id = intent.get("id")

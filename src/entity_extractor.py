@@ -24,10 +24,24 @@ class EntityExtractor:
         """data/entities.json에서 엔티티 정의를 로드한다."""
         try:
             data = load_json("data/entities.json")
-            entity_types = data.get("entity_types", [])
+            # entities.json이 리스트 형식이거나 딕셔너리 형식 모두 처리
+            if isinstance(data, list):
+                entity_types = data
+            else:
+                entity_types = data.get("entity_types", [])
 
             for entity_type in entity_types:
-                entity_id = entity_type.get("id")
+                # entity_id 필드명 호환 (id 또는 entity_id)
+                entity_id = entity_type.get("id") or entity_type.get("entity_id")
+                if not entity_id:
+                    continue
+
+                # values가 문자열 리스트인 경우 딕셔너리 리스트로 변환
+                raw_values = entity_type.get("values", [])
+                if raw_values and isinstance(raw_values[0], str):
+                    entity_type = dict(entity_type)
+                    entity_type["values"] = [{"value": v, "synonyms": []} for v in raw_values]
+
                 self.entity_types[entity_id] = entity_type
 
                 # 추출 패턴 컴파일

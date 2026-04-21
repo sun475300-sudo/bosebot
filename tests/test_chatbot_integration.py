@@ -271,8 +271,14 @@ class TestChatbotIntegration:
         # 다양한 카테고리로 매칭
         categories = ["GENERAL", "IMPORT_EXPORT", "SALES", "SAMPLE"]
 
+        # config["categories"]는 딕셔너리 리스트이므로 code 필드 값으로 비교
+        valid_category_codes = [
+            c["code"] if isinstance(c, dict) else c
+            for c in chatbot.config.get("categories", [])
+        ]
         for category in categories:
             match = chatbot.find_matching_faq("물품", category)
-            # 카테고리가 일치하거나 None
+            # 카테고리가 일치하거나 None이거나 유효한 카테고리 코드
             if match:
-                assert match.get("category") == category or match.get("category") in chatbot.config["categories"]
+                matched_cat = match.get("category")
+                assert matched_cat == category or matched_cat in valid_category_codes
