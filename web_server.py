@@ -84,6 +84,7 @@ from src.smart_suggestions import SmartSuggestionEngine
 from src.entity_extractor_v2 import EntityExtractorV2, get_entity_extractor_v2
 from src.hybrid_search_v3 import HybridSearchV3
 from src.policy_engine_v2 import PolicyEngineV2, get_policy_engine_v2
+from src.response_builder_v2 import ResponseBuilderV2, get_response_builder_v2
 from src.accuracy_benchmark import AccuracyBenchmark
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -750,6 +751,69 @@ def chat():
             "user_segment": user_segment,
             "entities": extracted_entities,
         }
+
+        # ResponseBuilder v2 integration (?engine=v2)
+        if engine == "v2":
+            try:
+                policy_engine = get_policy_engine_v2()
+                policy_result = policy_engine.evaluate(
+                    query=query,
+                    intent_id=faq_id,
+                    entities=extracted_entities,
+                    category=primary_category,
+                )
+                builder_v2 = get_response_builder_v2()
+                related_for_builder = [
+                    {"id": r.get("id"), "question": r.get("question", "")}
+                    for r in (related or [])
+                ]
+                structured = builder_v2.build(
+                    faq_item=faq_match,
+                    policy_result=policy_result,
+                    entities=extracted_entities,
+                    related=related_for_builder,
+                )
+                response["engine"] = "v2"
+                response["structured_response"] = structured
+                response["policy"] = policy_result
+                # ?format=markdown|plain
+                fmt = (request.args.get("format") or "").lower()
+                if fmt == "markdown":
+                    response["answer"] = builder_v2.format_markdown(structured)
+                    response["format"] = "markdown"
+                elif fmt == "plain":
+                    response["answer"] = builder_v2.format_plain(structured)
+                    response["format"] = "plain"
+            except Exception as exc:
+                logger.error(f"ResponseBuilderV2 실패: {exc}", exc_info=True)
+                response["engine"] = "v2"
+                response["structured_response_error"] = str(exc)
+        elif (request.args.get("format") or "").lower() == "markdown":
+            # Allow ?format=markdown without explicitly selecting engine=v2.
+            try:
+                builder_v2 = get_response_builder_v2()
+                policy_engine = get_policy_engine_v2()
+                policy_result = policy_engine.evaluate(
+                    query=query,
+                    intent_id=faq_id,
+                    entities=extracted_entities,
+                    category=primary_category,
+                )
+                related_for_builder = [
+                    {"id": r.get("id"), "question": r.get("question", "")}
+                    for r in (related or [])
+                ]
+                structured = builder_v2.build(
+                    faq_item=faq_match,
+                    policy_result=policy_result,
+                    entities=extracted_entities,
+                    related=related_for_builder,
+                )
+                response["answer"] = builder_v2.format_markdown(structured)
+                response["format"] = "markdown"
+                response["structured_response"] = structured
+            except Exception as exc:
+                logger.error(f"Markdown 변환 실패: {exc}", exc_info=True)
 
         if engine == "hybrid":
             response["engine"] = "hybrid"
