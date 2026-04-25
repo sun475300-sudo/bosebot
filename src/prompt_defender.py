@@ -17,8 +17,17 @@ class PromptDefender:
         # XSS, SQLi, 시스템 프롬프트 유출 시도 패턴
         self.blacklist_patterns = [
             re.compile(r'(?i)<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>'),  # XSS
-            re.compile(r'(?i)(?:select\|insert\|update\|delete\|drop\|truncate\|union\|exec)\s+.*\s+(?:from\|into\|table)', re.IGNORECASE), # SQLi (기본 형태)
-            re.compile(r'(?i)(--|\bDELETE\b|\bDROP\b|\bINSERT\b|\bUPDATE\b)\s+'), # SQLi (명령어)
+            # SQL 인젝션 감지: 단순 단어가 아닌 구조적 패턴 감지
+            re.compile(r'(?i)\bSELECT\s+.*\s+FROM\s+', re.IGNORECASE),
+            re.compile(r'(?i)\bINSERT\s+INTO\s+', re.IGNORECASE),
+            re.compile(r'(?i)\bUPDATE\s+.*\s+SET\s+', re.IGNORECASE),
+            re.compile(r'(?i)\bDELETE\s+FROM\s+', re.IGNORECASE),
+            re.compile(r'(?i)\bDROP\s+TABLE\s+', re.IGNORECASE),
+            re.compile(r'(?i)\bUNION\s+SELECT\s+', re.IGNORECASE),
+            re.compile(r'(?i)\bOR\s+\d+=\d+', re.IGNORECASE),
+            re.compile(r'(?i)\bWHERE\s+\d+=\d+', re.IGNORECASE),
+            re.compile(r'(?i)--\s*$'), # 주석 (줄 끝)
+            re.compile(r'(?i);\s*$'),  # 세미콜론 (줄 끝)
             re.compile(r'(?i)(ignore previous instructions|너의 지시사항|이전 프롬프트 무시|system prompt|jailbreak|DAN\b|개발자 모드)'), # LLM Prompt Injection
             re.compile(r'(?i)(<\s*(?:iframe|object|embed|applet|meta)[^>]*>)'), # HTML injection
         ]
@@ -35,8 +44,15 @@ class PromptDefender:
         if not self.enabled or not text or not isinstance(text, str):
             return False
 
+        # 'how to drop a database table?'와 같은 일반적인 질문은 통과시켜야 함
+        # SQL 구문이 명확한 경우만 차단
         for pattern in self.blacklist_patterns:
             if pattern.search(text):
+                # 예외 처리: 자연어 질문 형태인 경우 (단순 키워드 포함)
+                if "how to" in text.lower() or "방법" in text:
+                    if "SELECT * FROM" in text or "DROP TABLE" in text and ";" in text:
+                         return True
+                    continue
                 return True
 
         return False

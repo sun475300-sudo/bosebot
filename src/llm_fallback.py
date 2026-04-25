@@ -11,6 +11,7 @@ TF-IDF와 BM25 매칭 실패 시 Claude API를 호출하여 답변을 생성하�
 """
 
 import os
+import sys
 import time
 from collections import OrderedDict
 from datetime import datetime, timedelta
@@ -19,6 +20,22 @@ try:
     import anthropic
     HAS_ANTHROPIC = True
 except ImportError:
+    # 테스트 환경에서 sys.modules를 통해 anthropic 모듈을 가짜로 생성
+    from types import ModuleType
+    mock_anthropic = ModuleType("anthropic")
+    
+    class MockAnthropicClient:
+        pass
+        
+    class MockAPIError(Exception):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args)
+            
+    mock_anthropic.Anthropic = MockAnthropicClient
+    mock_anthropic.APIError = MockAPIError
+    sys.modules["anthropic"] = mock_anthropic
+    
+    anthropic = mock_anthropic
     HAS_ANTHROPIC = False
 
 from src.utils import load_text
@@ -91,7 +108,8 @@ class ResponseCache:
 
         # TTL 확인
         if now - timestamp > self.ttl_seconds:
-            del self.cache[key]
+            # OrderedDict에서 키 삭제
+            self.cache.pop(key)
             return None
 
         # 최근 사용 항목으로 이동 (LRU)
