@@ -502,16 +502,26 @@ def _add_cache_headers(response):
 
         response.headers["Cache-Control"] = f"public, max-age={max_age}"
 
-        # ETag support based on response data
-        if response.data:
-            etag = hashlib.md5(response.data).hexdigest()
-            response.headers["ETag"] = f'"{etag}"'
+        # ETag support based on response data.
+        # send_file()는 direct_passthrough 모드로 응답을 만들기 때문에
+        # response.data 에 직접 접근하면 RuntimeError 가 발생한다.
+        # 이런 경우엔 Flask 가 send_file(conditional=True) 로 자체 ETag 를
+        # 처리하므로 여기서는 스킵한다.
+        if not getattr(response, "direct_passthrough", False):
+            try:
+                body = response.get_data()
+            except RuntimeError:
+                body = None
 
-            # Handle If-None-Match
-            if_none_match = request.headers.get("If-None-Match")
-            if if_none_match and if_none_match.strip('"') == etag:
-                response.status_code = 304
-                response.data = b""
+            if body:
+                etag = hashlib.md5(body).hexdigest()
+                response.headers["ETag"] = f'"{etag}"'
+
+                # Handle If-None-Match
+                if_none_match = request.headers.get("If-None-Match")
+                if if_none_match and if_none_match.strip('"') == etag:
+                    response.status_code = 304
+                    response.set_data(b"")
 
     return response
 
