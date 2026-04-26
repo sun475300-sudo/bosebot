@@ -14,7 +14,7 @@ try:
     from sentence_transformers import SentenceTransformer
     HAS_EMBEDDINGS = True
 except ImportError:
-    import numpy as np  # numpy는 이미 설치됨
+    np = None  # type: ignore
     SentenceTransformer = None
     HAS_EMBEDDINGS = False
 
@@ -23,8 +23,8 @@ class DummyModel:
     """sentence-transformers가 없을 때 사용하는 더미 모델."""
     def encode(self, sentences, **kwargs):
         if isinstance(sentences, str):
-            return np.zeros(384)
-        return np.zeros((len(sentences), 384))
+            return [0.0] * 384
+        return [[0.0] * 384 for _ in range(len(sentences))]
 
 
 class VectorSearchEngine:
