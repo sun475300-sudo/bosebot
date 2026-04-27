@@ -1,0 +1,85 @@
+﻿**********************
+Windows PowerShell 기록 시작
+시작 시간: 20260427112806
+사용자 이름: 장선우컴퓨터\User
+RunAs 사용자: 장선우컴퓨터\User
+구성 이름: 
+Machine: 장선우컴퓨터 (Microsoft Windows NT 10.0.26200.0)
+호스트 응용 프로그램: powershell.exe -NoProfile -ExecutionPolicy Bypass -File E:\GitHub\bonded-exhibition-chatbot-data\cleanup_safe_branches.ps1
+프로세스 ID: 7392
+PSVersion: 5.1.26100.8115
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8115
+BuildVersion: 10.0.26100.8115
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+[INFO] git found at C:\Program Files\Git\cmd
+[INFO] git version 2.53.0.windows.2
+
+=== 1) Fresh clone ===
+
+
+
+=== 2) Branch analysis (total 11) ===
+  [KEEP]   claude/exciting-heisenberg-ATt8E (behind=6)
+  [KEEP]   claude/exciting-heisenberg-bayOd (behind=12)
+  [KEEP]   claude/exciting-heisenberg-C6A4p (behind=6)
+  [KEEP]   claude/exciting-heisenberg-dKaC4 (behind=12)
+  [KEEP]   claude/exciting-heisenberg-EeSgA (behind=12)
+  [KEEP]   claude/exciting-heisenberg-mQg9K (behind=6)
+  [KEEP]   claude/exciting-heisenberg-raKVo (behind=6)
+  [KEEP]   claude/exciting-heisenberg-RYVP2 (behind=5)
+  [FF]     claude/fix-tests-ci-green
+  [KEEP]   claude/inspiring-cori-xTWmw (behind=12)
+  [KEEP]   claude/inspiring-cori-ZVjBv (behind=12)
+
+Plan:
+  FF merge + delete : 1
+  Delete only       : 0
+  Keep              : 10
+
+=== FF merge: claude/fix-tests-ci-green ===
+
+
+=== Push main ===
+
+
+=== Delete remote: claude/fix-tests-ci-green ===
+
+
+=== RESULT ===
+FF merged + deleted: 1
+  - claude/fix-tests-ci-green
+Deleted only: 0
+Kept: 10
+  - claude/exciting-heisenberg-ATt8E
+  - claude/exciting-heisenberg-bayOd
+  - claude/exciting-heisenberg-C6A4p
+  - claude/exciting-heisenberg-dKaC4
+  - claude/exciting-heisenberg-EeSgA
+  - claude/exciting-heisenberg-mQg9K
+  - claude/exciting-heisenberg-raKVo
+  - claude/exciting-heisenberg-RYVP2
+  - claude/inspiring-cori-xTWmw
+  - claude/inspiring-cori-ZVjBv
+
+=== Remaining remote branches ===
+
+  origin/claude/exciting-heisenberg-ATt8E
+  origin/claude/exciting-heisenberg-C6A4p
+  origin/claude/exciting-heisenberg-EeSgA
+  origin/claude/exciting-heisenberg-RYVP2
+  origin/claude/exciting-heisenberg-bayOd
+  origin/claude/exciting-heisenberg-dKaC4
+  origin/claude/exciting-heisenberg-mQg9K
+  origin/claude/exciting-heisenberg-raKVo
+  origin/claude/inspiring-cori-ZVjBv
+  origin/claude/inspiring-cori-xTWmw
+  origin/main
+**********************
+Windows PowerShell 기록 끝
+종료 시간: 20260427112814
+**********************
