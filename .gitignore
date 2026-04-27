@@ -45,3 +45,8 @@ Thumbs.db
 
 # Locale compiled
 data/locales/*.pyc
+
+# Pytest runtime cache (added 2026-04-27 cleanup)
+pytest-cache-files-*/
+.pytest_cache/
+
