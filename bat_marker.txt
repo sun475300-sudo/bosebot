@@ -1,4 +1,4 @@
-MARKER 2026-04-27 11:28:06.51 
+MARKER 2026-04-27 21:51:50.86 
 C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
 정보: 제공된 패턴에 해당되는 파일을 찾지 못했습니다.
 --- running script --- 
@@ -7,45 +7,25 @@ C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
 
 === 1) Fresh clone ===
 
-=== 2) Branch analysis (total 11) ===
-  [KEEP]   claude/exciting-heisenberg-ATt8E (behind=6)
-  [KEEP]   claude/exciting-heisenberg-bayOd (behind=12)
-  [KEEP]   claude/exciting-heisenberg-C6A4p (behind=6)
-  [KEEP]   claude/exciting-heisenberg-dKaC4 (behind=12)
-  [KEEP]   claude/exciting-heisenberg-EeSgA (behind=12)
-  [KEEP]   claude/exciting-heisenberg-mQg9K (behind=6)
-  [KEEP]   claude/exciting-heisenberg-raKVo (behind=6)
-  [KEEP]   claude/exciting-heisenberg-RYVP2 (behind=5)
-  [FF]     claude/fix-tests-ci-green
-  [KEEP]   claude/inspiring-cori-xTWmw (behind=12)
-  [KEEP]   claude/inspiring-cori-ZVjBv (behind=12)
+=== 2) Branch analysis (total 10) ===
+  [KEEP]   claude/exciting-heisenberg-ATt8E (behind=13)
+  [KEEP]   claude/exciting-heisenberg-bayOd (behind=19)
+  [KEEP]   claude/exciting-heisenberg-C6A4p (behind=13)
+  [KEEP]   claude/exciting-heisenberg-dKaC4 (behind=19)
+  [KEEP]   claude/exciting-heisenberg-EeSgA (behind=19)
+  [KEEP]   claude/exciting-heisenberg-mQg9K (behind=13)
+  [KEEP]   claude/exciting-heisenberg-raKVo (behind=13)
+  [KEEP]   claude/exciting-heisenberg-RYVP2 (behind=12)
+  [KEEP]   claude/inspiring-cori-xTWmw (behind=19)
+  [KEEP]   claude/inspiring-cori-ZVjBv (behind=19)
 
 Plan:
-  FF merge + delete : 1
+  FF merge + delete : 0
   Delete only       : 0
   Keep              : 10
 
-=== FF merge: claude/fix-tests-ci-green ===
-Updating f8dfc5e..6a7896e
-Fast-forward
- .github/workflows/ci.yml     | 55 +++++++++++++++++++++++++++++++++++++++-----
- src/error_recovery.py        |  4 +++-
- tests/test_error_recovery.py | 14 +++++++----
- tests/test_llm_fallback.py   |  4 ++--
- tests/test_performance.py    |  6 +++--
- 5 files changed, 68 insertions(+), 15 deletions(-)
-
-=== Push main ===
-To https://github.com/sun475300-sudo/bonded-exhibition-chatbot-data.git
-   f8dfc5e..6a7896e  main -> main
-
-=== Delete remote: claude/fix-tests-ci-green ===
-To https://github.com/sun475300-sudo/bonded-exhibition-chatbot-data.git
- - [deleted]         claude/fix-tests-ci-green
-
 === RESULT ===
-FF merged + deleted: 1
-  - claude/fix-tests-ci-green
+FF merged + deleted: 0
 Deleted only: 0
 Kept: 10
   - claude/exciting-heisenberg-ATt8E
@@ -72,4 +52,4 @@ Kept: 10
   origin/claude/inspiring-cori-xTWmw
   origin/main
 PS_EXIT=0 
-BAT_DONE 2026-04-27 11:28:14.57 
+BAT_DONE 2026-04-27 21:51:56.69 

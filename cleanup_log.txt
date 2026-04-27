@@ -1,12 +1,12 @@
 ﻿**********************
 Windows PowerShell 기록 시작
-시작 시간: 20260427112806
+시작 시간: 20260427215151
 사용자 이름: 장선우컴퓨터\User
 RunAs 사용자: 장선우컴퓨터\User
 구성 이름: 
 Machine: 장선우컴퓨터 (Microsoft Windows NT 10.0.26200.0)
 호스트 응용 프로그램: powershell.exe -NoProfile -ExecutionPolicy Bypass -File E:\GitHub\bonded-exhibition-chatbot-data\cleanup_safe_branches.ps1
-프로세스 ID: 7392
+프로세스 ID: 29640
 PSVersion: 5.1.26100.8115
 PSEdition: Desktop
 PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8115
@@ -23,36 +23,25 @@ SerializationVersion: 1.1.0.1
 
 
 
-=== 2) Branch analysis (total 11) ===
-  [KEEP]   claude/exciting-heisenberg-ATt8E (behind=6)
-  [KEEP]   claude/exciting-heisenberg-bayOd (behind=12)
-  [KEEP]   claude/exciting-heisenberg-C6A4p (behind=6)
-  [KEEP]   claude/exciting-heisenberg-dKaC4 (behind=12)
-  [KEEP]   claude/exciting-heisenberg-EeSgA (behind=12)
-  [KEEP]   claude/exciting-heisenberg-mQg9K (behind=6)
-  [KEEP]   claude/exciting-heisenberg-raKVo (behind=6)
-  [KEEP]   claude/exciting-heisenberg-RYVP2 (behind=5)
-  [FF]     claude/fix-tests-ci-green
-  [KEEP]   claude/inspiring-cori-xTWmw (behind=12)
-  [KEEP]   claude/inspiring-cori-ZVjBv (behind=12)
+=== 2) Branch analysis (total 10) ===
+  [KEEP]   claude/exciting-heisenberg-ATt8E (behind=13)
+  [KEEP]   claude/exciting-heisenberg-bayOd (behind=19)
+  [KEEP]   claude/exciting-heisenberg-C6A4p (behind=13)
+  [KEEP]   claude/exciting-heisenberg-dKaC4 (behind=19)
+  [KEEP]   claude/exciting-heisenberg-EeSgA (behind=19)
+  [KEEP]   claude/exciting-heisenberg-mQg9K (behind=13)
+  [KEEP]   claude/exciting-heisenberg-raKVo (behind=13)
+  [KEEP]   claude/exciting-heisenberg-RYVP2 (behind=12)
+  [KEEP]   claude/inspiring-cori-xTWmw (behind=19)
+  [KEEP]   claude/inspiring-cori-ZVjBv (behind=19)
 
 Plan:
-  FF merge + delete : 1
+  FF merge + delete : 0
   Delete only       : 0
   Keep              : 10
 
-=== FF merge: claude/fix-tests-ci-green ===
-
-
-=== Push main ===
-
-
-=== Delete remote: claude/fix-tests-ci-green ===
-
-
 === RESULT ===
-FF merged + deleted: 1
-  - claude/fix-tests-ci-green
+FF merged + deleted: 0
 Deleted only: 0
 Kept: 10
   - claude/exciting-heisenberg-ATt8E
@@ -81,5 +70,5 @@ Kept: 10
   origin/main
 **********************
 Windows PowerShell 기록 끝
-종료 시간: 20260427112814
+종료 시간: 20260427215156
 **********************
