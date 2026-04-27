@@ -39,24 +39,32 @@ COPY --from=builder /install /usr/local
 # Copy application code
 COPY --chown=chatbot:chatbot . .
 
-# Create required directories
-RUN mkdir -p logs data backups \
+# Create required directories (incl. HuggingFace cache for sentence-transformers)
+RUN mkdir -p logs data backups /app/.hf_cache \
     && chown -R chatbot:chatbot /app
 
 # Environment defaults
+# - HF_HOME: HuggingFace model cache (mount as volume to persist between rebuilds)
+# - GUNICORN_*: tuned for small-VM deployment (2 workers x 4 threads)
 ENV CHATBOT_PORT=8080 \
     CHATBOT_HOST=0.0.0.0 \
     CHATBOT_DEBUG=false \
     CHATBOT_LOG_LEVEL=INFO \
     CHATBOT_DB_PATH=logs/chat_logs.db \
+    HF_HOME=/app/.hf_cache \
+    TRANSFORMERS_CACHE=/app/.hf_cache \
+    GUNICORN_WORKERS=2 \
+    GUNICORN_THREADS=4 \
+    GUNICORN_TIMEOUT=120 \
+    GUNICORN_BIND=0.0.0.0:8080 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-    CMD python deploy/healthcheck.py --host 127.0.0.1 --port ${CHATBOT_PORT} || exit 1
+# Health check uses /api/health endpoint (curl is cheaper than spawning python)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -fsS "http://127.0.0.1:${CHATBOT_PORT}/api/health" || exit 1
 
 # Run as non-root user
 USER chatbot
@@ -64,4 +72,5 @@ USER chatbot
 # Use tini as init process (handles signals properly)
 ENTRYPOINT ["tini", "--"]
 
-CMD ["gunicorn", "-c", "deploy/gunicorn_config.py", "web_server:app"]
+# 2 workers x 4 threads + --preload (single FAQ load shared across workers via fork)
+CMD ["sh", "-c", "gunicorn --bind ${GUNICORN_BIND} --workers ${GUNICORN_WORKERS} --threads ${GUNICORN_THREADS} --timeout ${GUNICORN_TIMEOUT} --preload --access-logfile - --error-logfile - web_server:app"]

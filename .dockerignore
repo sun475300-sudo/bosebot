@@ -2,6 +2,8 @@ __pycache__
 *.pyc
 *.pyo
 .env
+.env.*
+!.env.example
 .git
 .gitignore
 *.md
@@ -16,6 +18,10 @@ docs/
 *.egg-info
 .venv
 venv
+.hf_cache
 node_modules
 *.db
 *.sqlite3
+.claude/
+cleanup_log.txt
+bat_marker.txt

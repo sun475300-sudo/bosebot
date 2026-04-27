@@ -279,31 +279,98 @@ sequenceDiagram
 
 ---
 
-## 빠른 시작
+## 빠른 시작 — 60초 안에
 
-### 설치 (2분)
+| 환경            | 1-라인 실행                              | 추천 대상            |
+|-----------------|------------------------------------------|----------------------|
+| 🐳 Docker       | `docker compose up -d`                   | 모든 플랫폼 (권장)   |
+| 🐧 Linux/Mac    | `./start.sh`                             | 로컬 개발 (Unix)     |
+| 🪟 Windows .bat | `start_chatbot_simple.bat`               | 윈도우 더블클릭 실행 |
+| 🐧 WSL          | `./start.sh` (Ubuntu/WSL)                | 윈도우 + Unix 도구   |
+
+### 1단계 — 클론 + 환경변수
 
 ```bash
 git clone https://github.com/sun475300-sudo/bonded-exhibition-chatbot-data.git
 cd bonded-exhibition-chatbot-data
-pip install -r requirements.txt
+cp .env.example .env       # 필수 변수만 채우면 됨 (.env 안내 주석 참고)
 ```
 
-### 실행
+### 2단계 — 실행 (4가지 중 택1)
+
+#### A. Docker (권장 — 모든 플랫폼 동일)
 
 ```bash
-# 웹 챗봇 (브라우저에서 http://127.0.0.1:8080)
-python web_server.py --port 8080
+docker compose up -d                   # 백그라운드 실행
+docker compose logs -f                 # 로그 따라가기
+docker compose down                    # 종료
+```
+→ <http://127.0.0.1:8080> 접속.
+풀스택(nginx + redis 포함): `docker compose -f docker-compose.production.yml up -d`
 
-# 관리자 대시보드 (http://127.0.0.1:8080/admin)
+#### B. Linux/Mac (venv 자동 + 의존성 자동 설치)
+
+```bash
+./start.sh                             # 8080 포트
+./start.sh --port 5000                 # 다른 포트
+```
+
+#### C. Windows (.bat 더블클릭)
+
+```bat
+start_chatbot_simple.bat
+```
+또는 PowerShell:
+```powershell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+py web_server.py --port 8080
+```
+
+#### D. WSL (Ubuntu on Windows)
+
+```bash
+# Ubuntu 셸에서
+sudo apt install -y python3-venv
+./start.sh
+# 브라우저에서 http://127.0.0.1:8080 (Windows Chrome도 자동 연결)
+```
+
+### Make 명령 (단축키)
+
+```bash
+make install        # pip install -r requirements.txt
+make run            # python web_server.py
+make test           # pytest 전체
+make docker-up      # docker compose up -d + 헬스체크 대기
+make docker-down    # 종료
+make help           # 전체 명령 목록
+```
+
+### Troubleshooting
+
+| 증상                              | 원인 / 해결                                                              |
+|-----------------------------------|--------------------------------------------------------------------------|
+| `port 8080 already in use`        | `CHATBOT_PORT=9000 docker compose up -d` 또는 `./start.sh --port 9000`   |
+| `JWT_SECRET_KEY` 경고             | `.env` 의 기본값을 `python -c "import secrets;print(secrets.token_urlsafe(64))"` 결과로 교체 |
+| `ModuleNotFoundError: flask`      | venv 활성화 안됨 → `source .venv/bin/activate` (Linux/Mac) / `.venv\Scripts\Activate.ps1` (Win) |
+| Docker 빌드 시 sentence-transformers 다운로드 느림 | 정상 (~200MB). hf-cache 볼륨에 1회 캐시 후 재시작은 빠름. |
+| `.env` 적용 안됨                  | Docker는 자동 로드. start.sh 도 자동 로드. 직접 실행 시 `set -a; source .env; set +a` |
+| `permission denied: ./start.sh`   | `chmod +x start.sh`                                                       |
+| Windows에서 `make` 없다고 함      | Git Bash 사용 또는 `choco install make` / `scoop install make`           |
+
+### 추가 실행 모드
+
+```bash
+# 관리자 대시보드: http://127.0.0.1:8080/admin
+# Swagger:        http://127.0.0.1:8080/swagger
+# 헬스체크:       http://127.0.0.1:8080/api/health
 
 # 터미널 시뮬레이터
 python simulator.py              # 대화형
 python simulator.py --test       # 자동 테스트
 python simulator.py -q "질문"    # 단일 질문
-
-# Docker 배포
-docker-compose up -d
 ```
 
 ### 테스트
