@@ -1,0 +1,40 @@
+# =====================================================================
+# Minimal local development stack: chatbot only, no redis/nginx.
+# Usage:
+#   cp .env.example .env
+#   docker compose -f docker-compose.dev.yml up --build
+#   open http://localhost:8080
+# =====================================================================
+
+services:
+  chatbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: bonded-exhibition-chatbot:dev
+    container_name: bonded-chatbot-dev
+    restart: unless-stopped
+    ports:
+      - "${CHATBOT_HOST_PORT:-8080}:8080"
+    env_file:
+      - .env
+    environment:
+      PYTHONUNBUFFERED: "1"
+      CHATBOT_PORT: "8080"
+      CHATBOT_HOST: "0.0.0.0"
+      CHATBOT_DEBUG: "false"
+      HF_HOME: "/app/.hf-cache"
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - hf-cache:/app/.hf-cache
+    healthcheck:
+      test: ["CMD", "python", "deploy/healthcheck.py", "--host", "127.0.0.1", "--port", "8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  hf-cache:
