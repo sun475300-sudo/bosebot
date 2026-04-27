@@ -1,4 +1,4 @@
-MARKER 2026-04-27 21:51:50.86 
+MARKER 2026-04-27 22:09:58.74 
 C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
 정보: 제공된 패턴에 해당되는 파일을 찾지 못했습니다.
 --- running script --- 
@@ -7,7 +7,7 @@ C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
 
 === 1) Fresh clone ===
 
-=== 2) Branch analysis (total 10) ===
+=== 2) Branch analysis (total 11) ===
   [KEEP]   claude/exciting-heisenberg-ATt8E (behind=13)
   [KEEP]   claude/exciting-heisenberg-bayOd (behind=19)
   [KEEP]   claude/exciting-heisenberg-C6A4p (behind=13)
@@ -16,16 +16,32 @@ C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
   [KEEP]   claude/exciting-heisenberg-mQg9K (behind=13)
   [KEEP]   claude/exciting-heisenberg-raKVo (behind=13)
   [KEEP]   claude/exciting-heisenberg-RYVP2 (behind=12)
+  [FF]     claude/fix-ui-scroll-202604271500
   [KEEP]   claude/inspiring-cori-xTWmw (behind=19)
   [KEEP]   claude/inspiring-cori-ZVjBv (behind=19)
 
 Plan:
-  FF merge + delete : 0
+  FF merge + delete : 1
   Delete only       : 0
   Keep              : 10
 
+=== FF merge: claude/fix-ui-scroll-202604271500 ===
+Updating 1513a28..1934a3c
+Fast-forward
+ web/index.html | 27 ++++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)
+
+=== Push main ===
+To https://github.com/sun475300-sudo/bonded-exhibition-chatbot-data.git
+   1513a28..1934a3c  main -> main
+
+=== Delete remote: claude/fix-ui-scroll-202604271500 ===
+To https://github.com/sun475300-sudo/bonded-exhibition-chatbot-data.git
+ - [deleted]         claude/fix-ui-scroll-202604271500
+
 === RESULT ===
-FF merged + deleted: 0
+FF merged + deleted: 1
+  - claude/fix-ui-scroll-202604271500
 Deleted only: 0
 Kept: 10
   - claude/exciting-heisenberg-ATt8E
@@ -52,4 +68,4 @@ Kept: 10
   origin/claude/inspiring-cori-xTWmw
   origin/main
 PS_EXIT=0 
-BAT_DONE 2026-04-27 21:51:56.69 
+BAT_DONE 2026-04-27 22:10:07.10 
