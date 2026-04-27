@@ -50,3 +50,16 @@ data/locales/*.pyc
 pytest-cache-files-*/
 .pytest_cache/
 
+
+# Standardized common patterns (added 2026-04-27)
+*.bak
+*.bak.*
+*.orig
+_*.bat
+_*.log
+_*.txt
+_*.ps1
+.coverage
+htmlcov/
+.venv/
+venv/
