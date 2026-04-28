@@ -11,29 +11,148 @@
 <link rel="apple-touch-icon" href="/static/icon-192.svg">
 <title>보세전시장 민원응대 챗봇 Premium</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
-  
+  /* ──────────────────────────────────────────────────────────────
+     Typography — Pretendard (한글 가독성 최적) + Inter + Noto Sans KR fallback
+     ────────────────────────────────────────────────────────────── */
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+
+  /* ──────────────────────────────────────────────────────────────
+     Design Tokens — color / space / shadow / radius
+     dark default · [data-theme="light"] override · prefers-color-scheme honoured
+     ────────────────────────────────────────────────────────────── */
   :root {
+    /* Color — Brand */
+    --color-primary: #0084ff;
+    --color-primary-strong: #0056e0;
+    --color-secondary: #00d2ff;
+    --color-accent: #4FC3F7;
+    --color-success: #4CAF50;
+    --color-warning: #FFB74D;
+    --color-error: #F44336;
+    --color-info: #64B5F6;
+
+    /* Color — Surface (dark default) */
+    --color-bg: #0a0f18;
     --bg-gradient: linear-gradient(135deg, #0a0f18 0%, #111d2b 50%, #081624 100%);
-    --accent-primary: #0084ff;
-    --accent-secondary: #00d2ff;
-    --glass-bg: rgba(20, 30, 45, 0.7);
-    --glass-border: rgba(255, 255, 255, 0.08);
-    --bot-msg-bg: rgba(30, 48, 68, 0.85);
-    --user-msg-gradient: linear-gradient(135deg, #0084ff, #0056e0);
-    --text-primary: #f0f4f8;
-    --text-secondary: #a0aec0;
+    --color-surface: rgba(20, 30, 45, 0.7);
+    --color-surface-elevated: rgba(30, 48, 68, 0.85);
+    --color-surface-input: rgba(255, 255, 255, 0.05);
+    --color-muted: rgba(255, 255, 255, 0.06);
+    --color-border: rgba(255, 255, 255, 0.08);
+    --color-border-strong: rgba(100, 180, 255, 0.2);
+
+    /* Color — Text */
+    --color-text: #f0f4f8;
+    --color-text-muted: #a0aec0;
+    --color-text-faint: #78909C;
+    --color-text-on-primary: #ffffff;
+
+    /* Legacy aliases (preserve existing CSS) */
+    --accent-primary: var(--color-primary);
+    --accent-secondary: var(--color-secondary);
+    --glass-bg: var(--color-surface);
+    --glass-border: var(--color-border);
+    --bot-msg-bg: var(--color-surface-elevated);
+    --user-msg-gradient: linear-gradient(135deg, var(--color-primary), var(--color-primary-strong));
+    --text-primary: var(--color-text);
+    --text-secondary: var(--color-text-muted);
+
+    /* Spacing — 8px grid (--space-N = N × 4px so space-2=8, space-4=16, space-6=24, space-8=32) */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+
+    /* Radius */
+    --radius-sm: 6px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+    --radius-pill: 999px;
+
+    /* Shadow */
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.18);
+    --shadow-md: 0 8px 20px rgba(0,0,0,0.28);
+    --shadow-lg: 0 18px 40px rgba(0,0,0,0.38);
+    --shadow-focus: 0 0 0 3px rgba(0, 132, 255, 0.35);
+
+    /* Typography — font stack with Pretendard first for Korean */
+    --font-sans: 'Pretendard Variable', 'Pretendard', 'Inter', 'Outfit', 'Noto Sans KR',
+                 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+    /* Motion */
+    --duration-fast: 0.15s;
+    --duration-base: 0.25s;
+    --easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --easing-emphasized: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  /* Light theme via [data-theme] (preferred). Existing body.light still supported. */
+  [data-theme="light"], body.light {
+    --color-bg: #f5f7fa;
+    --bg-gradient: linear-gradient(135deg, #e8eef5 0%, #f5f7fa 50%, #e3ecf5 100%);
+    --color-surface: rgba(255, 255, 255, 0.92);
+    --color-surface-elevated: #ffffff;
+    --color-surface-input: #f0f2f5;
+    --color-muted: rgba(0, 0, 0, 0.04);
+    --color-border: rgba(0, 0, 0, 0.08);
+    --color-border-strong: rgba(33, 150, 243, 0.2);
+    --color-text: #1a2a3a;
+    --color-text-muted: #555;
+    --color-text-faint: #888;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 20px rgba(0,0,0,0.08);
+    --shadow-lg: 0 18px 40px rgba(0,0,0,0.12);
+    --shadow-focus: 0 0 0 3px rgba(0, 132, 255, 0.25);
+  }
+
+  /* Auto dark/light per OS preference (only if user has not explicitly chosen) */
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]):not([data-theme="light"]) {
+      /* Defer to body.light/data-theme overrides — kept for users who want auto. */
+    }
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-size: 16px; }
   body {
-    font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "ss02";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     background: var(--bg-gradient);
     height: 100vh;
     display: flex;
     flex-direction: column;
     color: var(--text-primary);
     overflow: hidden;
+    /* Korean weight refinement: 400/500/600/700 maps to Pretendard variable */
+    font-weight: 400;
+    line-height: 1.6;
+  }
+
+  /* Korean-specific line-height + letter-spacing tweaks */
+  :is(h1, h2, h3, p, .msg, .faq-item, .section-content) {
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+    letter-spacing: -0.005em;
+  }
+
+  /* Reduced motion — disable transitions/animations for users who prefer it */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+    .typing-cursor { animation: none !important; }
   }
 
   /* 헤더 고도화 */
@@ -611,6 +730,245 @@
   .skip-link:focus {
     top: 0;
   }
+
+  /* ════════════════════════════════════════════════════════════════
+     Polish Layer (PR: ui-polish)
+     Token-driven refinements layered on top of legacy styles.
+     ════════════════════════════════════════════════════════════════ */
+
+  /* — Avatar on bot messages (left side) — */
+  .msg.bot { padding-left: var(--space-12) !important; position: relative; }
+  .msg.bot::before {
+    content: "🤵";
+    position: absolute;
+    left: var(--space-3);
+    top: var(--space-3);
+    width: 28px; height: 28px;
+    border-radius: var(--radius-pill);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* — Hover timestamp on bubbles (relative time) — */
+  .msg .meta { transition: opacity var(--duration-fast) var(--easing-standard); }
+  @media (hover: hover) {
+    .msg .meta { opacity: 0.55; }
+    .msg:hover .meta, .msg:focus-within .meta { opacity: 1; }
+  }
+
+  /* — Header refinements — */
+  header {
+    box-shadow: var(--shadow-sm);
+  }
+  header h1 {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  body.light header h1 { color: var(--color-text); }
+
+  /* — Sidebar: search input on top — */
+  .sidebar-search-wrapper {
+    padding: var(--space-3) var(--space-4) var(--space-2);
+    background: rgba(10, 15, 24, 0.4);
+    border-bottom: 1px solid var(--color-border);
+  }
+  body.light .sidebar-search-wrapper { background: rgba(255,255,255,0.4); }
+  .sidebar-search {
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-surface-input);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+    font-size: 13px;
+    font-family: inherit;
+    transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+  }
+  .sidebar-search::placeholder { color: var(--color-text-faint); }
+  .sidebar-search:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-focus);
+  }
+
+  /* Hide FAQ items that don't match search */
+  .faq-item.search-hidden { display: none !important; }
+
+  /* — Input area refinements: textarea auto-grow + char counter — */
+  .input-area { position: relative; }
+  .input-area textarea#queryInput {
+    width: 100%;
+    background: var(--color-surface-input);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-5);
+    font-size: 15px;
+    font-family: inherit;
+    line-height: 1.5;
+    color: var(--color-text);
+    transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+    resize: none;
+    min-height: 48px;
+    max-height: 120px; /* ≈ 5 lines @ line-height 1.5 + padding */
+    overflow-y: auto;
+  }
+  .input-area textarea#queryInput:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-focus);
+  }
+  .input-area textarea#queryInput::placeholder { color: var(--color-text-faint); }
+
+  .char-counter {
+    position: absolute;
+    right: var(--space-10);
+    bottom: var(--space-2);
+    font-size: 11px;
+    color: var(--color-text-faint);
+    pointer-events: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .char-counter.warn { color: var(--color-warning); }
+  .char-counter.error { color: var(--color-error); }
+
+  /* — Toast (transient error/info notification) — */
+  .toast-container {
+    position: fixed;
+    top: var(--space-5);
+    right: var(--space-5);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    pointer-events: none;
+  }
+  .toast {
+    background: var(--color-surface-elevated);
+    color: var(--color-text);
+    border: 1px solid var(--color-border-strong);
+    border-left: 4px solid var(--color-info);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    box-shadow: var(--shadow-md);
+    min-width: 240px;
+    max-width: 360px;
+    font-size: 13px;
+    pointer-events: auto;
+    animation: toastIn var(--duration-base) var(--easing-emphasized);
+  }
+  .toast.error { border-left-color: var(--color-error); }
+  .toast.success { border-left-color: var(--color-success); }
+  .toast.warn { border-left-color: var(--color-warning); }
+  @keyframes toastIn {
+    from { transform: translateX(20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  /* — Empty state (when no messages and no typing) — */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--color-text-muted);
+    padding: var(--space-12) var(--space-5);
+    gap: var(--space-3);
+  }
+  .empty-state .empty-icon { font-size: 48px; opacity: 0.5; }
+  .empty-state .empty-title { font-size: 16px; font-weight: 600; color: var(--color-text); }
+  .empty-state .empty-body { font-size: 13px; line-height: 1.6; max-width: 360px; }
+
+  /* — Loading spinner (alternative to typing dots) — */
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--color-border-strong);
+    border-top-color: var(--color-primary);
+    border-radius: var(--radius-pill);
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* — Stronger focus ring across all interactive elements — */
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    box-shadow: var(--shadow-focus);
+  }
+
+  /* ────────────────────────────────────────────────────────────────
+     Responsive 4-tier
+     • ≥1024px : desktop (default — sidebar inline)
+     • 768–1023 : tablet (sidebar inline, slightly narrower)
+     • ≤767     : mobile (sidebar drawer, hamburger)
+     • ≤480     : small mobile (compact paddings)
+     ──────────────────────────────────────────────────────────────── */
+
+  /* tablet 768–1023 */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .sidebar { width: 280px; display: flex !important; flex-direction: column; }
+    .messages { padding: var(--space-5) var(--space-6); }
+    .input-area { padding: var(--space-4) var(--space-5); }
+  }
+
+  /* mobile ≤767 — re-spec older 899px breakpoint to 767 */
+  @media (max-width: 767px) {
+    .hamburger { display: flex !important; align-items: center; justify-content: center; }
+    .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0;
+      width: 280px;
+      z-index: 1000;
+      transform: translateX(-100%);
+      transition: transform var(--duration-base) var(--easing-standard);
+      display: flex; flex-direction: column;
+    }
+    .sidebar.mobile-open { transform: translateX(0); }
+    .sidebar-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(2px);
+      z-index: 999;
+      display: none;
+    }
+    .sidebar-overlay.show { display: block; }
+    header h1 { font-size: 15px; }
+    header .badge, header .status { display: none; }
+    .msg { max-width: 92%; padding: var(--space-3) var(--space-4); font-size: 14px; }
+    .messages { padding: var(--space-4); }
+    .input-area { padding: var(--space-3) var(--space-3); gap: var(--space-2); }
+    .input-area textarea#queryInput { padding: var(--space-3); font-size: 14px; min-height: 44px; }
+    .input-area button { padding: var(--space-3) var(--space-4); font-size: 13px; }
+    .char-counter { right: var(--space-8); font-size: 10px; }
+  }
+
+  /* small mobile ≤480 */
+  @media (max-width: 480px) {
+    header { padding: var(--space-2) var(--space-3); gap: var(--space-2); }
+    header h1 { font-size: 13px; }
+    header .logo { width: 32px; height: 32px; font-size: 16px; }
+    .export-wrapper, .lang-selector, .theme-toggle { margin-left: var(--space-1); }
+    .export-btn, .theme-toggle { padding: 5px 8px; font-size: 13px; }
+    .messages { padding: var(--space-3); }
+    .msg.bot { padding-left: var(--space-10) !important; }
+    .msg.bot::before { left: var(--space-2); width: 24px; height: 24px; font-size: 12px; }
+  }
+
+  /* ── A11y: high-contrast mode ── */
+  @media (prefers-contrast: more) {
+    :root {
+      --color-border: rgba(255,255,255,0.4);
+      --color-border-strong: rgba(255,255,255,0.7);
+    }
+    .msg.bot { border-width: 2px; }
+  }
 </style>
 </head>
 <body>
@@ -642,13 +1000,33 @@
 </header>
 
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMobileSidebar()" aria-hidden="true"></div>
+<div class="toast-container" id="toastContainer" role="region" aria-live="polite" aria-label="알림"></div>
 <div class="container">
   <aside class="sidebar" id="sidebar" role="complementary" aria-label="자주 묻는 질문">
+    <div class="sidebar-search-wrapper">
+      <label for="sidebarSearch" class="sr-only">FAQ 검색</label>
+      <input
+        type="search"
+        id="sidebarSearch"
+        class="sidebar-search"
+        placeholder="🔍 FAQ 검색…"
+        autocomplete="off"
+        aria-label="FAQ 검색"
+        aria-controls="sidebarContent">
+    </div>
     <div class="sidebar-header">자주 묻는 질문</div>
     <nav class="sidebar-content" id="sidebarContent" aria-label="자주 묻는 질문 목록"></nav>
   </aside>
   <main class="chat-area" role="main" aria-label="채팅 영역">
     <div class="messages" id="messages" aria-live="polite" aria-relevant="additions" aria-label="대화 메시지">
+      <div class="empty-state" id="emptyState" hidden>
+        <div class="empty-icon" aria-hidden="true">💬</div>
+        <div class="empty-title">무엇이든 물어보세요</div>
+        <div class="empty-body">
+          왼쪽 사이드바의 자주 묻는 질문을 클릭하거나, 아래 입력창에 직접 질문을 입력하세요.
+          <br><kbd>/</kbd> 키로 빠르게 입력창에 포커스할 수 있습니다.
+        </div>
+      </div>
       <div class="typing" id="typing" role="status" aria-label="응답 작성 중">
         <span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>
         <span class="sr-only">응답을 작성하고 있습니다</span>
@@ -657,11 +1035,22 @@
     <div class="input-area">
       <div class="autocomplete-wrapper">
         <label for="queryInput" class="sr-only">질문 입력</label>
-        <input type="text" id="queryInput" placeholder="보세전시장에 대해 무엇이든 질문하세요..." autofocus autocomplete="off" aria-label="질문 입력" aria-autocomplete="list" aria-controls="autocompleteDropdown">
+        <textarea
+          id="queryInput"
+          placeholder="보세전시장에 대해 무엇이든 질문하세요…  ( / 키로 빠르게 포커스, Enter 전송, Shift+Enter 줄바꿈 )"
+          autofocus
+          autocomplete="off"
+          rows="1"
+          maxlength="1000"
+          aria-label="질문 입력"
+          aria-autocomplete="list"
+          aria-controls="autocompleteDropdown"
+          aria-describedby="charCounter"></textarea>
         <div id="autocompleteDropdown" role="listbox" aria-label="자동완성 제안"></div>
+        <div id="charCounter" class="char-counter" aria-live="polite" aria-atomic="true">0 / 1000</div>
       </div>
       <button type="button" id="micBtn" onclick="toggleVoiceInput()" title="음성 입력" aria-label="음성 입력"><span class="sr-only">음성 입력</span>&#x1F3A4;</button>
-      <button id="sendBtn" onclick="sendQuery()" aria-label="메시지 전송">전송</button>
+      <button id="sendBtn" onclick="sendQuery()" aria-label="메시지 전송" disabled>전송</button>
     </div>
   </main>
 </div>
@@ -799,6 +1188,7 @@ async function sendQuery() {
   hideAutocomplete();
   addUserMessage(query);
   queryInput.value = '';
+  if (typeof updateInputState === 'function') updateInputState(); // reset auto-grow + counter
   sendBtn.disabled = true;
   typingEl.classList.add('show');
   scrollToBottom();
@@ -812,6 +1202,7 @@ async function sendQuery() {
     const data = await res.json();
     if (data.error) {
       addBotMessage(data.error);
+      if (typeof showToast === 'function') showToast(data.error, 'error');
     } else {
       if (data.session_id) currentSessionId = data.session_id;
       const catName = CATEGORY_NAMES[data.category] || data.category;
@@ -819,9 +1210,10 @@ async function sendQuery() {
     }
   } catch (e) {
     addBotMessage('서버 연결 오류가 발생했습니다. 다시 시도해 주세요.');
+    if (typeof showToast === 'function') showToast('서버 연결 오류 — 다시 시도해 주세요.', 'error');
   } finally {
     typingEl.classList.remove('show');
-    sendBtn.disabled = false;
+    if (typeof updateInputState === 'function') updateInputState();
     queryInput.focus();
   }
 }
@@ -1072,9 +1464,36 @@ async function sendFeedback(queryId, rating, btn) {
   area.innerHTML = '<div class="feedback-thanks">감사합니다</div>';
 }
 
+/* --- Enter 전송 / Shift+Enter 줄바꿈 / Esc 자동완성 닫기 --- */
 queryInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendQuery(); }
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    sendQuery();
+  }
 });
+
+/* --- Textarea auto-grow + char counter + send-button enable/disable --- */
+const charCounterEl = document.getElementById('charCounter');
+const MAX_CHARS = 1000;
+
+function updateInputState() {
+  const len = queryInput.value.length;
+  // Char counter
+  charCounterEl.textContent = `${len} / ${MAX_CHARS}`;
+  charCounterEl.classList.toggle('warn', len >= MAX_CHARS * 0.85 && len < MAX_CHARS);
+  charCounterEl.classList.toggle('error', len >= MAX_CHARS);
+  // Send button: empty → disabled
+  sendBtn.disabled = queryInput.value.trim().length === 0;
+  // Auto-grow up to ~5 lines (max-height in CSS handles overflow)
+  queryInput.style.height = 'auto';
+  queryInput.style.height = Math.min(queryInput.scrollHeight, 120) + 'px';
+}
+
+queryInput.addEventListener('input', updateInputState);
+// Initial state on load
+window.addEventListener('DOMContentLoaded', updateInputState);
+// Also call once now (script runs after element exists)
+updateInputState();
 
 /* --- 대화 내보내기 --- */
 let currentSessionId = null;
@@ -1232,17 +1651,32 @@ async function exportConversation(format) {
   downloadFile(content, filename, mimeMap[format]);
 }
 
-/* --- 테마 토글 --- */
+/* --- 테마 토글 (data-theme 속성 + body.light 둘 다 동기화) --- */
+function applyTheme(theme) {
+  // theme: 'light' | 'dark'
+  const root = document.documentElement;
+  root.setAttribute('data-theme', theme);
+  document.body.classList.toggle('light', theme === 'light');
+  const toggle = document.getElementById('themeToggle');
+  if (toggle) {
+    toggle.innerHTML = theme === 'light' ? '&#x2600;' : '&#x263E;';
+    toggle.setAttribute('aria-label', theme === 'light' ? '다크 모드로 전환' : '라이트 모드로 전환');
+    toggle.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');
+  }
+}
 function toggleTheme() {
-  const isLight = document.body.classList.toggle('light');
-  localStorage.setItem('chatbot-theme', isLight ? 'light' : 'dark');
-  document.getElementById('themeToggle').innerHTML = isLight ? '&#x2600;' : '&#x263E;';
+  const next = (document.documentElement.getAttribute('data-theme') === 'light') ? 'dark' : 'light';
+  localStorage.setItem('chatbot-theme', next);
+  applyTheme(next);
 }
 (function initTheme() {
-  if (localStorage.getItem('chatbot-theme') === 'light') {
-    document.body.classList.add('light');
-    document.getElementById('themeToggle').innerHTML = '&#x2600;';
+  let saved = localStorage.getItem('chatbot-theme');
+  if (saved !== 'light' && saved !== 'dark') {
+    // Honour OS preference on first visit
+    saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)
+      ? 'light' : 'dark';
   }
+  applyTheme(saved);
 })();
 
 /* --- 모바일 사이드바 --- */
@@ -1282,22 +1716,97 @@ function typeEffect(element, html, callback) {
   typeNext();
 }
 
-/* --- Keyboard shortcut: Ctrl+/ to focus input --- */
+/* ──────────────────────────────────────────────
+   Keyboard shortcuts (UI polish)
+   - "/"   → focus input  (when not already typing into a field)
+   - Ctrl+/ → focus input (existing power-user shortcut, kept)
+   - Esc   → close sidebar drawer (mobile) / export dropdown / autocomplete
+   ────────────────────────────────────────────── */
+function isTypingTarget(target) {
+  if (!target) return false;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable;
+}
+
 document.addEventListener('keydown', (e) => {
+  // "/" focuses the message input when not already focused on another field
+  if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !isTypingTarget(e.target)) {
+    e.preventDefault();
+    queryInput.focus();
+    return;
+  }
+  // Power-user: Ctrl+/ regardless of current focus
   if (e.ctrlKey && e.key === '/') {
     e.preventDefault();
     queryInput.focus();
+    return;
   }
-  // Escape closes export dropdown
+  // Esc cascade: export dropdown → autocomplete → mobile sidebar
   if (e.key === 'Escape') {
     const dd = document.getElementById('exportDropdown');
-    if (dd.classList.contains('show')) {
+    if (dd && dd.classList.contains('show')) {
       dd.classList.remove('show');
-      document.getElementById('exportBtn').setAttribute('aria-expanded', 'false');
-      document.getElementById('exportBtn').focus();
+      const btn = document.getElementById('exportBtn');
+      if (btn) { btn.setAttribute('aria-expanded', 'false'); btn.focus(); }
+      return;
+    }
+    if (acDropdown && acDropdown.classList.contains('show')) {
+      hideAutocomplete();
+      return;
+    }
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar && sidebar.classList.contains('mobile-open')) {
+      toggleMobileSidebar();
+      return;
     }
   }
 });
+
+/* --- Sidebar FAQ search filter --- */
+(function initSidebarSearch() {
+  const searchInput = document.getElementById('sidebarSearch');
+  const sidebarContent = document.getElementById('sidebarContent');
+  if (!searchInput || !sidebarContent) return;
+
+  function applyFilter() {
+    const q = searchInput.value.trim().toLowerCase();
+    const items = sidebarContent.querySelectorAll('.faq-item');
+    items.forEach(item => {
+      const text = (item.textContent || '').toLowerCase();
+      if (!q || text.includes(q)) {
+        item.classList.remove('search-hidden');
+      } else {
+        item.classList.add('search-hidden');
+      }
+    });
+  }
+
+  searchInput.addEventListener('input', applyFilter);
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      searchInput.value = '';
+      applyFilter();
+      searchInput.blur();
+    }
+  });
+})();
+
+/* --- Toast notifications (transient inline alerts) --- */
+function showToast(message, kind = 'info', durationMs = 4000) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const el = document.createElement('div');
+  el.className = 'toast ' + (kind || 'info');
+  el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+  el.textContent = message;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(20px)';
+    setTimeout(() => el.remove(), 260);
+  }, durationMs);
+}
 
 /* --- Export dropdown keyboard navigation --- */
 document.getElementById('exportDropdown').addEventListener('keydown', (e) => {
