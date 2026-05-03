@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # =====================================================================
 # Bonded Exhibition Chatbot - Docker Compose (full stack: chatbot + redis + nginx)
 # Quickstart:
@@ -11,10 +12,28 @@
 
 services:
   chatbot:
+=======
+# ============================================================
+# 보세전시장 챗봇 - 기본 1-라인 실행용 docker-compose
+# ============================================================
+# 사용법:
+#   cp .env.example .env       # 환경변수 채우기
+#   docker compose up -d       # 백그라운드 실행
+#   docker compose logs -f     # 로그 확인
+#   docker compose down        # 종료
+#
+# nginx 리버스 프록시 + redis 캐시까지 필요한 경우:
+#   docker compose -f docker-compose.production.yml up -d
+# ============================================================
+
+services:
+  web:
+>>>>>>> claude/cross-platform-setup-20260428085407
     build:
       context: .
       dockerfile: Dockerfile
       target: production
+<<<<<<< HEAD
     image: bonded-exhibition-chatbot:latest
     container_name: bonded-chatbot
     restart: unless-stopped
@@ -29,22 +48,41 @@ services:
       CHATBOT_DB_PATH: "logs/chat_logs.db"
       REDIS_URL: "redis://redis:6379/0"
       HF_HOME: "/app/.hf-cache"
+=======
+    image: bonded-chatbot:latest
+    container_name: bonded-chatbot
+    restart: unless-stopped
+    ports:
+      - "${CHATBOT_PORT:-8080}:8080"
+    env_file:
+      - .env
+    environment:
+      CHATBOT_PORT: "8080"
+      CHATBOT_HOST: "0.0.0.0"
+      PYTHONUNBUFFERED: "1"
+>>>>>>> claude/cross-platform-setup-20260428085407
     volumes:
       - chatbot-logs:/app/logs
       - chatbot-data:/app/data
       - chatbot-backups:/app/backups
+<<<<<<< HEAD
       - hf-cache:/app/.hf-cache
     depends_on:
       redis:
         condition: service_healthy
     networks:
       - chatbot-net
+=======
+      # HuggingFace 모델 캐시 (sentence-transformers 다운로드 1회만)
+      - hf-cache:/app/.hf_cache
+>>>>>>> claude/cross-platform-setup-20260428085407
     healthcheck:
-      test: ["CMD", "python", "deploy/healthcheck.py", "--host", "127.0.0.1", "--port", "8080"]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
+<<<<<<< HEAD
     deploy:
       resources:
         limits:
@@ -53,12 +91,15 @@ services:
         reservations:
           cpus: "0.5"
           memory: 512M
+=======
+>>>>>>> claude/cross-platform-setup-20260428085407
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "5"
 
+<<<<<<< HEAD
   redis:
     image: redis:7-alpine
     container_name: bonded-redis
@@ -114,10 +155,13 @@ services:
           cpus: "0.5"
           memory: 128M
 
+=======
+>>>>>>> claude/cross-platform-setup-20260428085407
 volumes:
   chatbot-logs:
   chatbot-data:
   chatbot-backups:
+<<<<<<< HEAD
   redis-data:
   nginx-logs:
   hf-cache:
@@ -125,3 +169,6 @@ volumes:
 networks:
   chatbot-net:
     driver: bridge
+=======
+  hf-cache:
+>>>>>>> claude/cross-platform-setup-20260428085407
