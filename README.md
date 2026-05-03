@@ -281,34 +281,65 @@ sequenceDiagram
 
 ## 빠른 시작
 
-### 설치 (2분)
+요구사항: **Python 3.10+** (또는 Docker). 클론 후 아래 4가지 중 하나로 60초 안에 띄울 수 있습니다.
 
 ```bash
 git clone https://github.com/sun475300-sudo/bonded-exhibition-chatbot-data.git
 cd bonded-exhibition-chatbot-data
-pip install -r requirements.txt
+cp .env.example .env          # (선택) 시크릿/포트 조정
 ```
 
-### 실행
+### 옵션 1 — Docker (가장 권장 · OS 무관)
 
 ```bash
-# 웹 챗봇 (브라우저에서 http://127.0.0.1:8080)
-python web_server.py --port 8080
+docker compose -f docker-compose.dev.yml up --build    # 챗봇만
+# 또는 풀스택(redis 포함)
+docker compose up -d
+```
 
-# 관리자 대시보드 (http://127.0.0.1:8080/admin)
+→ 브라우저에서 http://localhost:8080  
+중지: `docker compose down` (또는 `make docker-down`)
+
+### 옵션 2 — Linux / macOS / WSL
+
+```bash
+./start.sh                    # venv 자동 생성, 의존성 설치, 서버 기동
+./start.sh --port 5099        # 포트 변경
+```
+
+### 옵션 3 — Windows
+
+`start.bat` 더블클릭, 또는 PowerShell/cmd에서:
+
+```bat
+start.bat
+start.bat --port 5099
+```
+
+### 옵션 4 — Make 한 줄 (모든 플랫폼, make 설치 필요)
+
+```bash
+make install     # venv + deps
+make run         # 챗봇 실행 (HOST/PORT override 가능: make run PORT=5099)
+make test        # 테스트 실행
+make docker-up   # Docker 풀스택
+make help        # 사용 가능한 타깃 목록
+```
+
+### 그 외 진입점
+
+```bash
+# 관리자 대시보드: http://127.0.0.1:8080/admin
 
 # 터미널 시뮬레이터
 python simulator.py              # 대화형
 python simulator.py --test       # 자동 테스트
 python simulator.py -q "질문"    # 단일 질문
-
-# Docker 배포
-docker-compose up -d
 ```
 
 ### 테스트
 ```bash
-python -m pytest tests/ -v       # 2,081개 테스트 전체 PASS
+python -m pytest tests/ -v       # 전체
 
 # 특정 모듈만
 python -m pytest tests/test_chatbot.py -v
@@ -318,6 +349,17 @@ python -m pytest tests/test_auth.py -v        # JWT 인증
 python -m pytest tests/test_kakao.py -v       # 카카오톡 연동
 python -m pytest tests/test_metrics.py -v     # Prometheus 메트릭
 ```
+
+### 트러블슈팅
+
+| 증상 | 해결 |
+|------|------|
+| `Port 8080 already in use` | `CHATBOT_HOST_PORT=5099 docker compose up` 또는 `./start.sh --port 5099` |
+| `ModuleNotFoundError` | venv 활성화 확인. `rm -rf venv && ./start.sh` 로 재생성 |
+| Python 3.10 미만 경고 | python.org에서 3.11+ 설치, `which python3` 확인 |
+| HuggingFace 모델 다운로드가 매번 반복 | `HF_HOME=./.hf-cache` 가 `.env`에 있는지 확인. Docker는 `hf-cache` 볼륨이 자동 마운트 |
+| `ANTHROPIC_API_KEY` 미설정 | LLM 폴백이 비활성화될 뿐 FAQ 매칭은 정상 동작합니다 |
+| `JWT_SECRET` 미설정 | 운영 환경에서는 반드시 설정. `python -c "import secrets; print(secrets.token_urlsafe(64))"` 로 생성 |
 
 ---
 
