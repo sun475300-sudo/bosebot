@@ -1,0 +1,227 @@
+From fb95a77870da26bffc1d5b01c7eedb301dcf211b Mon Sep 17 00:00:00 2001
+From: Claude <claude@anthropic.local>
+Date: Tue, 28 Apr 2026 00:40:09 +0000
+Subject: [PATCH 2/3] fix(auth): account lockout after N failed login attempts
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+/api/auth/login returned 401 indefinitely on bad passwords with no lockout —
+vulnerable to credential stuffing / brute force.
+
+src/auth.py adds module-level _LOGIN_ATTEMPTS / _LOGIN_LOCKOUT_UNTIL trackers
+behind a thread lock. After AUTH_MAX_ATTEMPTS (default 5) failures within
+AUTH_ATTEMPT_WINDOW_SECONDS (default 900s), the account is locked for
+AUTH_LOCKOUT_SECONDS (default 300s). Successful login resets counters.
+
+API: 423 ACCOUNT_LOCKED with retry_after_seconds in body.
+
+Tests: tests/test_auth_lockout.py — 4 cases.
+---
+ src/auth.py                | 65 ++++++++++++++++++++++++++++++++++++++
+ tests/test_auth_lockout.py | 57 +++++++++++++++++++++++++++++++++
+ web_server.py              | 34 +++++++++++++++++++-
+ 3 files changed, 155 insertions(+), 1 deletion(-)
+ create mode 100644 tests/test_auth_lockout.py
+
+diff --git a/src/auth.py b/src/auth.py
+index 2afe519..ab0c31e 100644
+--- a/src/auth.py
++++ b/src/auth.py
+@@ -215,6 +215,70 @@ class JWTAuth:
+         return decorator
+ 
+ 
++# ---------------------------------------------------------------------------
++# Brute-force lockout (patch 0002)
++# ---------------------------------------------------------------------------
++import threading as _threading
++
++_LOGIN_ATTEMPTS_LOCK = _threading.Lock()
++_LOGIN_ATTEMPTS: dict[str, list[float]] = {}
++_LOGIN_LOCKOUT_UNTIL: dict[str, float] = {}
++
++
++def _auth_max_attempts() -> int:
++    try:
++        return max(1, int(os.environ.get("AUTH_MAX_ATTEMPTS", "5")))
++    except ValueError:
++        return 5
++
++
++def _auth_lockout_seconds() -> int:
++    try:
++        return max(1, int(os.environ.get("AUTH_LOCKOUT_SECONDS", "300")))
++    except ValueError:
++        return 300
++
++
++def _auth_attempt_window() -> int:
++    try:
++        return max(60, int(os.environ.get("AUTH_ATTEMPT_WINDOW_SECONDS", "900")))
++    except ValueError:
++        return 900
++
++
++def is_locked_out(username: str) -> tuple[bool, int]:
++    now = time.time()
++    with _LOGIN_ATTEMPTS_LOCK:
++        until = _LOGIN_LOCKOUT_UNTIL.get(username, 0.0)
++        if until > now:
++            return True, int(until - now)
++        if until and until <= now:
++            _LOGIN_LOCKOUT_UNTIL.pop(username, None)
++            _LOGIN_ATTEMPTS.pop(username, None)
++        return False, 0
++
++
++def record_failed_login(username: str) -> tuple[bool, int]:
++    now = time.time()
++    window = _auth_attempt_window()
++    max_n = _auth_max_attempts()
++    lockout = _auth_lockout_seconds()
++    with _LOGIN_ATTEMPTS_LOCK:
++        attempts = [t for t in _LOGIN_ATTEMPTS.get(username, []) if now - t < window]
++        attempts.append(now)
++        _LOGIN_ATTEMPTS[username] = attempts
++        if len(attempts) >= max_n:
++            _LOGIN_LOCKOUT_UNTIL[username] = now + lockout
++            return True, lockout
++    return False, 0
++
++
++def reset_failed_logins(username: str) -> None:
++    with _LOGIN_ATTEMPTS_LOCK:
++        _LOGIN_ATTEMPTS.pop(username, None)
++        _LOGIN_LOCKOUT_UNTIL.pop(username, None)
++
++
+ def authenticate_user(username: str, password: str) -> dict | None:
+     """Authenticate a user against the admin user list.
+ 
+@@ -229,5 +293,6 @@ def authenticate_user(username: str, password: str) -> dict | None:
+     for user in users:
+         if user.get("username") == username:
+             if verify_password(password, user.get("password_hash", "")):
++                reset_failed_logins(username)
+                 return {"username": user["username"], "role": user.get("role", "admin")}
+     return None
+diff --git a/tests/test_auth_lockout.py b/tests/test_auth_lockout.py
+new file mode 100644
+index 0000000..e5f149d
+--- /dev/null
++++ b/tests/test_auth_lockout.py
+@@ -0,0 +1,57 @@
++"""Patch 0002 — brute-force lockout for /api/auth/login."""
++import os, time, pytest
++os.environ["AUTH_MAX_ATTEMPTS"] = "5"
++os.environ["AUTH_LOCKOUT_SECONDS"] = "2"
++os.environ["AUTH_ATTEMPT_WINDOW_SECONDS"] = "60"
++
++from web_server import app
++from src.auth import _LOGIN_ATTEMPTS, _LOGIN_LOCKOUT_UNTIL, is_locked_out
++
++
++@pytest.fixture
++def client():
++    app.config["TESTING"] = False
++    _LOGIN_ATTEMPTS.clear()
++    _LOGIN_LOCKOUT_UNTIL.clear()
++    with app.test_client() as c:
++        yield c
++    _LOGIN_ATTEMPTS.clear()
++    _LOGIN_LOCKOUT_UNTIL.clear()
++
++
++def test_lockout_after_5_failures(client):
++    for i in range(5):
++        r = client.post("/api/auth/login", json={"username": "admin", "password": f"x{i}"})
++        assert r.status_code in (401, 423)
++    r = client.post("/api/auth/login", json={"username": "admin", "password": "x6"})
++    assert r.status_code == 423
++    body = r.get_json()
++    assert body["error_code"] == "ACCOUNT_LOCKED"
++    assert body["retry_after_seconds"] >= 1
++
++
++def test_correct_password_during_lockout_still_blocked(client):
++    for i in range(5):
++        client.post("/api/auth/login", json={"username": "admin", "password": "x"})
++    r = client.post("/api/auth/login", json={"username": "admin", "password": "admin123"})
++    assert r.status_code == 423
++
++
++def test_lockout_expires_and_login_works(client):
++    for i in range(5):
++        client.post("/api/auth/login", json={"username": "admin", "password": "x"})
++    time.sleep(2.2)
++    r = client.post("/api/auth/login", json={"username": "admin", "password": "admin123"})
++    assert r.status_code == 200, r.data
++    assert "token" in r.get_json()
++
++
++def test_reset_on_successful_login(client):
++    for i in range(3):
++        client.post("/api/auth/login", json={"username": "admin", "password": "x"})
++    r = client.post("/api/auth/login", json={"username": "admin", "password": "admin123"})
++    assert r.status_code == 200
++    for i in range(4):
++        client.post("/api/auth/login", json={"username": "admin", "password": "x"})
++    locked, _ = is_locked_out("admin")
++    assert not locked
+diff --git a/web_server.py b/web_server.py
+index 2d32f16..e5ad88f 100644
+--- a/web_server.py
++++ b/web_server.py
+@@ -1267,15 +1267,47 @@ def auth_login():
+     if not data or "username" not in data or "password" not in data:
+         return jsonify({"error": "username과 password 필드가 필요합니다."}), 400
+ 
++    # Brute-force lockout check (patch 0002)
++    from src.auth import is_locked_out, record_failed_login
++    locked, remaining = is_locked_out(data["username"])
++    if locked:
++        try:
++            audit_logger.log(
++                actor=data["username"], action="login", resource_type="session",
++                details={"success": False, "locked": True, "retry_after_s": remaining},
++                ip=_get_client_ip(),
++            )
++        except Exception:
++            pass
++        return (
++            jsonify({
++                "error": f"로그인 시도 횟수가 초과되었습니다. {remaining}초 후 다시 시도해 주세요.",
++                "error_code": "ACCOUNT_LOCKED",
++                "retry_after_seconds": remaining,
++            }),
++            423,
++        )
++
+     user = authenticate_user(data["username"], data["password"])
+     if user is None:
++        is_now_locked, lock_remaining = record_failed_login(data["username"])
+         try:
+             audit_logger.log(
+                 actor=data["username"], action="login", resource_type="session",
+-                details={"success": False}, ip=_get_client_ip(),
++                details={"success": False, "now_locked": is_now_locked},
++                ip=_get_client_ip(),
+             )
+         except Exception:
+             pass
++        if is_now_locked:
++            return (
++                jsonify({
++                    "error": f"로그인 실패가 누적되어 계정이 일시 잠겼습니다. {lock_remaining}초 후 다시 시도해 주세요.",
++                    "error_code": "ACCOUNT_LOCKED",
++                    "retry_after_seconds": lock_remaining,
++                }),
++                423,
++            )
+         return jsonify({"error": "잘못된 사용자명 또는 비밀번호입니다."}), 401
+ 
+     token = jwt_auth.generate_token(user["username"], role=user["role"])
+-- 
+2.34.1
+

@@ -63,3 +63,4 @@ _*.ps1
 htmlcov/
 .venv/
 venv/
+data/*.fuse_*

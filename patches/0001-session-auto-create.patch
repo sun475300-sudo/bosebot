@@ -1,0 +1,128 @@
+From ae2f83f597dce0f974ccf92e76f8fe501409ded2 Mon Sep 17 00:00:00 2001
+From: Claude <claude@anthropic.local>
+Date: Tue, 28 Apr 2026 00:40:09 +0000
+Subject: [PATCH 1/3] fix(session): auto-create session on /api/chat with
+ arbitrary session_id
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Clients sending an unknown session_id directly to /api/chat had their
+context silently dropped — /api/session/{id}/context returned empty arrays
+even though chat continued to work. The session was never registered with
+SessionManager.
+
+SessionManager.create_session now accepts an optional session_id, and a
+new ensure_session(session_id) helper registers the session if missing.
+/api/chat calls ensure_session before processing.
+
+Tests: tests/test_session_auto_create.py — 3 cases.
+---
+ src/session.py                    | 24 +++++++++++++++++++---
+ tests/test_session_auto_create.py | 34 +++++++++++++++++++++++++++++++
+ web_server.py                     |  8 +++++++-
+ 3 files changed, 62 insertions(+), 4 deletions(-)
+ create mode 100644 tests/test_session_auto_create.py
+
+diff --git a/src/session.py b/src/session.py
+index 7ba7d48..2ac85de 100644
+--- a/src/session.py
++++ b/src/session.py
+@@ -80,13 +80,31 @@ class SessionManager:
+     def __init__(self):
+         self._sessions: dict[str, Session] = {}
+ 
+-    def create_session(self) -> Session:
+-        """새 세션을 생성한다."""
+-        session_id = str(uuid.uuid4())
++    def create_session(self, session_id: str | None = None) -> Session:
++        """새 세션을 생성한다.
++
++        Args:
++            session_id: 사용자 지정 세션 ID (선택). 없으면 uuid4 생성.
++        """
++        if session_id is None:
++            session_id = str(uuid.uuid4())
+         session = Session(session_id=session_id)
+         self._sessions[session_id] = session
+         return session
+ 
++    def ensure_session(self, session_id: str | None) -> Session | None:
++        """세션이 존재하면 반환, 없으면 생성한다.
++
++        클라이언트가 임의의 session_id를 직접 보낼 때 컨텍스트가 손실되는
++        문제를 방지하기 위해 도입. session_id가 None/빈문자면 None을 반환.
++        """
++        if not session_id:
++            return None
++        existing = self.get_session(session_id)
++        if existing is not None:
++            return existing
++        return self.create_session(session_id=session_id)
++
+     def get_session(self, session_id: str) -> Session | None:
+         """세션을 조회한다. 만료된 세션은 삭제 후 None을 반환한다."""
+         session = self._sessions.get(session_id)
+diff --git a/tests/test_session_auto_create.py b/tests/test_session_auto_create.py
+new file mode 100644
+index 0000000..eadb478
+--- /dev/null
++++ b/tests/test_session_auto_create.py
+@@ -0,0 +1,34 @@
++"""Patch 0001 — session auto-create on /api/chat with arbitrary session_id."""
++import pytest
++from web_server import app, chatbot
++
++
++@pytest.fixture
++def client():
++    app.config["TESTING"] = True
++    chatbot.session_manager._sessions.clear()
++    with app.test_client() as c:
++        yield c
++
++
++def test_chat_with_unknown_session_id_creates_session(client):
++    sid = "unknown-from-client-12345"
++    assert chatbot.session_manager.get_session(sid) is None
++    resp = client.post("/api/chat", json={"query": "안녕", "session_id": sid})
++    assert resp.status_code == 200, resp.data
++    assert chatbot.session_manager.get_session(sid) is not None
++
++
++def test_ensure_session_idempotent():
++    sm = chatbot.session_manager
++    sm._sessions.clear()
++    s1 = sm.ensure_session("dup-id")
++    s2 = sm.ensure_session("dup-id")
++    assert s1 is s2
++    assert sm.active_count() == 1
++
++
++def test_ensure_session_rejects_falsy():
++    sm = chatbot.session_manager
++    assert sm.ensure_session(None) is None
++    assert sm.ensure_session("") is None
+diff --git a/web_server.py b/web_server.py
+index dfcb231..2d32f16 100644
+--- a/web_server.py
++++ b/web_server.py
+@@ -653,8 +653,14 @@ def chat():
+ 
+         categories = classify_query(query)
+         escalation = check_escalation(query)
+-        # 세션 ID 처리 (선택적)
++        # 세션 ID 처리 (선택적). 클라이언트가 임의 session_id를 보낸 경우
++        # 컨텍스트가 누락되지 않도록 자동 생성한다 (patch 0001).
+         session_id = data.get("session_id")
++        if session_id and isinstance(session_id, str) and hasattr(chatbot.session_manager, "ensure_session"):
++            try:
++                chatbot.session_manager.ensure_session(session_id)
++            except Exception as e:
++                logger.warning(f"ensure_session failed for {session_id}: {e}")
+ 
+         # 엔티티 추출 V2
+         try:
+-- 
+2.34.1
+

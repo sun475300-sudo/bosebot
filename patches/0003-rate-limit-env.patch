@@ -1,0 +1,145 @@
+From ee848b73e3bda0308bdbcfcce9f171017c884c8e Mon Sep 17 00:00:00 2001
+From: Claude <claude@anthropic.local>
+Date: Tue, 28 Apr 2026 00:40:09 +0000
+Subject: [PATCH 3/3] fix(rate-limit): make per-endpoint RPM defaults
+ env-overridable
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+AdvancedRateLimiter.DEFAULT_ENDPOINT_LIMITS was a class-level dict, so
+operators could not tune /api/chat (30 RPM) without code changes.
+
+Defaults now built from env at __init__ time:
+  CHAT_RPM (30) · FAQ_RPM (60) · ADMIN_RPM (20) · AUTOCOMPLETE_RPM (120)
+  · SEARCH_RPM (60, newly added)
+Invalid / zero / negative values fall back to safe defaults.
+Explicit endpoint_limits kwarg still wins (back-compat).
+
+Tests: tests/test_rate_limit_env.py — 6 cases.
+---
+ src/rate_limiter_v2.py       | 26 +++++++++++++++--
+ tests/test_rate_limit_env.py | 55 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 79 insertions(+), 2 deletions(-)
+ create mode 100644 tests/test_rate_limit_env.py
+
+diff --git a/src/rate_limiter_v2.py b/src/rate_limiter_v2.py
+index 604bc9a..f0827bc 100644
+--- a/src/rate_limiter_v2.py
++++ b/src/rate_limiter_v2.py
+@@ -8,6 +8,7 @@ import fnmatch
+ import logging
+ import threading
+ import time
++import os
+ from collections import defaultdict
+ 
+ logger = logging.getLogger("chatbot.rate_limiter_v2")
+@@ -23,6 +24,26 @@ class AdvancedRateLimiter:
+         - Thread-safe in-memory storage with periodic cleanup
+     """
+ 
++    # Patch 0003 — env-overridable per-endpoint limits.
++    @staticmethod
++    def _env_int(name: str, default: int) -> int:
++        try:
++            v = int(os.environ.get(name, str(default)))
++            return v if v > 0 else default
++        except (TypeError, ValueError):
++            return default
++
++    @classmethod
++    def _build_default_limits(cls) -> dict:
++        return {
++            "/api/chat":         cls._env_int("CHAT_RPM",         30),
++            "/api/faq":          cls._env_int("FAQ_RPM",          60),
++            "/api/admin/*":      cls._env_int("ADMIN_RPM",        20),
++            "/api/autocomplete": cls._env_int("AUTOCOMPLETE_RPM", 120),
++            "/api/search/*":     cls._env_int("SEARCH_RPM",       60),
++        }
++
++    # Backward-compat shape (kept for any direct readers).
+     DEFAULT_ENDPOINT_LIMITS = {
+         "/api/chat": 30,
+         "/api/faq": 60,
+@@ -35,7 +56,8 @@ class AdvancedRateLimiter:
+     CLEANUP_INTERVAL = 300  # 5 minutes
+ 
+     def __init__(self, endpoint_limits=None, default_daily_quota=None):
+-        self._endpoint_limits = dict(self.DEFAULT_ENDPOINT_LIMITS)
++        # Patch 0003 — pull env-overridable defaults each construction.
++        self._endpoint_limits = self._build_default_limits()
+         if endpoint_limits:
+             self._endpoint_limits.update(endpoint_limits)
+ 
+@@ -270,4 +292,4 @@ class AdvancedRateLimiter:
+                 self._requests.clear()
+                 self._quotas.clear()
+                 self._endpoint_hits.clear()
+-                self._user_hits.clear()
++                self._user_hits.clear()
+\ No newline at end of file
+diff --git a/tests/test_rate_limit_env.py b/tests/test_rate_limit_env.py
+new file mode 100644
+index 0000000..b94f5bd
+--- /dev/null
++++ b/tests/test_rate_limit_env.py
+@@ -0,0 +1,55 @@
++"""Patch 0003 — rate-limit endpoint defaults overridable via env vars."""
++import importlib, os, pytest
++
++
++def _reload():
++    import src.rate_limiter_v2 as m
++    return importlib.reload(m)
++
++
++@pytest.fixture(autouse=True)
++def cleanup():
++    yield
++    for k in ("CHAT_RPM","FAQ_RPM","ADMIN_RPM","AUTOCOMPLETE_RPM","SEARCH_RPM"):
++        os.environ.pop(k, None)
++
++
++def test_default_limits_match_legacy():
++    rl = _reload().AdvancedRateLimiter()
++    assert rl._endpoint_limits["/api/chat"] == 30
++    assert rl._endpoint_limits["/api/faq"] == 60
++    assert rl._endpoint_limits["/api/admin/*"] == 20
++    assert rl._endpoint_limits["/api/autocomplete"] == 120
++
++
++def test_chat_rpm_env_override():
++    os.environ["CHAT_RPM"] = "180"
++    rl = _reload().AdvancedRateLimiter()
++    assert rl._endpoint_limits["/api/chat"] == 180
++
++
++def test_invalid_env_falls_back_to_default():
++    os.environ["CHAT_RPM"] = "not-a-number"
++    rl = _reload().AdvancedRateLimiter()
++    assert rl._endpoint_limits["/api/chat"] == 30
++
++
++def test_zero_or_negative_falls_back():
++    os.environ["CHAT_RPM"] = "0"
++    rl = _reload().AdvancedRateLimiter()
++    assert rl._endpoint_limits["/api/chat"] == 30
++    os.environ["CHAT_RPM"] = "-5"
++    rl = _reload().AdvancedRateLimiter()
++    assert rl._endpoint_limits["/api/chat"] == 30
++
++
++def test_search_rpm_added():
++    os.environ["SEARCH_RPM"] = "240"
++    rl = _reload().AdvancedRateLimiter()
++    assert rl._endpoint_limits["/api/search/*"] == 240
++
++
++def test_explicit_kwarg_overrides_env():
++    os.environ["CHAT_RPM"] = "100"
++    rl = _reload().AdvancedRateLimiter(endpoint_limits={"/api/chat": 50})
++    assert rl._endpoint_limits["/api/chat"] == 50
+-- 
+2.34.1
+
