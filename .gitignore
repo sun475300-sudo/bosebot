@@ -64,3 +64,6 @@ htmlcov/
 .venv/
 venv/
 data/*.fuse_*
+
+# Claude Code workspace (do not commit)
+.claude/
