@@ -92,6 +92,7 @@ KNOWN_TERMS: set[str] = {
     # ── DOCUMENTS (서류) ──
     "서류", "신고서", "신청서", "구비서류", "제출", "양식",
     "서식", "첨부", "문서", "반출입신고서", "허가신청",
+    "신청", "지정", "등록", "출원",  # 핵심 절차 어휘 — 자동교정 금지
 
     # ── PENALTIES (벌칙·제재) ──
     "벌칙", "제재", "과태료", "벌금", "처벌", "위반", "처분",
@@ -268,6 +269,9 @@ def correct_query(query: str) -> tuple[str, list[dict]]:
         else:
             # 교정 대상이 아님 (조사·어미·숫자 등)
             corrected_tokens.append(token)
+
+    corrected_query = " ".join(corrected_tokens)
+    return (corrected_query, corrections)
 
     corrected_query = " ".join(corrected_tokens)
     return (corrected_query, corrections)
