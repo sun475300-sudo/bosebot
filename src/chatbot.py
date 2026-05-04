@@ -143,6 +143,19 @@ class BondedExhibitionChatbot:
         self._law_auto_updater = updater
         return updater
 
+    def _get_category_name(self, code: str) -> str:
+        """카테고리 코드를 사람이 읽는 이름으로 변환한다."""
+        if not code:
+            return code
+        try:
+            cfg = getattr(self, "config", None) or {}
+            for cat in cfg.get("categories", []) or []:
+                if cat.get("code") == code:
+                    return cat.get("name") or code
+        except Exception:  # noqa: BLE001
+            pass
+        return code
+
     def _build_admrul_index(self) -> dict:
         """행정규칙 캐시(SQLite)에서 본문을 읽어 검색 인덱스를 만든다."""
         try:

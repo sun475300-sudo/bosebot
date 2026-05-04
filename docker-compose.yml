@@ -87,4 +87,88 @@ services:
       resources:
         limits:
           cpus: "2.0"
-          m
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+=======
+>>>>>>> claude/cross-platform-setup-20260428085407
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+<<<<<<< HEAD
+  redis:
+    image: redis:7-alpine
+    container_name: bonded-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1000
+      --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - chatbot-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: bonded-nginx
+    restart: unless-stopped
+    profiles: ["proxy"]   # opt-in: `docker compose --profile proxy up -d`
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./web:/app/web:ro
+      - nginx-logs:/var/log/nginx
+      # SSL certificates (uncomment when using certbot):
+      # - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      chatbot:
+        condition: service_healthy
+    networks:
+      - chatbot-net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+
+=======
+>>>>>>> claude/cross-platform-setup-20260428085407
+volumes:
+  chatbot-logs:
+  chatbot-data:
+  chatbot-backups:
+<<<<<<< HEAD
+  redis-data:
+  nginx-logs:
+  hf-cache:
+
+networks:
+  chatbot-net:
+    driver: bridge
+=======
+  hf-cache:
+>>>>>>> claude/cross-platform-setup-20260428085407

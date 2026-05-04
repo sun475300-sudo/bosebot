@@ -1,10 +1,9 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>분석 대시보드 - 보세전시장 챗봇</title>
-    <style>
+"""원본 analytics-dashboard.html을 git에서 가져와 CSS만 새 토큰으로 교체."""
+import pathlib, re
+
+orig = pathlib.Path("/tmp/analytics-dashboard.orig.html").read_text(encoding="utf-8")
+
+NEW_STYLE = """    <style>
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
 
         :root {
@@ -232,204 +231,35 @@
 
         .loading { text-align: center; padding: 2rem; color: var(--fg-subtle); font-size: 13px; }
         *:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>분석 대시보드</h1>
-        <div class="header-links">
-            <span id="currentUser" style="font-size:13px;color:var(--header-link);font-weight:500"></span>
-            <a href="/admin">대시보드</a>
-            <a href="/admin/notifications">알림</a>
-            <a href="/">챗봇</a>
-            <a href="#" onclick="logout();return false;">로그아웃</a>
-        </div>
-    </div>
+    </style>"""
 
-    <div class="container">
-        <div id="metricsCards" class="metrics-grid">
-            <div class="loading">지표를 불러오는 중...</div>
-        </div>
+# Replace the original style block
+m = re.search(r'    <style>.*?</style>', orig, re.S)
+assert m, "no <style> block found"
+print(f"Original style block: {m.start()}..{m.end()} ({m.end()-m.start()} chars)")
+new_src = orig[:m.start()] + NEW_STYLE + orig[m.end():]
 
-        <div class="two-col">
-            <div class="panel">
-                <h2>카테고리 분포</h2>
-                <div id="categoryChart" class="bar-chart">
-                    <div class="loading">로딩 중...</div>
-                </div>
-            </div>
-            <div class="panel">
-                <h2>일별 질의 트렌드</h2>
-                <div id="trendChart">
-                    <div class="loading">로딩 중...</div>
-                </div>
-            </div>
-        </div>
+# Patch the heatmap RGB interpolation
+old_heat = """        let html = '<div class="heatmap-grid">';
+        // Header row
+        html += '<div class="heatmap-header"></div>';
+        hours.forEach(h => { html += `<div class="heatmap-header">${h}</div>`; });
 
-        <div class="panel">
-            <h2>상위 질의</h2>
-            <div id="topQueries" class="table-wrap">
-                <div class="loading">로딩 중...</div>
-            </div>
-        </div>
-
-        <div class="panel">
-            <h2>시간대별 히트맵 (시간 x 요일)</h2>
-            <div id="heatmap">
-                <div class="loading">로딩 중...</div>
-            </div>
-        </div>
-    </div>
-
-<script>
-    // --- Auth ---
-    function getToken() {
-        return localStorage.getItem("admin_token");
-    }
-    function authHeaders() {
-        const token = getToken();
-        const headers = {};
-        if (token) headers["Authorization"] = "Bearer " + token;
-        return headers;
-    }
-    function authFetch(url, options = {}) {
-        options.headers = Object.assign({}, options.headers || {}, authHeaders());
-        return fetch(url, options).then(res => {
-            if (res.status === 401) {
-                localStorage.removeItem("admin_token");
-                window.location.href = "/login";
-            }
-            return res;
-        });
-    }
-    function logout() {
-        localStorage.removeItem("admin_token");
-        window.location.href = "/login";
-    }
-
-    // Auth check
-    (function() {
-        const token = getToken();
-        if (!token) { window.location.href = "/login"; return; }
-        fetch("/api/auth/me", {
-            headers: { "Authorization": "Bearer " + token }
-        }).then(res => {
-            if (!res.ok) { localStorage.removeItem("admin_token"); window.location.href = "/login"; }
-            else return res.json();
-        }).then(data => {
-            if (data && data.username) {
-                document.getElementById("currentUser").textContent = data.username;
-            }
-        }).catch(() => {
-            localStorage.removeItem("admin_token");
-            window.location.href = "/login";
-        });
-    })();
-
-    function escapeHtml(text) {
-        const d = document.createElement("div");
-        d.textContent = text;
-        return d.innerHTML;
-    }
-
-    // --- Metrics cards ---
-    function loadMetrics() {
-        authFetch("/api/admin/analytics/metrics")
-            .then(r => r.json())
-            .then(data => {
-                const container = document.getElementById("metricsCards");
-                const entries = Object.entries(data).filter(([k]) => k !== "error");
-                if (!entries.length) {
-                    container.innerHTML = '<div class="metric-card"><div class="label">데이터 없음</div></div>';
-                    return;
-                }
-                container.innerHTML = entries.slice(0, 8).map(([key, val]) => {
-                    const label = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-                    const display = typeof val === "number" ? (val % 1 === 0 ? val : val.toFixed(2)) : val;
-                    return `<div class="metric-card"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(String(display))}</div></div>`;
-                }).join("");
-            })
-            .catch(() => {
-                document.getElementById("metricsCards").innerHTML = '<div class="metric-card"><div class="label">지표를 불러올 수 없습니다</div></div>';
+        // Data rows
+        days.forEach((day, di) => {
+            html += `<div class="heatmap-row-label">${escapeHtml(String(day))}</div>`;
+            hours.forEach((h, hi) => {
+                const val = (data[di] && data[di][hi]) || 0;
+                const intensity = val / maxVal;
+                const r = Math.round(52 + (232 - 52) * (1 - intensity));
+                const g = Math.round(152 + (236 - 152) * (1 - intensity));
+                const b = Math.round(219 + (239 - 219) * (1 - intensity));
+                html += `<div class="heatmap-cell" style="background:rgb(${r},${g},${b})" data-tip="${day} ${h}시: ${val}건"></div>`;
             });
-    }
-
-    // --- Dashboard charts ---
-    function loadDashboard() {
-        authFetch("/api/admin/charts/dashboard")
-            .then(r => r.json())
-            .then(data => {
-                const charts = data.charts || data;
-                renderCategoryChart(charts.categories);
-                renderTrendChart(charts.trends);
-                renderTopQueries(charts.top_queries);
-                renderHeatmap(charts.heatmap);
-            })
-            .catch(() => {
-                document.getElementById("categoryChart").innerHTML = '<div class="loading">데이터를 불러올 수 없습니다.</div>';
-            });
-    }
-
-    function renderCategoryChart(categories) {
-        const el = document.getElementById("categoryChart");
-        if (!categories || !categories.labels) { el.innerHTML = '<div class="loading">데이터 없음</div>'; return; }
-        const maxVal = Math.max(...categories.values, 1);
-        el.innerHTML = categories.labels.map((label, i) => {
-            const count = categories.values[i] || 0;
-            const pct = (count / maxVal * 100).toFixed(1);
-            return `<div class="bar-row">
-                <span class="bar-label">${escapeHtml(label)}</span>
-                <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
-                <span class="bar-count">${count}</span>
-            </div>`;
-        }).join("");
-    }
-
-    function renderTrendChart(trends) {
-        const el = document.getElementById("trendChart");
-        if (!trends || !trends.labels) { el.innerHTML = '<div class="loading">데이터 없음</div>'; return; }
-        const maxVal = Math.max(...trends.values, 1);
-        const bars = trends.labels.map((label, i) => {
-            const count = trends.values[i] || 0;
-            const pct = (count / maxVal * 100).toFixed(1);
-            return `<div class="spark-bar" style="height:${pct}%" data-tip="${label}: ${count}"></div>`;
-        }).join("");
-        const labels = trends.labels.map((l, i) => {
-            // Show every 5th label to avoid clutter
-            return `<span>${i % 5 === 0 ? l.slice(5) : ""}</span>`;
-        }).join("");
-        el.innerHTML = `<div class="sparkline-container">${bars}</div><div class="spark-labels">${labels}</div>`;
-    }
-
-    function renderTopQueries(topQueries) {
-        const el = document.getElementById("topQueries");
-        if (!topQueries || !topQueries.length) {
-            el.innerHTML = '<div class="loading">데이터 없음</div>';
-            return;
-        }
-        let html = '<table><thead><tr><th>#</th><th>질의</th><th>횟수</th></tr></thead><tbody>';
-        topQueries.forEach((q, i) => {
-            const text = q.query || q.text || q[0] || "";
-            const count = q.count || q[1] || 0;
-            html += `<tr><td>${i + 1}</td><td>${escapeHtml(text)}</td><td>${count}</td></tr>`;
         });
-        html += '</tbody></table>';
-        el.innerHTML = html;
-    }
+        html += '</div>';"""
 
-    function renderHeatmap(heatmap) {
-        const el = document.getElementById("heatmap");
-        if (!heatmap || !heatmap.data) { el.innerHTML = '<div class="loading">데이터 없음</div>'; return; }
-
-        const days = heatmap.days || ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-        const hours = heatmap.hours || Array.from({length: 24}, (_, i) => i);
-        const data = heatmap.data; // 2D array: [day][hour]
-
-        let allVals = [];
-        data.forEach(row => row.forEach(v => allVals.push(v)));
-        const maxVal = Math.max(...allVals, 1);
-
-        const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+new_heat = """        const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         const colorLo = isDark ? [22, 27, 34]   : [235, 241, 247];
         const colorHi = isDark ? [88, 166, 255] : [9, 105, 218];
 
@@ -448,14 +278,20 @@
                 html += `<div class="heatmap-cell" style="background:rgb(${r},${g},${b})" data-tip="${day} ${h}시: ${val}건"></div>`;
             });
         });
-        html += '</div>';
-        el.innerHTML = html;
-    }
+        html += '</div>';"""
 
-    // Initial load and auto-refresh
-    loadMetrics();
-    loadDashboard();
-    setInterval(() => { loadMetrics(); loadDashboard(); }, 60000);
-</script>
-</body>
-</html>
+# Normalize CRLF to LF for matching
+new_src_lf = new_src.replace("\r\n", "\n")
+assert old_heat in new_src_lf, "heatmap pattern not found"
+new_src_lf = new_src_lf.replace(old_heat, new_heat)
+
+# Also tweak inline currentUser color
+old_user = '<span id="currentUser" style="font-size:0.85rem;color:#a8d0f0;"></span>'
+new_user = '<span id="currentUser" style="font-size:13px;color:var(--header-link);font-weight:500"></span>'
+new_src_lf = new_src_lf.replace(old_user, new_user)
+
+# Write back as LF
+out = pathlib.Path("/sessions/blissful-vibrant-clarke/mnt/bonded-exhibition-chatbot-data/web/analytics-dashboard.html")
+out.write_text(new_src_lf, encoding="utf-8")
+print(f"wrote {out} ({len(new_src_lf)} chars, {new_src_lf.count(chr(10))+1} lines)")
+print("tail:", repr(new_src_lf[-60:]))

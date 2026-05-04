@@ -13,7 +13,7 @@ echo === STEP 1: warn user to close GitHub Desktop ===
 echo Close GitHub Desktop now if it is open. Press Ctrl+C to abort.
 timeout /t 5 > nul
 echo.
-echo === STEP 2: clean stale lock ===
+echo === STEP 2: clean stale locks (index.lock + HEAD.lock + maintenance.lock) ===
 if exist .git\index.lock (
     echo Removing stale .git\index.lock
     del /f /q .git\index.lock
@@ -23,6 +23,13 @@ if exist .git\index.lock (
         exit /b 1
     )
 )
+if exist .git\HEAD.lock        del /f /q .git\HEAD.lock        2>nul
+if exist .git\packed-refs.lock del /f /q .git\packed-refs.lock 2>nul
+if exist .git\config.lock      del /f /q .git\config.lock      2>nul
+if exist .git\shallow.lock     del /f /q .git\shallow.lock     2>nul
+if exist .git\gc.pid           del /f /q .git\gc.pid           2>nul
+if exist .git\objects\maintenance.lock del /f /q .git\objects\maintenance.lock 2>nul
+for /r ".git" %%F in (*.lock) do (del /f /q "%%F" 2>nul)
 echo.
 echo === STEP 3: branch check ===
 git rev-parse --abbrev-ref HEAD
@@ -49,7 +56,7 @@ echo === STEP 6: show staged diff summary ===
 git diff --cached --stat
 echo.
 echo === STEP 7: commit ===
-git commit -m "fix: bonded-exhibition chatbot - improve patent question answer quality" -m "Bug A: spell_corrector auto-correction mangled procedural words. Added 신청, 지정, 등록, 출원 to KNOWN_TERMS so they survive Levenshtein distance check." -m "Bug B: synonym_resolver single-syllable mappings (사/팔/빼/벌) caused false partial-string matches. Removed 4 mappings; word-level synonyms still apply." -m "Bug C: korean_tokenizer DOMAIN_TERMS missed core patent compounds. Added 특허, 특허기간, 특허신청, 특허장소, 특허취소, 특허연장, 특허신청서, 설치특허, 운영인." -m "Tests: tests/test_patent_regression.py 32 cases + tests/test_patent_qa_golden.py 11 E2E cases. All pass." -m "Also: .claude/ added to .gitignore."
+git commit -m "fix: bonded-exhibition chatbot - improve patent (teukheo) question answer quality" -m "Bug A: spell_corrector auto-correction mangled procedural words. Added sincheong, jijeong, deungrok, churwon to KNOWN_TERMS so they survive Levenshtein distance check." -m "Bug B: synonym_resolver single-syllable mappings (sa/pal/ppae/beol) caused false partial-string matches. Removed 4 mappings; word-level synonyms still apply." -m "Bug C: korean_tokenizer DOMAIN_TERMS missed core patent compounds. Added teukheo, teukheo-gigan, teukheo-sincheong, teukheo-jangso, teukheo-chwiso, teukheo-yeonjang, teukheo-sincheongseo, seolchi-teukheo, unyeongin." -m "Tests: tests/test_patent_regression.py 32 cases + tests/test_patent_qa_golden.py 11 E2E cases. All pass." -m "Also: .claude/ added to .gitignore."
 if errorlevel 1 (
     echo [ERROR] commit failed
     pause
