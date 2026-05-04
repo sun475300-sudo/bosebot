@@ -42,6 +42,15 @@ ADMRUL_VIEWER_URL = "https://www.law.go.kr/LSW/admRulLsInfoP.do"
 
 USER_AGENT = "BondedExhibitionChatbot/1.0 (admrul-sync)"
 
+# 본문이 이 길이보다 짧으면 fetch 실패로 간주하고 캐시를 갱신하지 않는다.
+# 행정규칙 본문은 통상 수천~수만 자이므로 이 정도면 메타텍스트만 걸린 경우를
+# 안전하게 거른다. 너무 높이면 짧은 고시까지 fetch_failed 로 오판하므로 200 자.
+MIN_VALID_FULL_TEXT_LEN = 200
+
+# 조문 단위 추출 결과가 이 개수 미만이면 본문 인용에 쓸 수 없다고 본다.
+# (HTML fallback 이 div 분리에 실패해 통째로 한 덩어리로 읽히는 경우 등)
+MIN_VALID_ARTICLE_COUNT = 1
+
 # ------------------------------------------------------------------
 # 시드 목록 — 모니터링 대상 행정규칙(고시)
 # ------------------------------------------------------------------
@@ -337,27 +346,67 @@ class AdmRulSyncManager:
     # ------------------------------------------------------------------
 
     def sync_one(self, admrul_seq: str, allow_html_fallback: bool = True) -> dict:
-        """단일 admRul 의 본문을 가져와 캐시한다."""
+        """단일 admRul 의 본문을 가져와 캐시한다.
+
+        반환되는 ``status`` 의 의미:
+
+        - ``"changed"``    : 캐시 갱신됨, 본문 hash 가 직전과 다르다.
+        - ``"unchanged"``  : 캐시 갱신됨, 본문 hash 가 직전과 같다(또는 첫 동기화).
+        - ``"fetch_failed"``: XML/HTML 둘 다 의미있는 본문을 받지 못했다.
+                              **이 경우 DB 캐시는 갱신하지 않는다.** 직전 캐시를
+                              그대로 보존해 챗봇 답변이 깨지지 않게 한다.
+        - ``"no_credentials"``: ``LAW_API_OC`` 가 비어 있고 HTML fallback 마저
+                              본문 추출에 실패한 경우. 운영자에게 OC 설정을
+                              안내하기 위해 ``fetch_failed`` 와 분리한다.
+
+        ``full_text`` 가 :data:`MIN_VALID_FULL_TEXT_LEN` 보다 짧거나 조문 단위
+        추출 결과가 :data:`MIN_VALID_ARTICLE_COUNT` 미만이면 fetch 실패로 본다.
+        이는 HTML fallback 이 메타 헤더만 긁어오는 케이스(약 50~150 byte)를
+        막기 위함이다 — 그런 본문이 캐시되면 by_law_basis 가 비어 챗봇이
+        본문을 인용하지 못한다.
+        """
+        had_oc = bool(self.client.oc)
+
         xml_data = self.client.get_admrul_xml(admrul_seq)
-        parsed = self.client.parse_admrul_body(xml_data) if xml_data else None
-        if (not parsed) or (not parsed.get("full_text")):
+        parsed_xml = (
+            self.client.parse_admrul_body(xml_data) if xml_data else None
+        )
+        parsed = parsed_xml
+        used_fallback = False
+
+        if not self._is_valid_parse(parsed):
             if allow_html_fallback:
                 html = self.client.get_admrul_html(admrul_seq)
-                parsed = self.client.parse_html_body(html)
+                parsed_html = self.client.parse_html_body(html)
+                if self._is_valid_parse(parsed_html):
+                    parsed = parsed_html
+                    used_fallback = True
+                else:
+                    # HTML 도 실패 — XML 실패 시 받은 부분 메타데이터(이름 등)만
+                    # 결과에 노출하고 캐시는 건드리지 않는다.
+                    parsed = parsed_html or parsed or {
+                        "name": "", "agency": "", "effective_date": "",
+                        "articles": {}, "full_text": "",
+                    }
             else:
                 parsed = parsed or {
                     "name": "", "agency": "", "effective_date": "",
                     "articles": {}, "full_text": "",
                 }
 
-        full_text = parsed.get("full_text") or ""
-        if not full_text:
+        if not self._is_valid_parse(parsed):
+            # OC 미설정 + 모두 실패한 경우는 운영 메시지를 분리한다.
+            status = "no_credentials" if not had_oc else "fetch_failed"
             return {
                 "admrul_seq": admrul_seq,
-                "status": "fetch_failed",
-                "name": parsed.get("name", ""),
+                "status": status,
+                "name": (parsed or {}).get("name", ""),
+                "full_text_len": len((parsed or {}).get("full_text") or ""),
+                "article_count": len((parsed or {}).get("articles") or {}),
+                "used_fallback": used_fallback,
             }
 
+        full_text = parsed.get("full_text") or ""
         content_hash = hashlib.sha256(full_text.encode("utf-8")).hexdigest()
         changed = self._record(
             admrul_seq=admrul_seq,
@@ -376,7 +425,21 @@ class AdmRulSyncManager:
             "effective_date": parsed.get("effective_date", ""),
             "content_hash": content_hash,
             "article_count": len(parsed.get("articles") or {}),
+            "used_fallback": used_fallback,
         }
+
+    @staticmethod
+    def _is_valid_parse(parsed: Optional[dict]) -> bool:
+        """parse 결과가 캐시 갱신에 쓸 만한 수준인지 검사."""
+        if not parsed:
+            return False
+        full_text = parsed.get("full_text") or ""
+        articles = parsed.get("articles") or {}
+        if len(full_text) < MIN_VALID_FULL_TEXT_LEN:
+            return False
+        if len(articles) < MIN_VALID_ARTICLE_COUNT:
+            return False
+        return True
 
     def sync_all(self, allow_html_fallback: bool = True) -> dict:
         """모니터링 대상 행정규칙 전체 동기화."""
@@ -395,7 +458,7 @@ class AdmRulSyncManager:
             result["total_checked"] += 1
             if detail["status"] == "changed":
                 result["changes_detected"] += 1
-            elif detail["status"] == "fetch_failed":
+            elif detail["status"] in ("fetch_failed", "no_credentials"):
                 result["errors"] += 1
             detail.setdefault("name", entry.get("name", ""))
             result["details"].append(detail)
