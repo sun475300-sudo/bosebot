@@ -244,11 +244,103 @@ class TestAdmRulSyncManager:
         assert r3["status"] == "changed"
 
     def test_sync_one_fetch_failure_returns_status(self, sync_manager):
-        # XML 도 HTML 도 둘 다 실패
+        # XML 도 HTML 도 둘 다 실패. OC 가 설정돼 있으면 fetch_failed,
+        # 비어 있으면 no_credentials 로 분리된다.
+        sync_manager.client.oc = "test-oc"
         opener = _fake_urlopen_factory(None)
         with mock.patch("src.law_api_admrul.urlopen", opener):
             res = sync_manager.sync_one("2100000276240")
         assert res["status"] == "fetch_failed"
+
+    def test_sync_one_no_credentials_when_oc_blank(self, sync_manager):
+        # OC 비어 있고 모든 fetch 실패 -> no_credentials 로 운영 메시지 분리
+        sync_manager.client.oc = ""
+        opener = _fake_urlopen_factory(None)
+        with mock.patch("src.law_api_admrul.urlopen", opener):
+            res = sync_manager.sync_one("2100000276240")
+        assert res["status"] == "no_credentials"
+
+    def test_sync_one_empty_html_fallback_marks_failed(self, sync_manager):
+        """XML 실패 + HTML fallback 이 빈 본문을 반환하면 fetch_failed."""
+        empty_html = "<html><head><title>x</title></head><body></body></html>"
+        opener = _fake_urlopen_factory(
+            None,
+            status_map={"admRulLsInfoP": empty_html},
+        )
+        with mock.patch("src.law_api_admrul.urlopen", opener):
+            res = sync_manager.sync_one("2100000276240")
+        assert res["status"] == "fetch_failed", res
+        # 캐시는 절대 갱신되면 안 된다.
+        assert sync_manager.get_cached("2100000276240") is None
+
+    def test_sync_one_short_html_fallback_marks_failed(self, sync_manager):
+        """HTML fallback 이 짧은 메타 텍스트(< MIN_VALID_FULL_TEXT_LEN)만
+        반환하면 fetch_failed 로 처리하고 캐시를 보호한다.
+        실제 운영에서 발생한 55-byte 메타 캐시 버그 회귀 테스트."""
+        # 본문 없이 헤더 텍스트만 — 200자 미만
+        short_html = (
+            "<html><head><title>보세전시장 운영에 관한 고시</title></head>"
+            "<body><div>관세청 고시</div></body></html>"
+        )
+        opener = _fake_urlopen_factory(
+            None,
+            status_map={"admRulLsInfoP": short_html},
+        )
+        with mock.patch("src.law_api_admrul.urlopen", opener):
+            res = sync_manager.sync_one("2100000276240")
+        assert res["status"] == "fetch_failed", res
+        assert sync_manager.get_cached("2100000276240") is None
+
+    def test_sync_one_fetch_failed_preserves_existing_cache(self, sync_manager):
+        """직전에 정상 캐시가 있다면 fetch_failed 시에도 그대로 보존."""
+        # 1) 정상 본문으로 캐시 채움
+        opener_ok = _fake_urlopen_factory(ADMRUL_BODY_XML)
+        with mock.patch("src.law_api_admrul.urlopen", opener_ok):
+            ok = sync_manager.sync_one("2100000276240")
+        assert ok["status"] == "unchanged"
+        before = sync_manager.get_cached("2100000276240")
+        assert before and before["full_text"]
+        assert "제5조" in before["articles"]
+
+        # 2) 다음 동기화에서 XML 실패 + HTML 도 짧은 메타만 -> fetch_failed
+        bad_html = "<html><title>x</title><body></body></html>"
+        opener_bad = _fake_urlopen_factory(
+            None,
+            status_map={"admRulLsInfoP": bad_html},
+        )
+        with mock.patch("src.law_api_admrul.urlopen", opener_bad):
+            bad = sync_manager.sync_one("2100000276240")
+        assert bad["status"] == "fetch_failed", bad
+
+        # 3) 캐시는 직전 정상 본문 그대로
+        after = sync_manager.get_cached("2100000276240")
+        assert after is not None
+        assert after["content_hash"] == before["content_hash"]
+        assert after["full_text"] == before["full_text"]
+        assert "제5조" in after["articles"]
+
+    def test_sync_one_html_fallback_when_xml_fails_with_real_body(
+        self, sync_manager
+    ):
+        """XML 실패 시 HTML fallback 이 충분한 본문을 반환하면 정상 캐시."""
+        long_articles = " ".join(
+            f"제{i}조 (조문 {i}) 본문 본문 본문 본문 본문 본문 본문" for i in range(1, 30)
+        )
+        big_html = (
+            "<html><head><title>보세전시장 운영에 관한 고시</title></head>"
+            f"<body><div>{long_articles}</div></body></html>"
+        )
+        opener = _fake_urlopen_factory(
+            None,
+            status_map={"admRulLsInfoP": big_html},
+        )
+        with mock.patch("src.law_api_admrul.urlopen", opener):
+            res = sync_manager.sync_one("2100000276240")
+        assert res["status"] in ("changed", "unchanged"), res
+        assert res.get("used_fallback") is True
+        cached = sync_manager.get_cached("2100000276240")
+        assert cached is not None
+        assert len(cached["full_text"]) >= 200
 
     def test_sync_all_iterates_seeds(self, sync_manager):
         opener = _fake_urlopen_factory(ADMRUL_BODY_XML)
