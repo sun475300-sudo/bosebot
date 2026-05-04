@@ -1,0 +1,10 @@
+{
+  "min_rows": 1,
+  "allow_extra_columns": true,
+  "columns": [
+    {"name": "id", "type": "str", "required": true, "unique": true, "min_length": 1},
+    {"name": "question", "type": "str", "required": true, "min_length": 3, "max_length": 500},
+    {"name": "answer", "type": "str", "required": true, "min_length": 3},
+    {"name": "category", "type": "str", "required": false, "nullable": true}
+  ]
+}

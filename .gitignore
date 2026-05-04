@@ -67,3 +67,13 @@ data/*.fuse_*
 
 # Claude Code workspace (do not commit)
 .claude/
+
+# Added 2026-05-04: SQLite temp + test artifacts + bundles + ops logs
+*.db-journal
+*.db.test
+data/*.db.test
+data/*.db-journal
+outputs/pr-artifacts/*.bundle
+outputs/pr-artifacts/*.tar
+outputs/pr-artifacts/*.tar.gz
+logs/policy/*.jsonl

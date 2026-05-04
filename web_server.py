@@ -1914,7 +1914,9 @@ def admin_law_updates_acknowledge():
 
 # --- 국가법령정보센터 API 동기화 ---
 from src.law_api_sync import LawSyncManager
+from src.law_api_admrul import AdmRulSyncManager, MONITORED_ADMRULS
 law_sync_manager = LawSyncManager()
+admrul_sync_manager = AdmRulSyncManager()
 
 
 @app.route("/api/admin/law-sync/check", methods=["POST"])
@@ -1957,7 +1959,31 @@ def admin_law_sync_history():
 @jwt_auth.require_auth()
 def admin_law_sync_monitored():
     """모니터링 대상 법령 목록을 조회한다."""
-    return jsonify({"laws": law_sync_manager.get_monitored_laws()})
+    return jsonify({
+        "laws": law_sync_manager.get_monitored_laws(),
+        "admruls": admrul_sync_manager.get_monitored(),
+    })
+
+
+@app.route("/api/admin/law-sync/admrul/sync", methods=["POST"])
+@jwt_auth.require_auth()
+def admin_admrul_sync_apply():
+    """행정규칙(고시) 동기화 + legal_references.json 업데이트."""
+    try:
+        result = admrul_sync_manager.sync_all()
+        update_result = admrul_sync_manager.update_legal_references()
+        return jsonify({"sync": result, "update": update_result})
+    except Exception as e:
+        logger.error(f"행정규칙 동기화 실패: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/law-sync/admrul/history", methods=["GET"])
+@jwt_auth.require_auth()
+def admin_admrul_sync_history():
+    """행정규칙 동기화 이력."""
+    limit = request.args.get("limit", 50, type=int)
+    return jsonify({"history": admrul_sync_manager.get_history(limit=limit)})
 
 
 @app.route("/api/admin/backup", methods=["POST"])
@@ -4066,30 +4092,4 @@ def api_admin_benchmark_run():
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         logger.error(f"정확도 벤치마크 실행 실패: {e}", exc_info=True)
-        return jsonify({"error": "벤치마크 실행 중 오류가 발생했습니다."}), 500
-
-
-@app.route("/api/admin/benchmark/history", methods=["GET"])
-@jwt_auth.require_auth()
-def api_admin_benchmark_history():
-    """과거 벤치마크 실행 이력을 반환한다."""
-    try:
-        limit = request.args.get("limit", 20, type=int)
-        history = accuracy_benchmark.get_history(limit=limit)
-        return jsonify({"history": history, "count": len(history)})
-    except Exception as e:
-        logger.error(f"벤치마크 이력 조회 실패: {e}", exc_info=True)
-        return jsonify({"error": "벤치마크 이력 조회 중 오류가 발생했습니다."}), 500
-
-
-def main():
-    parser = argparse.ArgumentParser(description="보세전시장 챗봇 웹 서버")
-    parser.add_argument("--port", type=int, default=5000)
-    parser.add_argument("--host", type=str, default="0.0.0.0")
-    args = parser.parse_args()
-    
-    logger.info(f"Starting web server on {args.host}:{args.port}")
-    app.run(host=args.host, port=args.port, debug=False)
-
-if __name__ == "__main__":
-    main()
+        return jsonify({"error": "벤치마크 실행 중 오류가 발생했습니다."}), 500

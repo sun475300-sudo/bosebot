@@ -1,0 +1,28 @@
+name: csv-validate
+
+on:
+  pull_request:
+    paths:
+      - "data/**.csv"
+      - "config/csv_schemas/**.json"
+      - "scripts/validate_csv.py"
+      - "src/csv_validator.py"
+      - ".github/workflows/csv-validate.yml"
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate FAQ CSVs (if present)
+        run: |
+          if [ -f data/faq.csv ] && [ -f config/csv_schemas/faq.json ]; then
+            python scripts/validate_csv.py --schema config/csv_schemas/faq.json data/faq.csv
+          else
+            echo "No FAQ CSV+schema present — skipping."
+          fi

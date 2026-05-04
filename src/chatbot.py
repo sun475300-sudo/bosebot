@@ -108,6 +108,126 @@ class BondedExhibitionChatbot:
         except Exception:
             pass
 
+        # 행정규칙(admRul) 캐시 — 「보세전시장 운영에 관한 고시」 등.
+        self.admrul_index = self._build_admrul_index()
+
+        # 자동 업데이트(law_auto_updater) 핸들 — enable_auto_law_updates() 시 채워짐
+        self._law_auto_updater = None
+
+    def refresh_admrul_index(self) -> dict:
+        """행정규칙 인덱스를 다시 빌드한다. 외부 자동 업데이터가 호출."""
+        try:
+            self.admrul_index = self._build_admrul_index()
+            count = len(self.admrul_index.get("by_name", {}))
+            logger.info(f"admrul_index rebuilt: {count} notice(s)")
+            return {"status": "ok", "notices": count}
+        except Exception as e:  # noqa: BLE001
+            logger.exception("refresh_admrul_index failed")
+            return {"status": "error", "error": str(e)}
+
+    def enable_auto_law_updates(self, **kwargs):
+        """백그라운드 법령 자동 업데이터를 시작하고 변경 시 인덱스를 재빌드.
+
+        ``LAW_AUTO_UPDATE_ENABLED=false`` 면 ``None`` 을 반환한다.
+        """
+        try:
+            from src.law_auto_updater import start_auto_updater
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"law_auto_updater import failed: {e}")
+            return None
+
+        def _on_change(_result):
+            self.refresh_admrul_index()
+
+        updater = start_auto_updater(on_change=_on_change, **kwargs)
+        self._law_auto_updater = updater
+        return updater
+
+    def _build_admrul_index(self) -> dict:
+        """행정규칙 캐시(SQLite)에서 본문을 읽어 검색 인덱스를 만든다."""
+        try:
+            from src.law_api_admrul import (
+                AdmRulSyncManager,
+                build_chatbot_context_chunks,
+                MONITORED_ADMRULS,
+            )
+        except Exception as e:
+            logger.debug(f"admRul module unavailable: {e}")
+            return {"by_name": {}, "by_law_basis": {}, "chunks": []}
+        try:
+            mgr = AdmRulSyncManager()
+        except Exception as e:
+            logger.warning(f"admRul SyncManager init failed: {e}")
+            return {"by_name": {}, "by_law_basis": {}, "chunks": []}
+        by_name: dict = {}
+        by_law_basis: dict = {}
+        for entry in MONITORED_ADMRULS:
+            cached = mgr.get_cached(entry["admrul_seq"])
+            if not cached:
+                continue
+            display_name = cached.get("name") or entry["name"]
+            by_name[display_name] = {
+                "agency": cached.get("agency") or entry["agency"],
+                "effective_date": cached.get("effective_date", ""),
+                "articles": cached.get("articles") or {},
+                "admrul_seq": entry["admrul_seq"],
+                "fetched_at": cached.get("fetched_at", ""),
+            }
+            for art_no, body in (cached.get("articles") or {}).items():
+                by_law_basis[f"{display_name} {art_no}"] = body
+        try:
+            chunks = build_chatbot_context_chunks(mgr)
+        except Exception:
+            chunks = []
+        return {"by_name": by_name, "by_law_basis": by_law_basis, "chunks": chunks}
+
+    def _admrul_lookup_for_basis(self, basis):
+        """법령 가이드에 노출할 admRul 조문 본문을 반환한다."""
+        if not basis or not self.admrul_index:
+            return None
+        body = self.admrul_index.get("by_law_basis", {}).get(basis)
+        if body:
+            return body
+        for key, value in self.admrul_index.get("by_law_basis", {}).items():
+            head = basis.split("(", 1)[0].strip()
+            if head and key.startswith(head):
+                return value
+        return None
+
+    def _admrul_keyword_search(self, query, top_k: int = 1):
+        """질문 키워드로 admRul 본문 청크를 검색한다.
+
+        FAQ 의 ``legal_basis`` 가 admRul 을 가리키지 않는 경우라도, 사용자
+        질문이 행정규칙 본문에 직접 등장하는 단어(예: "폐쇄", "취소",
+        "특허기간")를 포함하면 해당 조문을 챗봇 답변에 보조로 노출한다.
+        """
+        if not query or not self.admrul_index:
+            return []
+        chunks = self.admrul_index.get("chunks") or []
+        if not chunks:
+            return []
+        import re as _re
+        # 한글/영문 토큰 추출, 흔한 stopword 제외
+        stop = {"보세", "보세전시장", "고시", "내용", "어떻게", "무엇",
+                "사유", "어디", "언제", "되나요", "하나요", "있나요",
+                "무엇인가요", "무엇입니까", "어떻게요"}
+        tokens = [t for t in _re.findall(r"[가-힣A-Za-z0-9]{2,}", str(query))
+                  if t and t not in stop]
+        if not tokens:
+            return []
+        scored = []
+        for chunk in chunks:
+            text = chunk.get("text") or ""
+            if not text:
+                continue
+            score = sum(text.count(tok) for tok in tokens)
+            if score > 0:
+                scored.append((score, chunk))
+        if not scored:
+            return []
+        scored.sort(key=lambda p: p[0], reverse=True)
+        return [c for _, c in scored[:top_k]]
+
     @staticmethod
     def _normalize_faq_items(items: list[dict]) -> list[dict]:
         """FAQ 항목을 정규화하여 신/구 포맷 모두 호환되도록 한다.
@@ -497,14 +617,39 @@ class BondedExhibitionChatbot:
 
             # 법령 가이드 요약 추출 (지식 그래프 연계)
             legal_guide = []
-            if self.knowledge_graph:
-                for basis in faq_match.get("legal_basis", []):
+            for basis in faq_match.get("legal_basis", []):
+                appended = False
+                if self.knowledge_graph:
                     law_node_id = f"law_{basis}"
                     if law_node_id in self.knowledge_graph.nodes:
                         node_data = self.knowledge_graph.nodes[law_node_id].get("data", {})
                         summary = node_data.get("summary")
                         if summary:
                             legal_guide.append(f"{basis}: {summary}")
+                            appended = True
+                if not appended:
+                    admrul_body = self._admrul_lookup_for_basis(basis)
+                    if admrul_body:
+                        snippet = admrul_body.strip().replace("\n", " ")
+                        if len(snippet) > 240:
+                            snippet = snippet[:240].rstrip() + "…"
+                        legal_guide.append(f"{basis}: {snippet}")
+
+            # FAQ 의 legal_basis 가 admRul 을 직접 가리키지 않더라도,
+            # 사용자 질문 키워드가 행정규칙 본문에 등장하면 해당 조문을 보조 노출.
+            existing_guide_text = " ".join(legal_guide)
+            keyword_hits = self._admrul_keyword_search(query, top_k=1)
+            for hit in keyword_hits:
+                law_name = hit.get("law_name") or "행정규칙"
+                article = hit.get("article") or ""
+                text = (hit.get("text") or "").strip().replace("\n", " ")
+                if not text:
+                    continue
+                tag = f"{law_name} {article}".strip()
+                if text[:40] and text[:40] in existing_guide_text:
+                    continue
+                snippet = text if len(text) <= 240 else text[:240].rstrip() + "…"
+                legal_guide.append(f"{tag}: {snippet}")
 
             response = build_response(
                 topic=category_name,
@@ -655,35 +800,4 @@ class BondedExhibitionChatbot:
     def _build_escalation_response_from_policy(self, policy_decision: dict) -> str:
         """정책 평가 결과로부터 에스컬레이션 응답을 생성한다."""
         escalation_target = policy_decision.get("escalation_target")
-        risk_level = policy_decision.get("risk_level", "high")
-        disclaimers = policy_decision.get("disclaimers", [])
-
-        # 위험도에 따른 기본 메시지
-        if risk_level == "critical":
-            base_msg = "죄송합니다. 이 사항은 전문 상담이 필요합니다."
-        elif risk_level == "high":
-            base_msg = "죄송합니다. 추가 검토가 필요한 사항입니다."
-        else:
-            base_msg = "죄송합니다. 정확한 안내를 위해 전문가 상담을 권장합니다."
-
-        # 연락처 정보
-        contact_info = "문의처: 관세청 고객지원센터 (☎ 125 또는 1344-5100)\n"
-
-        # 면책조항
-        disclaimer_text = "\n".join(disclaimers) if disclaimers else (
-            "본 답변은 일반적인 안내용입니다. "
-            "최종 처리는 관할 세관 또는 해당 소관기관 확인이 필요합니다."
-        )
-
-        return (
-            f"{base_msg}\n\n"
-            f"{contact_info}\n"
-            f"안내:\n- {disclaimer_text}"
-        )
-
-    def _get_category_name(self, category_code: str) -> str:
-        """카테고리 코드를 한글 이름으로 변환한다."""
-        for cat in self.config.get("categories", []):
-            if cat.get("code") == category_code:
-                return cat.get("name", category_code)
-        return category_code
+        risk_lev

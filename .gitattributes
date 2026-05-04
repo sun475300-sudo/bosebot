@@ -1,11 +1,2 @@
 # Auto detect text files and perform LF normalization
 * text=auto
-
-# Force LF for shell scripts, Dockerfiles, Makefiles (would break on Windows checkout otherwise)
-*.sh        text eol=lf
-Makefile    text eol=lf
-Dockerfile  text eol=lf
-
-# Force CRLF for Windows batch files
-*.bat       text eol=crlf
-*.cmd       text eol=crlf
