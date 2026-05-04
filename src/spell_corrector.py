@@ -71,6 +71,15 @@ KNOWN_TERMS: set[str] = {
     "물품검사", "재반출", "반송", "잔류", "미반출",
     "세관검사", "수입면허", "수입신고", "수출신고",
 
+    # ── INSPECTION (물품 검사 절차) ──
+    # 핵심 토큰을 standalone으로 등록해 spell-corrector 가 "검사" → "검역",
+    # "물품" → "식품" 으로 잘못 교정하는 것을 방지한다.
+    "물품", "검사", "정기검사", "무작위검사", "검사절차",
+
+    # ── PATENT_INFRINGEMENT (지식재산권 침해) ──
+    "침해", "침해품", "특허침해", "위조품", "모조품", "짝퉁",
+    "지식재산권", "지재권", "상표권", "저작권",
+
     # ── EXHIBITION (전시) ──
     "전시", "전시회", "전시물", "전시용", "전시용품", "전시목적",
     "장치", "진열", "디스플레이", "박람회", "전람회",
@@ -269,9 +278,6 @@ def correct_query(query: str) -> tuple[str, list[dict]]:
         else:
             # 교정 대상이 아님 (조사·어미·숫자 등)
             corrected_tokens.append(token)
-
-    corrected_query = " ".join(corrected_tokens)
-    return (corrected_query, corrections)
 
     corrected_query = " ".join(corrected_tokens)
     return (corrected_query, corrections)

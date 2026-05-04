@@ -39,6 +39,7 @@
 | 대화 내보내기 | Text/JSON/CSV/HTML 4종 포맷 |
 | 법령 업데이트 | 법제처 API 연동, 변경 감지, FAQ 영향 분석, 알림 |
 | 법령 자동 동기화 | 백그라운드 스케줄러로 6시간마다 admRul/law 본문 갱신 (자세한 내용: [docs/LAW_AUTO_UPDATE.md](docs/LAW_AUTO_UPDATE.md)) |
+| main push 가이드 | 통합 스크립트 `PUSH_EVERYTHING_TO_MAIN.bat` 한 줄로 회귀 테스트 + commit + push 처리 (자세한 내용: [docs/HOW_TO_PUSH.md](docs/HOW_TO_PUSH.md)) |
 | 만족도 추적 | 자동 만족도 트렌드 분석 및 낮은 답변 감지 |
 | JWT 인증 | 관리자 로그인, 토큰 발급/검증, 역할 기반 접근 제어 |
 | 카카오톡 연동 | 오픈빌더 스킬 서버, 캐러셀 카드, 빠른 응답 |

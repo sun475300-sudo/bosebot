@@ -34,7 +34,12 @@ class TestClassifyQuery:
     def test_license_question(self):
         result = classify_query("보세전시장 특허기간은 어떻게 되나요?")
         categories = classify_query("보세전시장 특허기간은 어떻게 되나요?")
-        assert "LICENSE" in categories or "GENERAL" in categories
+        # PATENT 카테고리 신설 후 LICENSE 는 alias 로 강등됨 — 셋 다 허용
+        assert (
+            "PATENT" in categories
+            or "LICENSE" in categories
+            or "GENERAL" in categories
+        )
 
     def test_penalty_question(self):
         result = classify_query("위반하면 벌칙이 있나요?")

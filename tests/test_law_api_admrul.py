@@ -262,6 +262,7 @@ class TestAdmRulSyncManager:
 
     def test_sync_one_empty_html_fallback_marks_failed(self, sync_manager):
         """XML 실패 + HTML fallback 이 빈 본문을 반환하면 fetch_failed."""
+        sync_manager.client.oc = "test-oc"
         empty_html = "<html><head><title>x</title></head><body></body></html>"
         opener = _fake_urlopen_factory(
             None,
@@ -277,6 +278,7 @@ class TestAdmRulSyncManager:
         """HTML fallback 이 짧은 메타 텍스트(< MIN_VALID_FULL_TEXT_LEN)만
         반환하면 fetch_failed 로 처리하고 캐시를 보호한다.
         실제 운영에서 발생한 55-byte 메타 캐시 버그 회귀 테스트."""
+        sync_manager.client.oc = "test-oc"
         # 본문 없이 헤더 텍스트만 — 200자 미만
         short_html = (
             "<html><head><title>보세전시장 운영에 관한 고시</title></head>"
@@ -293,6 +295,7 @@ class TestAdmRulSyncManager:
 
     def test_sync_one_fetch_failed_preserves_existing_cache(self, sync_manager):
         """직전에 정상 캐시가 있다면 fetch_failed 시에도 그대로 보존."""
+        sync_manager.client.oc = "test-oc"
         # 1) 정상 본문으로 캐시 채움
         opener_ok = _fake_urlopen_factory(ADMRUL_BODY_XML)
         with mock.patch("src.law_api_admrul.urlopen", opener_ok):
@@ -450,5 +453,112 @@ class TestBuildContextChunks:
 def test_live_admrul_fetch(tmp_path):
     mgr = AdmRulSyncManager(db_path=str(tmp_path / "live.db"))
     res = mgr.sync_one("2100000276240")
+    assert res["status"] in ("changed", "unchanged"), res
+    assert "보세전시장" in (res.get("name") or "")
+es["details"]
+        assert any(d["admrul_seq"] == "2100000276240" for d in res["details"])
+
+    def test_history_log(self, sync_manager):
+        opener = _fake_urlopen_factory(ADMRUL_BODY_XML)
+        with mock.patch("src.law_api_admrul.urlopen", opener):
+            sync_manager.sync_one("2100000276240")
+            sync_manager.sync_one("2100000276240")
+        hist = sync_manager.get_history(limit=10)
+        assert len(hist) >= 2
+        assert all(h["admrul_seq"] == "2100000276240" for h in hist)
+
+    def test_list_cached(self, sync_manager):
+        opener = _fake_urlopen_factory(ADMRUL_BODY_XML)
+        with mock.patch("src.law_api_admrul.urlopen", opener):
+            sync_manager.sync_one("2100000276240")
+        cached = sync_manager.list_cached()
+        assert len(cached) == 1
+        assert cached[0]["admrul_seq"] == "2100000276240"
+
+    def test_get_monitored_returns_seed(self, sync_manager):
+        seeds = sync_manager.get_monitored()
+        assert any(s["admrul_seq"] == "2100000276240" for s in seeds)
+        assert any(s["name"] == "보세전시장 운영에 관한 고시" for s in seeds)
+
+
+# ---------------------------------------------------------------------
+# legal_references.json 통합
+# ---------------------------------------------------------------------
+
+class TestUpdateLegalReferences:
+    def test_update_admrul_url_and_summary(self, sync_manager, tmp_path,
+                                           monkeypatch):
+        # 캐시 채우기
+        opener = _fake_urlopen_factory(ADMRUL_BODY_XML)
+        with mock.patch("src.law_api_admrul.urlopen", opener):
+            sync_manager.sync_one("2100000276240")
+
+        # 임시 legal_references.json 생성 (구 admRulSeq=...92944)
+        ref_path = tmp_path / "legal_ref.json"
+        ref_path.write_text(json.dumps({
+            "references": [
+                {
+                    "id": "bonded_exhibition_notice",
+                    "law_name": "보세전시장 운영에 관한 고시",
+                    "title": "보세전시장 운영에 관한 고시",
+                    "summary": "(예전 요약)",
+                    "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000092944",
+                    "sub_articles": {"제5조": "특허기간", "제10조": "반출입의 신고"},
+                }
+            ]
+        }, ensure_ascii=False), encoding="utf-8")
+
+        import src.law_api_admrul as mod
+        monkeypatch.setattr(mod, "LEGAL_REF_PATH", str(ref_path))
+
+        result = sync_manager.update_legal_references()
+        assert result["updated"] >= 1
+        data = json.loads(ref_path.read_text(encoding="utf-8"))
+        ref = data["references"][0]
+        assert "2100000276240" in ref["url"]
+        assert ref["summary"] != "(예전 요약)"
+        assert "제5조" in ref["sub_articles"]
+        assert "회기 만료일까지" in ref["sub_articles"]["제5조"]
+
+
+# ---------------------------------------------------------------------
+# retrieval chunks
+# ---------------------------------------------------------------------
+
+class TestBuildContextChunks:
+    def test_chunks_after_sync(self, sync_manager):
+        opener = _fake_urlopen_factory(ADMRUL_BODY_XML)
+        with mock.patch("src.law_api_admrul.urlopen", opener):
+            sync_manager.sync_one("2100000276240")
+        chunks = build_chatbot_context_chunks(sync_manager)
+        assert chunks, "expected at least one chunk after sync"
+        joined = " ".join(c["text"] for c in chunks)
+        assert "특허기간" in joined
+        assert "반출입" in joined
+        assert any(c["article"] == "제5조" for c in chunks)
+
+    def test_chunks_empty_without_cache(self, tmp_path):
+        mgr = AdmRulSyncManager(
+            api_client=AdmRulAPIClient(),
+            db_path=str(tmp_path / "empty.db"),
+        )
+        chunks = build_chatbot_context_chunks(mgr)
+        assert chunks == []
+
+
+# ---------------------------------------------------------------------
+# integration test (skip-by-default)
+# ---------------------------------------------------------------------
+
+@pytest.mark.skipif(
+    os.environ.get("RUN_LAW_API_INTEGRATION") != "1",
+    reason="set RUN_LAW_API_INTEGRATION=1 to hit the live law.go.kr endpoint",
+)
+def test_live_admrul_fetch(tmp_path):
+    mgr = AdmRulSyncManager(db_path=str(tmp_path / "live.db"))
+    res = mgr.sync_one("2100000276240")
+    assert res["status"] in ("changed", "unchanged"), res
+    assert "보세전시장" in (res.get("name") or "")
+100000276240")
     assert res["status"] in ("changed", "unchanged"), res
     assert "보세전시장" in (res.get("name") or "")

@@ -706,3 +706,81 @@ if __name__ == "__main__":  # pragma: no cover
         for d in res["details"]:
             print(f"  {d.get('name', '')} ({d['admrul_seq']}): "
                   f"{d['status']}")
+--------------------------------------------------------
+# retrieval helper — 챗봇 prompt 컨텍스트용
+# ---------------------------------------------------------------------
+
+def build_chatbot_context_chunks(
+    sync_manager: Optional[AdmRulSyncManager] = None,
+    max_chars_per_chunk: int = 600,
+) -> List[dict]:
+    """캐시된 admRul 본문을 챗봇 retrieval 용 chunk 리스트로 변환한다.
+
+    각 chunk: ``{"id": "admrul:<seq>:<art>", "law_name": ...,
+    "article": ..., "text": ...}``
+    """
+    sync_manager = sync_manager or AdmRulSyncManager()
+    chunks: List[dict] = []
+    for entry in MONITORED_ADMRULS:
+        cached = sync_manager.get_cached(entry["admrul_seq"])
+        if not cached:
+            continue
+        articles = cached.get("articles") or {}
+        for art_no, body in articles.items():
+            text = body.strip()
+            if not text:
+                continue
+            for offset in range(0, len(text), max_chars_per_chunk):
+                piece = text[offset:offset + max_chars_per_chunk]
+                chunks.append({
+                    "id": f"admrul:{entry['admrul_seq']}:{art_no}:{offset}",
+                    "law_name": cached.get("name") or entry["name"],
+                    "agency": cached.get("agency") or entry["agency"],
+                    "article": art_no,
+                    "text": piece,
+                    "admrul_seq": entry["admrul_seq"],
+                })
+    return chunks
+
+
+# ---------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------
+
+if __name__ == "__main__":  # pragma: no cover
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="국가법령정보센터 행정규칙(admRul) 동기화"
+    )
+    parser.add_argument("--check", action="store_true",
+                        help="변경 확인만 수행")
+    parser.add_argument("--sync", action="store_true",
+                        help="동기화 + legal_references.json 업데이트")
+    parser.add_argument("--history", action="store_true",
+                        help="동기화 이력 조회")
+    parser.add_argument("--no-html-fallback", action="store_true",
+                        help="공식 API 실패 시 HTML fallback 비활성화")
+    args = parser.parse_args()
+
+    mgr = AdmRulSyncManager()
+
+    if args.history:
+        for h in mgr.get_history(limit=20):
+            mark = "변경" if h["changed"] else "동일"
+            print(f"[{mark}] {h['name']} ({h['admrul_seq']}) - "
+                  f"{h['checked_at']}")
+    elif args.sync:
+        print("행정규칙 동기화 중...")
+        res = mgr.sync_all(allow_html_fallback=not args.no_html_fallback)
+        print(f"확인: {res['total_checked']}, 변경: {res['changes_detected']}, "
+              f"오류: {res['errors']}")
+        upd = mgr.update_legal_references()
+        print(f"legal_references 업데이트: {upd['updated']}/{upd['total']}")
+    else:
+        print("행정규칙 변경 확인 중...")
+        res = mgr.sync_all(allow_html_fallback=not args.no_html_fallback)
+        print(f"확인: {res['total_checked']}, 변경: {res['changes_detected']}")
+        for d in res["details"]:
+            print(f"  {d.get('name', '')} ({d['admrul_seq']}): "
+                  f"{d['status']}")

@@ -16,7 +16,12 @@
 
 import logging
 from collections import OrderedDict
-from src.classifier import classify_query, classify_intent, get_intent_classifier
+from src.classifier import (
+    classify_query,
+    classify_intent,
+    get_intent_classifier,
+    fast_path_category,
+)
 from src.clarification import ClarificationEngine
 from src.escalation import check_escalation, get_escalation_contact
 from src.entity_extractor import extract_entities
@@ -544,6 +549,12 @@ class BondedExhibitionChatbot:
         INTENT_CONFIDENCE_THRESHOLD = 0.3
         if mapped_category != "GENERAL" and intent_confidence >= INTENT_CONFIDENCE_THRESHOLD:
             primary_category = mapped_category
+
+        # Fast-path 카테고리(예: PATENT_INFRINGEMENT, INSPECTION, PATENT) 강제 적용
+        # — 키워드/intent 분류와 무관하게, fast-path 룰이 매치되면 최우선 사용
+        fp_cat = fast_path_category(processed_query)
+        if fp_cat:
+            primary_category = fp_cat
 
         # 5단계: FAQ 매칭
         escalation = check_escalation(processed_query)
