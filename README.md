@@ -398,6 +398,33 @@ make test           # pytest 전체
 make docker-up      # docker compose up -d + 헬스체크 대기
 make docker-down    # 종료
 make help           # 전체 명령 목록
+## Local Development (로컬 개발)
+
+- **Start (Windows)**: run `start.bat` from the repository root (double-click or PowerShell).
+- **Start (venv)**: activate the venv and run:
+
+```powershell
+.\venv\Scripts\python.exe -m flask run --host 127.0.0.1 --port 8080
+```
+
+- **Health check:** `http://127.0.0.1:8080/api/health` — returns JSON with `"status":"ok"` and `version` (e.g., "4.0.0").
+
+## Law documents retrieval (법령 문서 수집)
+
+- **Searches performed:** `보세운송` (관세법 및 별표/서식에서 관련 항목 발견), `보세전시장` (관세법 본문에 항목으로 존재), `까르네` (law.go.kr에서 직접 검색 시 결과 없음).
+- **Findings:** 일부 관련 항목은 law.go.kr의 별표/서식(attachment)으로 제공됩니다. 첨부파일은 HWP/PDF 형태로 flDownload.do 엔드포인트를 통해 내려받을 수 있습니다.
+- **How to reproduce (PowerShell example):**
+
+```powershell
+# fetch 법령 페이지
+Invoke-WebRequest 'https://www.law.go.kr/LSW/lsSc.do?query=관세법' -OutFile '관세법.html'
+# download an attachment (example)
+Invoke-WebRequest 'https://www.law.go.kr/LSW/flDownload.do?flSeq=159323931' -OutFile '별표.pdf'
+```
+
+- **Extraction notes:** Use `pdfminer.six` or `pypdf` to extract text from PDF; for HWP consider `pyhwp` or convert HWP→PDF using external converters before extraction. Store extracted text under `data/` or `outputs/` for further processing.
+- **Next steps:** (1) Implement downloader that follows flDownload links and saves attachments; (2) Add extraction script to convert attachments → plaintext and index into `data/rag_documents.jsonl` or similar.
+
 ```
 
 ### Troubleshooting
