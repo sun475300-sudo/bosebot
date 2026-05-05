@@ -158,3 +158,69 @@ class TestEndToEndChatbot:
             f"intent={r['intent_id']}, category={r['category']}, "
             f"answer 첫 80자={ans[:80]!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Q4/Q5/Q8 회귀 — fast-path patent_revocation / closure_reason / notice_purpose
+# (live_chatbot_test_after_q458)
+# ---------------------------------------------------------------------------
+
+class TestQ458FastPath:
+    """Q4/Q5/Q8 라이브 미커버 의도가 fast-path로 정확히 분류되는지 검증."""
+
+    def test_q4_patent_revocation_intent(self):
+        intent_id, conf = classify_intent(
+            "운영인 의무 위반시 특허가 취소되나요?"
+        )
+        assert intent_id in {"patent_revocation", "permit_revocation"}, (
+            f"expected patent_revocation intent, got {intent_id}"
+        )
+        assert conf >= 0.8
+
+    def test_q4_patent_revocation_category(self):
+        cats = classify_query("운영인 의무 위반시 특허가 취소되나요?")
+        # PENALTIES 카테고리가 결과에 포함되어야 함
+        assert "PENALTIES" in cats or "PATENT" in cats, (
+            f"expected PENALTIES/PATENT category, got {cats}"
+        )
+
+    def test_q4_fast_path_returns_penalties(self):
+        cat = fast_path_category("운영인 의무 위반시 특허가 취소되나요?")
+        assert cat == "PENALTIES", f"expected PENALTIES, got {cat}"
+
+    def test_q5_closure_reason_intent(self):
+        intent_id, conf = classify_intent("보세전시장 폐쇄 사유는 무엇인가요?")
+        assert intent_id == "closure_reason", (
+            f"expected closure_reason intent, got {intent_id}"
+        )
+        assert conf >= 0.8
+
+    def test_q5_closure_reason_category(self):
+        cats = classify_query("보세전시장 폐쇄 사유는 무엇인가요?")
+        assert cats[0] in {"PENALTIES", "GENERAL", "CLOSURE"}, (
+            f"expected PENALTIES/GENERAL/CLOSURE category, got {cats}"
+        )
+
+    def test_q5_fast_path_category(self):
+        cat = fast_path_category("보세전시장 폐쇄 사유는 무엇인가요?")
+        assert cat in {"PENALTIES", "GENERAL", "CLOSURE"}, (
+            f"expected PENALTIES/GENERAL/CLOSURE, got {cat}"
+        )
+
+    def test_q8_notice_purpose_intent(self):
+        intent_id, conf = classify_intent("고시의 목적이 무엇인가요?")
+        assert intent_id == "notice_purpose", (
+            f"expected notice_purpose intent, got {intent_id}"
+        )
+        assert conf >= 0.8
+
+    def test_q8_notice_purpose_category(self):
+        cats = classify_query("고시의 목적이 무엇인가요?")
+        # GENERAL fallback 포함되어 있어야 함
+        assert "GENERAL" in cats, (
+            f"expected GENERAL category, got {cats}"
+        )
+
+    def test_q8_fast_path_returns_general(self):
+        cat = fast_path_category("고시의 목적이 무엇인가요?")
+        assert cat == "GENERAL", f"expected GENERAL, got {cat}"

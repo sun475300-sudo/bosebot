@@ -9,6 +9,8 @@
   (단순 "검사", "식품" 단독 매치만으로는 더 이상 트리거되지 않음)
 - patent_duration / patent_infringement / goods_inspection 등 fast-path
   의도 룰 추가 (낮은 신뢰도 환경에서도 강하게 동작)
+- patent_revocation / closure_reason / notice_purpose fast-path 추가
+  (live_chatbot_test_after_q458 회귀: Q4/Q5/Q8 미커버 의도 보강)
 """
 
 import logging
@@ -280,10 +282,26 @@ FAST_PATH_INTENTS: list[tuple[str, str, list[str]]] = [
         "특허 연장", "특허연장",
         "특허 변경",
     ]),
-    # 특허 취소
-    ("patent_revocation", "PATENT", [
+    # 특허 취소 (Q4) — 운영인 의무 위반시 단계별 제재 → PENALTIES
+    ("patent_revocation", "PENALTIES", [
         "특허 취소", "특허취소",
         "특허 박탈", "특허 폐쇄",
+        "운영인 의무 위반", "의무 위반시 특허",
+        "특허 정지", "영업정지",
+    ]),
+    # 보세전시장 폐쇄 사유 (Q5) — 운영인 자진 폐쇄 / 의무 위반 누적
+    ("closure_reason", "PENALTIES", [
+        "폐쇄 사유", "폐쇄사유",
+        "폐쇄 원인", "폐쇄원인",
+        "보세전시장 폐쇄", "운영 종료 사유",
+        "자진 폐쇄", "자진폐쇄",
+    ]),
+    # 고시 목적 (Q8) — 제1조 목적 조항
+    ("notice_purpose", "GENERAL", [
+        "고시 목적", "고시의 목적",
+        "규정 목적", "규정의 목적",
+        "제1조 목적", "제1조의 목적",
+        "고시 취지", "제정 목적",
     ]),
     # 특허 신청
     ("patent_application", "PATENT", [
