@@ -10,8 +10,12 @@ from src.validator import (
 class TestGetNeededConfirmations:
     """get_needed_confirmations 함수 테스트."""
 
-    def test_always_asks_foreign_goods(self):
+    def test_general_definition_does_not_ask_confirmations(self):
         result = get_needed_confirmations("GENERAL", "보세전시장이란?")
+        assert result == []
+
+    def test_import_export_asks_foreign_goods(self):
+        result = get_needed_confirmations("IMPORT_EXPORT", "보세전시장 반입 절차")
         questions = [c["question"] for c in result]
         assert any("외국물품" in q for q in questions)
 
@@ -35,6 +39,11 @@ class TestGetNeededConfirmations:
         result = get_needed_confirmations("LICENSE", "특허 신청")
         questions = [c["question"] for c in result]
         assert any("특허" in q for q in questions)
+
+    def test_patent_application_documents_do_not_ask_foreign_goods(self):
+        result = get_needed_confirmations("PATENT", "특허 신청 서류")
+        questions = [c["question"] for c in result]
+        assert not any("외국물품" in q for q in questions)
 
     def test_no_duplicate_questions(self):
         result = get_needed_confirmations("FOOD_TASTING", "시식용 식품 검역")

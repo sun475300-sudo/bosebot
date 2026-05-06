@@ -1,0 +1,23 @@
+{
+  "id": "customs_rules",
+  "title": "관세법 시행규칙",
+  "category": "ministry_rule",
+  "source": {
+    "url": "https://law.go.kr/lsSc.do?menuId=1&subMenuId=15&tabMenuId=81&query=%EB%B3%B4%EC%84%B8%EC%A0%84%EC%8B%9C%EC%9E%A5",
+    "enacted_date": "1970-01-01",
+    "last_amended": "2026-03-20"
+  },
+  "description": "관세법 및 시행령의 시행에 필요한 세부 절차를 정함",
+  "articles": [
+    {
+      "number": 73,
+      "title": "보세운송신고",
+      "summary": "보세운송에 대한 신고 절차 및 서류 작성",
+      "content": "보세운송에 대한 신고 절차 및 서류 작성"
+    }
+  ],
+  "ingested_at": "2026-05-06T10:26:14.989523",
+  "keywords": [
+    "관세"
+  ]
+}

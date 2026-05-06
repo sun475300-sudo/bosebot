@@ -1,0 +1,29 @@
+{
+  "id": "customs_enforcement",
+  "title": "관세법 시행령",
+  "category": "presidential_decree",
+  "source": {
+    "url": "https://law.go.kr/lsSc.do?section=&menuId=1&subMenuId=15&tabMenuId=81&eventGubun=060101&query=%EA%B4%80%EC%84%B8%EB%B2%95",
+    "enacted_date": "1967-03-21",
+    "last_amended": "2026-04-03"
+  },
+  "description": "관세법 시행에 필요한 세부 사항을 정함",
+  "articles": [
+    {
+      "number": 226,
+      "title": "보세운송에 관한 사항",
+      "summary": "보세운송의 신고, 승인, 감시 등에 관한 규정",
+      "content": "보세운송의 신고, 승인, 감시 등에 관한 규정"
+    },
+    {
+      "number": 288,
+      "title": "보세운송업자 등록 위탁",
+      "summary": "세관장이 협회에 보세운송업자 등록 업무를 위탁",
+      "content": "세관장이 협회에 보세운송업자 등록 업무를 위탁"
+    }
+  ],
+  "ingested_at": "2026-05-06T10:26:14.989523",
+  "keywords": [
+    "관세"
+  ]
+}

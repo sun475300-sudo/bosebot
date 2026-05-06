@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 import hashlib
+import html as html_lib
 import os
 import re
 import sqlite3
@@ -29,7 +30,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Iterable, List, Optional
 from urllib.error import URLError
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -39,6 +40,7 @@ LEGAL_REF_PATH = os.path.join(BASE_DIR, "data", "legal_references.json")
 ADMRUL_SERVICE_BASE = "https://www.law.go.kr/DRF/lawService.do"
 ADMRUL_SEARCH_BASE = "https://www.law.go.kr/DRF/lawSearch.do"
 ADMRUL_VIEWER_URL = "https://www.law.go.kr/LSW/admRulLsInfoP.do"
+ADMRUL_BODY_URL = "https://www.law.go.kr/LSW/admRulLsInfoR.do"
 
 USER_AGENT = "BondedExhibitionChatbot/1.0 (admrul-sync)"
 
@@ -73,6 +75,24 @@ MONITORED_ADMRULS = [
             "제15조",  # 폐쇄
         ],
     },
+    {
+        "admrul_seq": "2100000270260",
+        "name": "보세운송에 관한 고시",
+        "agency": "관세청",
+        "key_articles": ["제1조", "제2조", "제3조", "제4조", "제5조"],
+    },
+    {
+        "admrul_seq": "2100000275032",
+        "name": "보세화물관리에 관한 고시",
+        "agency": "관세청",
+        "key_articles": ["제1조", "제2조", "제3조", "제4조", "제5조"],
+    },
+    {
+        "admrul_seq": "2100000271566",
+        "name": "A.T.A.까르네에 의한 일시수출입 통관에 관한 고시",
+        "agency": "관세청",
+        "key_articles": ["제1조", "제2조", "제3조", "제4조", "제5조"],
+    },
 ]
 
 
@@ -80,6 +100,24 @@ def _http_get(url: str, timeout: int = 30) -> Optional[str]:
     """HTTP GET 헬퍼. 실패 시 ``None``."""
     try:
         req = Request(url, headers={"User-Agent": USER_AGENT})
+        with urlopen(req, timeout=timeout) as resp:
+            return resp.read().decode("utf-8", errors="replace")
+    except (URLError, TimeoutError, OSError):
+        return None
+
+
+def _http_post(url: str, data: dict, timeout: int = 30) -> Optional[str]:
+    """HTTP POST 헬퍼. 실패 시 ``None``."""
+    try:
+        payload = urlencode(data).encode("utf-8")
+        req = Request(
+            url,
+            data=payload,
+            headers={
+                "User-Agent": USER_AGENT,
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+        )
         with urlopen(req, timeout=timeout) as resp:
             return resp.read().decode("utf-8", errors="replace")
     except (URLError, TimeoutError, OSError):
@@ -134,9 +172,26 @@ class AdmRulAPIClient:
         return _http_get(url, timeout=30)
 
     def get_admrul_html(self, admrul_seq: str) -> Optional[str]:
-        """공식 뷰어 페이지(HTML)를 fallback 으로 가져온다."""
+        """공식 뷰어의 본문 HTML을 fallback 으로 가져온다.
+
+        팝업 페이지(``admRulLsInfoP.do``)는 실제 조문을 Ajax로 로드한다.
+        따라서 먼저 본문 엔드포인트(``admRulLsInfoR.do``)를 호출하고,
+        실패할 때만 팝업 페이지 자체를 반환한다.
+        """
         if not admrul_seq:
             return None
+        body_html = _http_post(
+            ADMRUL_BODY_URL,
+            {
+                "admRulSeq": admrul_seq,
+                "joTpYn": "Y",
+                "languageType": "KO",
+                "chrClsCd": "010202",
+            },
+            timeout=30,
+        )
+        if body_html:
+            return body_html
         url = f"{ADMRUL_VIEWER_URL}?admRulSeq={quote(admrul_seq)}"
         return _http_get(url, timeout=30)
 
@@ -260,6 +315,12 @@ class AdmRulAPIClient:
 
     _HTML_TAG_RE = re.compile(r"<[^>]+>")
     _ARTICLE_RE = re.compile(r"(제\s*\d+\s*조(?:의\d+)?)")
+    _ARTICLE_LABEL_RE = re.compile(
+        r"<label\b[^>]*>\s*"
+        r"(?P<label>제\s*\d+\s*조(?:의\d+)?(?:\s*\([^<]*\))?)"
+        r"\s*</label>",
+        re.IGNORECASE,
+    )
 
     def parse_html_body(self, html: Optional[str]) -> dict:
         """공식 뷰어 HTML 에서 본문을 거칠게 추출한다.
@@ -271,23 +332,83 @@ class AdmRulAPIClient:
                "articles": {}, "full_text": ""}
         if not html:
             return out
-        # title
+        # title / hidden metadata
+        m_name = re.search(r'id=["\']admNm["\'][^>]*value=["\']([^"\']+)', html)
+        if m_name:
+            out["name"] = html_lib.unescape(m_name.group(1)).strip()
+        m_agency = re.search(r"관세청\(([^)]+)\)", html)
+        if m_agency:
+            out["agency"] = f"관세청({m_agency.group(1).strip()})"
+        m_eff = re.search(r'id=["\']prmlYd["\'][^>]*value=["\'](\d{8})', html)
+        if m_eff:
+            out["effective_date"] = m_eff.group(1)
         m = re.search(r"<title>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
-        if m:
-            out["name"] = re.sub(r"\s+", " ", m.group(1)).strip()
-        text = self._HTML_TAG_RE.sub(" ", html)
-        text = re.sub(r"\s+", " ", text).strip()
-        # 조문 분할
-        parts = self._ARTICLE_RE.split(text)
-        if len(parts) >= 3:
-            articles = {}
-            it = iter(parts[1:])
-            for marker, body in zip(it, it):
-                key = re.sub(r"\s+", "", marker)
-                articles[key] = body.strip()
-            out["articles"] = articles
-        out["full_text"] = text[:20000]
+        if m and not out["name"]:
+            out["name"] = re.sub(r"\s+", " ", self._clean_html(m.group(1))).strip()
+
+        articles = self._parse_html_articles_by_label(html)
+        if not articles:
+            articles = self._parse_html_articles_from_plain_text(html)
+        out["articles"] = articles
+        if articles:
+            out["full_text"] = "\n".join(
+                f"{art_no} {body}" for art_no, body in articles.items()
+            )
+        else:
+            out["full_text"] = self._clean_html(html)[:20000]
         return out
+
+    def _parse_html_articles_by_label(self, html: str) -> dict:
+        """법제처 본문 HTML의 ``<label>제n조(...)</label>`` 기준 조문 추출."""
+        matches = list(self._ARTICLE_LABEL_RE.finditer(html or ""))
+        if not matches:
+            return {}
+        articles = {}
+        for idx, match in enumerate(matches):
+            label = self._clean_html(match.group("label"))
+            key_match = self._ARTICLE_RE.search(label)
+            if not key_match:
+                continue
+            key = re.sub(r"\s+", "", key_match.group(1))
+            title = label[key_match.end():].strip()
+
+            start = match.end()
+            end = matches[idx + 1].start() if idx + 1 < len(matches) else len(html)
+            segment = html[start:end]
+            for marker in ('<div id="arDivArea"', '<!-- 부칙 영역', '<!-- 별표 영역'):
+                marker_idx = segment.find(marker)
+                if marker_idx >= 0:
+                    segment = segment[:marker_idx]
+
+            body = self._clean_html(segment)
+            if title and title not in body[:80]:
+                body = f"{title} {body}".strip()
+            if body:
+                articles[key] = body
+        return articles
+
+    def _parse_html_articles_from_plain_text(self, html: str) -> dict:
+        """단순 HTML/TXT fixture 용 fallback 조문 추출."""
+        text = self._clean_html(html)
+        parts = self._ARTICLE_RE.split(text)
+        if len(parts) < 3:
+            return {}
+        articles = {}
+        it = iter(parts[1:])
+        for marker, body in zip(it, it):
+            key = re.sub(r"\s+", "", marker)
+            body = body.strip()
+            if body:
+                articles[key] = body
+        return articles
+
+    def _clean_html(self, value: str) -> str:
+        value = re.sub(r"(?is)<script\b.*?</script>", " ", value or "")
+        value = re.sub(r"(?is)<style\b.*?</style>", " ", value)
+        value = self._HTML_TAG_RE.sub(" ", value)
+        value = html_lib.unescape(value)
+        value = value.replace("\xa0", " ")
+        return re.sub(r"\s+", " ", value).strip()
 
 
 class AdmRulSyncManager:
@@ -606,7 +727,19 @@ class AdmRulSyncManager:
                 continue
             # summary 보강
             full_text = cached["full_text"]
-            new_summary = full_text[:200].strip()
+            article_key = ""
+            article_match = re.search(
+                r"(제\s*\d+\s*조(?:의\d+)?)",
+                ref.get("article", "") or "",
+            )
+            if article_match:
+                article_key = re.sub(r"\s+", "", article_match.group(1))
+            article_body = (cached.get("articles") or {}).get(article_key, "")
+            new_summary_source = (
+                f"{article_key} {article_body}".strip()
+                if article_body else full_text
+            )
+            new_summary = new_summary_source[:300].strip()
             if new_summary and new_summary != ref.get("summary"):
                 ref["summary"] = new_summary
                 updated += 1

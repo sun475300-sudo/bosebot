@@ -1,0 +1,47 @@
+{
+  "id": "customs_law",
+  "title": "관세법",
+  "category": "statute",
+  "source": {
+    "url": "https://law.go.kr/lsSc.do?section=&menuId=1&subMenuId=15&tabMenuId=81&eventGubun=060101&query=%EA%B4%80%EC%84%B8%EB%B2%95",
+    "enacted_date": "1967-01-16",
+    "last_amended": "2025-12-23"
+  },
+  "description": "관세의 부과, 징수 및 관세행정에 관한 근본적인 사항을 정함을 목적으로 함",
+  "articles": [
+    {
+      "number": 156,
+      "title": "보세구역 외 장치",
+      "summary": "세관장은 보세구역 외의 장소에서 외국물품을 장치하게 할 수 있음",
+      "content": "세관장은 보세구역 외의 장소에서 외국물품을 장치하게 할 수 있음"
+    },
+    {
+      "number": 157,
+      "title": "보세전시장",
+      "summary": "보세전시장의 설치 및 운영에 관한 사항을 정함",
+      "content": "보세전시장의 설치 및 운영에 관한 사항을 정함"
+    },
+    {
+      "number": 174,
+      "title": "보세전시장의 특허",
+      "summary": "박람회 등에서 보세전시장을 특허받을 수 있음",
+      "content": "박람회 등에서 보세전시장을 특허받을 수 있음"
+    },
+    {
+      "number": 213,
+      "title": "보세운송",
+      "summary": "관세가 면제된 물품의 일시적 운송을 허용",
+      "content": "관세가 면제된 물품의 일시적 운송을 허용"
+    },
+    {
+      "number": 222,
+      "title": "보세운송업자",
+      "summary": "보세운송업자의 등록 및 관리 규정",
+      "content": "보세운송업자의 등록 및 관리 규정"
+    }
+  ],
+  "ingested_at": "2026-05-06T10:26:14.989523",
+  "keywords": [
+    "관세"
+  ]
+}

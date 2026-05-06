@@ -42,19 +42,18 @@ def get_needed_confirmations(category: str, query: str) -> list[dict]:
             needed.append(CONFIRMATION_QUESTIONS[key])
             seen_keys.add(key)
 
-    # 항상 물어보는 질문
-    _add("foreign_goods")
-
-    # 카테고리별 추가 질문
+    # 카테고리별 추가 질문.
+    # 단순 정의/서류/특허 안내에서는 확인 질문이 오히려 답변을 흐리므로,
+    # 물품 성격에 따라 결론이 달라지는 업무 질문에만 외국물품 여부를 묻는다.
     category_questions = {
-        "SALES": ["purpose", "post_event_plan"],
-        "SAMPLE": ["purpose", "post_event_plan"],
-        "FOOD_TASTING": ["purpose", "other_requirements"],
-        "IMPORT_EXPORT": ["post_event_plan", "venue_licensed"],
-        "LICENSE": ["venue_licensed"],
-        "EXHIBITION": ["purpose", "venue_licensed"],
+        "SALES": ["foreign_goods", "purpose", "post_event_plan"],
+        "SAMPLE": ["foreign_goods", "purpose", "post_event_plan"],
+        "FOOD_TASTING": ["foreign_goods", "purpose", "other_requirements"],
+        "IMPORT_EXPORT": ["foreign_goods", "post_event_plan", "venue_licensed"],
+        "EXHIBITION": ["foreign_goods", "purpose", "venue_licensed"],
+        "INSPECTION": ["foreign_goods", "venue_licensed"],
         "PENALTIES": ["customs_consulted"],
-        "DOCUMENTS": ["venue_licensed"],
+        "LICENSE": ["venue_licensed"],
     }
 
     for key in category_questions.get(category, []):

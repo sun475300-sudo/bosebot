@@ -246,6 +246,184 @@ class BondedExhibitionChatbot:
         scored.sort(key=lambda p: p[0], reverse=True)
         return [c for _, c in scored[:top_k]]
 
+    def _legal_reference_search(self, query: str, top_k: int = 3) -> list[dict]:
+        """FAQ 미매칭 시 법령/고시 근거 인덱스에서 직접 검색한다."""
+        if not query:
+            return []
+        import re as _re
+
+        stop = {
+            "보세", "내용", "어떻게", "무엇", "알려줘", "알려주세요",
+            "관련", "규정", "고시", "법령", "조항", "있나요", "되나요",
+            "관한", "대한",
+        }
+
+        def _norm_token(token: str) -> str:
+            token = token.strip().lower()
+            for suffix in ("인가요", "인가", "은", "는", "이", "가", "을", "를", "에", "의"):
+                if len(token) > len(suffix) + 1 and token.endswith(suffix):
+                    return token[:-len(suffix)]
+            return token
+
+        tokens = []
+        for raw in _re.findall(r"[가-힣A-Za-z0-9.]{2,}", str(query)):
+            token = _norm_token(raw)
+            if token and token not in stop:
+                tokens.append(token)
+        query_text = str(query).lower()
+        if not tokens:
+            return []
+
+        requested_article = ""
+        requested_article_match = _re.search(r"(제\s*\d+\s*조(?:의\d+)?)", str(query))
+        if requested_article_match:
+            requested_article = _re.sub(r"\s+", "", requested_article_match.group(1))
+        purpose_lookup = "목적" in tokens or "목적" in str(query)
+
+        focus_terms = []
+        for term in ("보세전시장", "보세운송", "보세화물", "까르네", "관세법", "시행령", "시행규칙"):
+            if term.lower() in query_text:
+                focus_terms.append(term.lower())
+
+        scored: list[tuple[int, dict]] = []
+        for ref in self.legal_refs:
+            haystack = " ".join(
+                str(ref.get(k, ""))
+                for k in ("law_name", "article", "title", "summary")
+            )
+            haystack += " " + " ".join(map(str, ref.get("keywords", []) or []))
+            haystack_lower = haystack.lower()
+            law_name = str(ref.get("law_name", ""))
+            law_name_lower = law_name.lower()
+            if focus_terms and not any(term in law_name_lower for term in focus_terms):
+                continue
+            article = str(ref.get("article", ""))
+            if requested_article and article != requested_article:
+                continue
+            title = str(ref.get("title", ""))
+            if purpose_lookup and title != "목적" and "(목적)" not in haystack:
+                continue
+            score = sum(2 for tok in tokens if tok.lower() in haystack_lower)
+            if law_name and law_name_lower in query_text:
+                score += 10
+            if article and article in query:
+                score += 8
+            if title and title in query:
+                score += 3
+            if score > 0:
+                scored.append((score, {
+                    "law_name": law_name,
+                    "article": article,
+                    "title": ref.get("title", ""),
+                    "text": ref.get("summary", ""),
+                    "url": ref.get("url", ""),
+                    "source_type": "legal_reference",
+                }))
+
+        for chunk in (self.admrul_index or {}).get("chunks", []) or []:
+            haystack = " ".join(
+                str(chunk.get(k, ""))
+                for k in ("law_name", "article", "text")
+            )
+            haystack_lower = haystack.lower()
+            law_name = str(chunk.get("law_name", ""))
+            law_name_lower = law_name.lower()
+            if focus_terms and not any(term in law_name_lower for term in focus_terms):
+                continue
+            article = str(chunk.get("article", ""))
+            if requested_article and article != requested_article:
+                continue
+            chunk_text = str(chunk.get("text", "")).strip()
+            if purpose_lookup and not chunk_text.startswith("(목적)"):
+                continue
+            score = sum(2 for tok in tokens if tok.lower() in haystack_lower)
+            if law_name and law_name_lower in query_text:
+                score += 10
+            if article and article in query:
+                score += 8
+            if score > 0:
+                scored.append((score, {
+                    "law_name": law_name,
+                    "article": article,
+                    "title": "",
+                    "text": chunk.get("text", ""),
+                    "url": (
+                        "https://www.law.go.kr/LSW/admRulLsInfoP.do"
+                        f"?admRulSeq={chunk.get('admrul_seq', '')}"
+                    ),
+                    "source_type": "admrul_chunk",
+                }))
+
+        if not scored:
+            return []
+        scored.sort(key=lambda p: p[0], reverse=True)
+        results: list[dict] = []
+        seen = set()
+        fullwidth_table = str.maketrans({"Ａ": "A", "Ｔ": "T", "．": "."})
+        for _, item in scored:
+            law_key = str(item.get("law_name", "")).translate(fullwidth_table).lower()
+            key = (law_key, item.get("article"))
+            if key in seen:
+                continue
+            seen.add(key)
+            results.append(item)
+            if len(results) >= top_k:
+                break
+        return results
+
+    def _build_legal_reference_response(self, query: str) -> str | None:
+        """FAQ가 없을 때 공식 법령/고시 검색 결과로 기본 답변을 만든다."""
+        matches = self._legal_reference_search(query, top_k=3)
+        if not matches:
+            return None
+        basis = []
+        guide = []
+        explanations = []
+        for item in matches:
+            label = " ".join(
+                part for part in [
+                    item.get("law_name", ""),
+                    item.get("article", ""),
+                    f"({item.get('title')})" if item.get("title") else "",
+                ] if part
+            ).strip()
+            if label:
+                basis.append(label)
+            text = (item.get("text") or "").strip().replace("\n", " ")
+            if len(text) > 260:
+                text = text[:260].rstrip() + "…"
+            if text:
+                explanations.append(f"{label}: {text}" if label else text)
+                guide.append(f"{label}: {text}" if label else text)
+
+        if not explanations:
+            return None
+        conclusion = f"질문과 가장 가까운 공식 근거는 {basis[0]}입니다." if basis else ""
+        return build_response(
+            topic="법령/고시",
+            conclusion=conclusion,
+            explanation=explanations,
+            legal_basis=basis,
+            legal_guide=guide,
+        )
+
+    def _is_legal_lookup_query(self, query: str) -> bool:
+        """법령명/고시명/조문번호를 직접 묻는 조회성 질문인지 판단한다."""
+        if not query:
+            return False
+        import re as _re
+        q = str(query)
+        law_terms = [
+            "관세법", "시행령", "시행규칙", "고시",
+            "보세운송", "보세화물", "까르네", "A.T.A", "ATA",
+            "제190조", "제161조", "제213조", "제222조",
+        ]
+        if any(term.lower() in q.lower() for term in law_terms):
+            lookup_terms = ["목적", "내용", "규정", "조문", "근거", "알려", "무엇", "뭐"]
+            if any(term in q for term in lookup_terms) or _re.search(r"제\s*\d+\s*조", q):
+                return True
+        return False
+
     @staticmethod
     def _normalize_faq_items(items: list[dict]) -> list[dict]:
         """FAQ 항목을 정규화하여 신/구 포맷 모두 호환되도록 한다.
@@ -389,7 +567,7 @@ class BondedExhibitionChatbot:
 
     def _extract_conclusion(self, answer: str) -> str:
         """FAQ 답변에서 의미 있는 결론을 추출한다."""
-        sentences = answer.replace("·", ",").split(".")
+        sentences = answer.split(".")
         # 첫 문장이 너무 짧으면 (MIN_CONCLUSION_LENGTH글자 이하, 예: "네") 두 번째 문장까지 포함
         first = sentences[0].strip()
         if len(first) <= MIN_CONCLUSION_LENGTH and len(sentences) > 1:
@@ -570,6 +748,19 @@ class BondedExhibitionChatbot:
         )
         escalation_triggered = escalation is not None or escalation_trigger_from_policy
 
+        if self._is_legal_lookup_query(processed_query):
+            legal_lookup_response = self._build_legal_reference_response(processed_query)
+            if legal_lookup_response:
+                filtered_response = apply_answer_filter(legal_lookup_response, risk_level)
+
+                if session:
+                    session.add_turn(query, filtered_response)
+
+                return self._wrap_result(
+                    filtered_response, intent_id, intent_confidence, primary_category, entities,
+                    risk_level, policy_decision, escalation_triggered,
+                )
+
         # 에스컬레이션 우선: FAQ 매칭이 없거나 에스컬레이션만 트리거된 경우
         if escalation_triggered and not faq_match:
             if escalation:
@@ -662,7 +853,7 @@ class BondedExhibitionChatbot:
             # FAQ 의 legal_basis 가 admRul 을 직접 가리키지 않더라도,
             # 사용자 질문 키워드가 행정규칙 본문에 등장하면 해당 조문을 보조 노출.
             existing_guide_text = " ".join(legal_guide)
-            keyword_hits = self._admrul_keyword_search(query, top_k=1)
+            keyword_hits = [] if legal_guide else self._admrul_keyword_search(query, top_k=1)
             for hit in keyword_hits:
                 law_name = hit.get("law_name") or "행정규칙"
                 article = hit.get("article") or ""
@@ -688,6 +879,18 @@ class BondedExhibitionChatbot:
 
             # 7단계: 답변 필터링 (면책조항 추가)
             filtered_response = apply_answer_filter(response, risk_level)
+
+            if session:
+                session.add_turn(query, filtered_response)
+
+            return self._wrap_result(
+                filtered_response, intent_id, intent_confidence, primary_category, entities,
+                risk_level, policy_decision, escalation_triggered,
+            )
+
+        legal_reference_response = self._build_legal_reference_response(processed_query)
+        if legal_reference_response:
+            filtered_response = apply_answer_filter(legal_reference_response, risk_level)
 
             if session:
                 session.add_turn(query, filtered_response)
@@ -823,5 +1026,27 @@ class BondedExhibitionChatbot:
 
     def _build_escalation_response_from_policy(self, policy_decision: dict) -> str:
         """정책 평가 결과로부터 에스컬레이션 응답을 생성한다."""
-        escalation_target = policy_decision.get("escalation_target")
-        risk_lev
+        escalation_target = policy_decision.get("escalation_target") or "customer_support"
+        risk_level = policy_decision.get("risk_level", "high")
+        contact = get_escalation_contact({"target": escalation_target})
+        contact_name = contact.get("name", "관세청 고객지원센터")
+        contact_phone = contact.get("phone", "")
+        phone_info = f"({contact_phone})" if contact_phone else ""
+
+        if risk_level == "critical":
+            reason = "입력하신 내용은 자동 답변만으로 처리하기 어려운 고위험 민원입니다."
+        else:
+            reason = "입력하신 내용은 사실관계에 따라 결론이 달라질 수 있어 담당기관 확인이 필요합니다."
+
+        disclaimers = policy_decision.get("disclaimers") or [
+            "본 답변은 일반적인 안내용 설명이며, 구체적인 사실관계에 따라 달라질 수 있습니다.",
+            "최종 처리는 관할 세관 또는 해당 소관기관 확인이 필요합니다.",
+        ]
+        disclaimer_text = "\n".join(f"- {item}" for item in disclaimers)
+
+        return (
+            f"{reason}\n\n"
+            f"문의처: {contact_name} {phone_info}\n\n"
+            "안내:\n"
+            f"{disclaimer_text}"
+        )

@@ -1,0 +1,9 @@
+{
+  "id": "chatgpt_share_69d5e32a-24ac-83a6-94e6-a2769533f491",
+  "source": "https://chatgpt.com/share/69d5e32a-24ac-83a6-94e6-a2769533f491",
+  "title": "보세전시장 챗봇 설계 - ChatGPT 공유",
+  "fetched_at": "2026-05-06T12:00:00Z",
+  "summary": "사용자가 올린 대화 내용 및 설계 산출물: '보세전시장' 챗봇 설계 요청(규정 기반 질문 100개 생성 요청), 챗봇 요구사항과 RAG/AI 오케스트레이션 아키텍처(사용자 API, AI 내부 API, RAG 검색 API, 관리자 API, 로그/감사, 인증/권한, 외부 연계), 마이크로서비스 분할(게이트웨이, Chat API 서버, Admin 서버, AI/RAG 워커), 최소 MVP 엔드포인트 목록, 행정규칙·법령 링크 첨부, PDF 생성 안내 등이 포함되어 있습니다.",
+  "text": "(스크랩 발췌)\n- 보세전시장에 대한 챗봇을 만들려고 함. 규정을 참고해 가능한 질문 100개를 생성해달라는 요청 포함.\n- 설계 산출물: 사용자용 API(세션, 메시지, FAQ 검색, 상담 이관), AI 오케스트레이션 API(intent 분류, entity 추출, 정책 엔진, 답변 생성), RAG 검색 API(문서검색, 청킹, 임베딩, 재색인), 관리자 API(FAQ/문서 관리, 승인 워크플로), 로그/감사/KPI API, 인증/권한 API, 외부 연계(민원·조직·공지·SSO) 등.\n- 권장 아키텍처: Gateway, Chat API Server, Admin API Server, AI/RAG Worker.\n- 최소 MVP 엔드포인트: POST /chat/sessions, POST /chat/messages, GET /faqs/search, POST /chat/handoffs, POST /admin/auth/login, GET/POST /admin/faqs, GET/POST /admin/rag-docs, GET /admin/logs/chat, GET /admin/dashboard/kpis.\n- 대화 내에는 법령/고시 링크(법제처)들이 인라인으로 포함되어 있으며, 해당 링크들을 기반으로 질문 목록 생성 및 RAG 인덱싱을 권장함.\n- PDF로 정리된 산출물 다운로드가 언급됨.\n\n(원문 일부 발췌)\n"Please refer to the linked regulations and generate 100 concise one-sentence questions..." (한국어 대화 및 API 명세 예시 다수)\n",
+  "note": "Saved from ChatGPT share; contains design guidance intended to support creation of a 규정 기반 챗봇 for 보세전시장."
+}
