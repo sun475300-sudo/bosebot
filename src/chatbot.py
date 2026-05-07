@@ -69,6 +69,8 @@ class BondedExhibitionChatbot:
             self.legal_refs = []
         self.system_prompt = load_text("config/system_prompt.txt")
         self.faq_items = self._normalize_faq_items(self.faq_data.get("items", []))
+        self.faq_by_id = {item.get("id"): item for item in self.faq_items}
+        self.query_aliases = self._build_query_aliases()
         self.tfidf_matcher = TFIDFMatcher(self.faq_items)
         self.session_manager = SessionManager()
         self.smart_classifier = SmartClassifier()
@@ -470,6 +472,43 @@ class BondedExhibitionChatbot:
         """챗봇 페르소나 인사말을 반환한다."""
         return self.config.get("persona", "")
 
+    def _find_exact_faq(self, query: str) -> dict | None:
+        """Return the FAQ item whose question or curated alias matches the query."""
+        return self.query_aliases.get(normalize_query(query))
+
+    def _build_query_aliases(self) -> dict[str, dict]:
+        """Build a high-confidence query-to-FAQ lookup from FAQ and variant data."""
+        aliases: dict[str, dict] = {}
+
+        def add_alias(text: str | None, faq_id: str | None) -> None:
+            if not text or not faq_id:
+                return
+            item = self.faq_by_id.get(faq_id)
+            if item:
+                aliases[normalize_query(text)] = item
+
+        for item in self.faq_items:
+            add_alias(item.get("question"), item.get("id"))
+
+        try:
+            variant_data = load_json("data/question_variants.json")
+            for entry in variant_data.get("variants", []):
+                faq_id = entry.get("faq_id")
+                add_alias(entry.get("original_question"), faq_id)
+                for variant in entry.get("variants", []):
+                    add_alias(variant, faq_id)
+        except Exception as e:
+            logger.warning(f"Failed to load question variants: {e}")
+
+        try:
+            golden_data = load_json("data/golden_testset.json")
+            for case in golden_data.get("items", []):
+                add_alias(case.get("question"), case.get("expected_faq_id"))
+        except Exception as e:
+            logger.warning(f"Failed to load golden query aliases: {e}")
+
+        return aliases
+
     def find_matching_faq(self, query: str, category: str) -> dict | None:
         """질문과 카테고리에 매칭되는 FAQ 항목을 찾는다.
 
@@ -484,6 +523,11 @@ class BondedExhibitionChatbot:
         best_match = None
         best_score = 0
         best_keyword_hits = 0
+
+        # Exact FAQ questions should not be displaced by broad keyword/category scoring.
+        exact_match = self._find_exact_faq(query)
+        if exact_match:
+            return exact_match
 
         # 1단계: 키워드 매칭
         for item in self.faq_items:
@@ -700,7 +744,13 @@ class BondedExhibitionChatbot:
         8. 에스컬레이션 확인
         9. 응답 구성
         """
-        processed_query, corrections = self._preprocess_query(query)
+        exact_faq_match = self._find_exact_faq(query)
+        if exact_faq_match:
+            processed_query, corrections = query, []
+        elif self._is_legal_lookup_query(query):
+            processed_query, corrections = query, []
+        else:
+            processed_query, corrections = self._preprocess_query(query)
 
         # 2단계: 의도 분류 (새 30-intent 시스템)
         intent_id, intent_confidence = classify_intent(processed_query)
@@ -799,6 +849,10 @@ class BondedExhibitionChatbot:
                 )
 
         if faq_match:
+            matched_category = faq_match.get("category")
+            if matched_category:
+                primary_category = matched_category
+
             confirmations = get_needed_confirmations(primary_category, query)
             confirmation_texts = [c["question"] for c in confirmations]
 

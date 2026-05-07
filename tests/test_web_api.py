@@ -36,7 +36,21 @@ class TestConfigEndpoint:
     def test_config_returns_categories(self, client):
         res = client.get("/api/config")
         data = res.get_json()
-        assert len(data["categories"]) == 10
+        codes = {category["code"] for category in data["categories"]}
+        expected_codes = {
+            "GENERAL",
+            "LICENSE",
+            "IMPORT_EXPORT",
+            "EXHIBITION",
+            "SALES",
+            "SAMPLE",
+            "FOOD_TASTING",
+            "DOCUMENTS",
+            "PENALTIES",
+            "CONTACT",
+        }
+        assert expected_codes.issubset(codes)
+        assert len(data["categories"]) >= len(expected_codes)
 
     def test_config_returns_contacts(self, client):
         res = client.get("/api/config")

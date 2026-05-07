@@ -2,6 +2,7 @@
 
 import pytest
 from src.chatbot import BondedExhibitionChatbot
+from src.utils import load_json
 
 
 @pytest.fixture
@@ -108,3 +109,31 @@ class TestFAQMatching:
         # 최소 카테고리 매칭(+2)으로 매칭될 수 있음
         # 스코어가 1 이상이면 매칭되므로 None이 아닐 수 있다
         assert result is None or isinstance(result, dict)
+
+
+def test_exact_faq_questions_bypass_spell_correction():
+    chatbot = BondedExhibitionChatbot()
+    sample_ids = {"M", "N", "AU", "BB"}
+    items = {
+        item["id"]: item
+        for item in load_json("data/faq.json")["items"]
+        if item["id"] in sample_ids
+    }
+
+    for item in items.values():
+        result = chatbot.process_query(item["question"], include_metadata=True)
+        anchor = item["answer"].split(".")[0].strip()[:30]
+        assert result["category"] == item["category"]
+        assert anchor in result["response"]
+
+
+def test_legal_lookup_bypasses_spell_correction():
+    chatbot = BondedExhibitionChatbot()
+    notice = load_json("data/law_documents/bonded_exhibition_notice.json")
+    article = notice["articles"][0]
+    query = " ".join(
+        part for part in [notice["title"], article["number"], article["title"]] if part
+    )
+    result = chatbot.process_query(query, include_metadata=True)
+    anchor = article["summary"].strip()[:30]
+    assert anchor in result["response"]
