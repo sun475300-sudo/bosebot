@@ -22,6 +22,7 @@ from app.services.matching.signals.keyword import KeywordSignal
 from app.services.matching.signals.tfidf import TfidfSignal
 from app.services.matching.signals.bm25 import Bm25Signal
 from app.services.matching.signals.variant import VariantSignal
+from app.services.matching.signals.vector import VectorSignal
 from app.services.nlp.preprocessor import PreprocessedQuery
 
 HIGH_CONFIDENCE = 0.55
@@ -45,6 +46,7 @@ class FAQRetriever:
         self._tfidf = TfidfSignal(faq_items)
         self._bm25 = Bm25Signal(faq_items)
         self._variant = VariantSignal(faq_items)
+        self._vector = VectorSignal(faq_items)
 
         self._weighted_fusion = WeightedSumFusion()
         self._rrf_fusion = RRFFusion()
@@ -89,17 +91,20 @@ class FAQRetriever:
         candidates = self._items
 
         # 시그널별 점수 계산 (병렬)
+        candidate_ids = {item["id"] for item in candidates}
         all_scores_list = await asyncio.gather(
             self._keyword.score(pq, candidates),
             self._tfidf.score(pq, candidates),
             self._bm25.score(pq, candidates),
             self._variant.score(pq, candidates),
+            self._vector.score(pq.expanded, candidate_ids),
         )
         all_scores: dict[str, dict[str, float]] = {
             "keyword": all_scores_list[0],
             "tfidf": all_scores_list[1],
             "bm25": all_scores_list[2],
             "variant": all_scores_list[3],
+            "vector": all_scores_list[4],
         }
 
         # 융합
