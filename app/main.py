@@ -1,4 +1,4 @@
-from contextlib import asynccontextmanager
+﻿from contextlib import asynccontextmanager
 from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +13,28 @@ from app.middleware.request_id import RequestIDMiddleware
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     configure_logging(settings.log_level)
+
+    # Load FAQ data and build retriever
+    from app.repositories.faq_repo import FAQRepository
+    from app.services.matching.retriever import FAQRetriever
+    from app.services.nlp.preprocessor import Preprocessor
+    from app.services.nlp.classifier import ClassifierService
+    from app.services.nlp.entity_extractor import EntityExtractorService
+    from app.services.chat_service import ChatService
+
+    faq_repo = FAQRepository()
+    await faq_repo.load()
+
+    retriever = FAQRetriever(faq_repo.list_all())
+    chat_service = ChatService(
+        retriever=retriever,
+        preprocessor=Preprocessor(),
+        classifier=ClassifierService(),
+        entity_extractor=EntityExtractorService(),
+    )
+    app.state.chat_service = chat_service
+    app.state.faq_repo = faq_repo
+
     yield
 
 
