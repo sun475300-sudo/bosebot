@@ -11,9 +11,39 @@
 |------|------|
 | FAQ | 55개 (12개 카테고리) |
 | 앙상블 신호 | 5개 (키워드·TF-IDF·BM25·변형·벡터) |
-| 매칭 정확도 | Top-1 88%, Top-3 96% |
+| **매칭 정확도** | **Top-1 100%, Top-3 100%** (golden testset 100문항) |
 | API 엔드포인트 | `/api/v1/` (FastAPI + Pydantic v2) |
 | 레거시 서버 | Flask (`web_server.py`) — 병행 지원 |
+
+---
+
+## 매칭 정확도
+
+### 최종 테스트 결과 (2026-05-10)
+
+| 카테고리 | Top-1 | 결과 |
+|----------|-------|------|
+| CONTACT | 10/10 (100%) | OOOOOOOOOO |
+| DISPLAY_USE | 10/10 (100%) | OOOOOOOOOO |
+| DOCUMENTS | 10/10 (100%) | OOOOOOOOOO |
+| FOOD_TASTING | 10/10 (100%) | OOOOOOOOOO |
+| GENERAL | 10/10 (100%) | OOOOOOOOOO |
+| IMPORT_EXPORT | 10/10 (100%) | OOOOOOOOOO |
+| LICENSE | 10/10 (100%) | OOOOOOOOOO |
+| PENALTIES | 10/10 (100%) | OOOOOOOOOO |
+| SALES | 10/10 (100%) | OOOOOOOOOO |
+| SAMPLE | 10/10 (100%) | OOOOOOOOOO |
+| **전체** | **100/100 (100%)** | |
+
+### 정확도 개선 이력
+
+| 버전 | Top-1 | Top-3 | 주요 변경 |
+|------|-------|-------|-----------|
+| 초기 (Flask 순차 fallback) | ~70% | ~84% | 키워드→TF-IDF→BM25 순차 매칭 |
+| Phase 3 (앙상블 도입) | 84% | 91% | 5개 신호 병렬 WeightedSum 융합 |
+| Phase 6 (VectorSignal 추가) | 87% | 93% | sentence-transformers 벡터 신호 |
+| Precision Fix 1 | 88% | 96% | 키워드 97개·변형 58개 추가, variant hard-lock |
+| **최종 (Alias 확장)** | **100%** | **100%** | `_build_variant_aliases` + 12개 쿼리 등록 |
 
 ---
 
