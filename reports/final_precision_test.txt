@@ -1,0 +1,145 @@
+=== 앙상블 FAQ 매처 최종 정밀 테스트 (100문항) ===
+
+Top-1: 88/100 = 88.0%
+Top-3: 96/100 = 96.0%
+
+[카테고리별 Top-1]
+  CONTACT                9/10 (90%) OOOOOOOOOX
+  DISPLAY_USE            9/10 (90%) OOOOOOOOOX
+  DOCUMENTS              9/10 (90%) OOOOOOOOOX
+  FOOD_TASTING           9/10 (90%) OOOOOOOOOX
+  GENERAL                8/10 (80%) OOOOOOOOXX
+  IMPORT_EXPORT          9/10 (90%) OOOOOOOOOX
+  LICENSE                9/10 (90%) OOOOOOOOOX
+  PENALTIES              9/10 (90%) OOOOOOOOOX
+  SALES                  9/10 (90%) OOOOOOOOOX
+  SAMPLE                 8/10 (80%) OOOOOOOOXX
+
+[Top-1 오류 12건]
+  #  2 [GENERAL] 보세전시장 뜻이 뭐예요?
+        expected=A  got=T  top3=['T', 'A', 'AS']  (Top3 O)
+  #  7 [GENERAL] 보세전시장 이용 자격이 어떻게 되나요?
+        expected=U  got=AR  top3=['AR', 'U', 'I']  (Top3 O)
+  # 13 [IMPORT_EXPORT] 반출입신고는 의무인가요?
+        expected=B  got=K  top3=['K', 'B', 'AG']  (Top3 O)
+  # 22 [SALES] 현장 직매가 가능한가요?
+        expected=C  got=AA  top3=['AA', 'AS', 'AU']  (Top3 X)
+  # 36 [SAMPLE] 견본품 몇 개까지 반출 가능한가요?
+        expected=AF  got=D  top3=['D']  (Top3 X)
+  # 38 [SAMPLE] 샘플을 반납해야 하나요?
+        expected=AG  got=D  top3=['D', 'AL', 'AG']  (Top3 O)
+  # 49 [FOOD_TASTING] 시식 행사 하기 전에 어떤 신고가 필요해요?
+        expected=AI  got=AY  top3=['AY', 'AB', 'K']  (Top3 X)
+  # 58 [LICENSE] 특허가 취소될 수 있는 경우는?
+        expected=AK  got=N  top3=['N', 'AE', 'H']  (Top3 X)
+  # 68 [DISPLAY_USE] 전시물을 중간에 바꿀 수 있나요?
+        expected=AM  got=D  top3=['D', 'AM', 'J']  (Top3 O)
+  # 76 [DOCUMENTS] 수입신고서 외에 필요한 서류 뭐가 있어요?
+        expected=AO  got=M  top3=['M', 'AE', 'AO']  (Top3 O)
+  # 86 [PENALTIES] 운영인 의무위반시 특허 취소되나요?
+        expected=P  got=BA  top3=['BA', 'AK', 'P']  (Top3 O)
+  # 98 [CONTACT] 이의신청은 어떻게 제기하나요?
+        expected=AQ  got=M  top3=['M', 'AQ', 'AB']  (Top3 O)
+
+[전체 결과표]
+  # 결과   기대   실제   스코어     밴드          ms  질문
+  1 O    A    A      1.000 high         3ms 보세전시장이 무엇인가요?
+  2 T    A    T      0.836 high        54ms 보세전시장 뜻이 뭐예요?
+  3 O    A    A      0.733 high        12ms 보세전시장의 개념에 대해 알려주세요.
+  4 O    T    T      1.000 high         1ms 보세전시장과 보세창고는 어떻게 다른가요?
+  5 O    T    T      0.919 high        10ms 보세창고와 보세전시장 차이점은?
+  6 O    U    U      1.000 high         1ms 보세전시장은 누가 이용할 수 있나요?
+  7 T    U    AR     0.803 high        13ms 보세전시장 이용 자격이 어떻게 되나요?
+  8 O    AC   AC     1.000 high         1ms 보세전시장에서 내국물품도 전시할 수 있나요?
+  9 O    AJ   AJ     1.000 high         2ms 보세전시장에서 행사를 주최하려면 어떤 준비가 필요한가요
+ 10 O    AR   AR     1.000 high         1ms 보세전시장의 운영인 자격 요건은 무엇인가요?
+ 11 O    B    B      1.000 high         2ms 보세전시장에 물품을 반입하거나 반출하려면 신고가 필요한
+ 12 O    B    B      0.691 high         9ms 물품 반입할 때 신고해야 하나요?
+ 13 T    B    K      0.800 high        11ms 반출입신고는 의무인가요?
+ 14 O    V    V      1.000 high         3ms 전시가 끝난 물품을 다시 해외로 보내려면 어떻게 하나요
+ 15 O    V    V      0.843 high        12ms 전시 종료 후 해외로 반송하는 절차는?
+ 16 O    W    W      1.000 high         2ms 전시 종료 후 물품이 남으면 어떻게 처리하나요?
+ 17 O    AB   AB     1.000 high         1ms 보세전시장 반입 물품에 대해 세관 검사는 어떻게 이루어
+ 18 O    AL   AL     1.000 high         2ms 반입 물품의 가액 신고는 어떻게 하나요?
+ 19 O    AS   AS     1.000 high         0ms 보세전시장 간 물품 이동은 가능한가요?
+ 20 O    AS   AS     0.792 high        11ms 다른 보세전시장으로 물품을 옮길 수 있나요?
+ 21 O    C    C      1.000 high         3ms 보세전시장에 전시한 물품을 현장에서 바로 판매할 수 있
+ 22 X    C    AA     0.818 high         8ms 현장 직매가 가능한가요?
+ 23 O    C    C      0.550 high        11ms 전시물품 즉석 판매되나요?
+ 24 O    X    X      1.000 high         2ms 보세전시장에서 판매 계약만 체결하고 나중에 통관할 수 
+ 25 O    X    X      0.835 high        11ms 계약만 체결하고 인도는 나중에 해도 되나요?
+ 26 O    AD   AD     1.000 high         1ms 판매 대금은 어떻게 정산하나요?
+ 27 O    AD   AD     0.593 high        10ms 결제 대금 수금은 어떻게 해야 하나요?
+ 28 O    AE   AE     1.000 high         0ms 판매 전 수입면허 신청 절차는?
+ 29 O    AE   AE     0.685 high         9ms 수입면허 신청은 어떻게 하나요?
+ 30 O    C    C      0.646 high         7ms 통관 전 판매 인도 가능해요?
+ 31 O    D    D      1.000 high         2ms 전시물 일부를 견본품으로 밖에 가져가도 되나요?
+ 32 O    D    D      0.825 high        11ms 홍보용 샘플을 밖으로 가져가도 되나요?
+ 33 O    Z    Z      1.000 high         1ms 견본품 반출 허가를 받으면 관세를 내야 하나요?
+ 34 O    Z    Z      0.840 high         9ms 견본품 세금은 어떻게 되나요?
+ 35 O    AF   AF     1.000 high         1ms 견본품 수량 제한이 있나요?
+ 36 X    AF   D      0.981 high         1ms 견본품 몇 개까지 반출 가능한가요?
+ 37 O    AG   AG     1.000 high         1ms 견본품 반출 후 반환 의무가 있나요?
+ 38 T    AG   D      0.631 high         8ms 샘플을 반납해야 하나요?
+ 39 O    M    M      1.000 high         1ms 견본품 반출 허가 신청은 어떻게 하나요?
+ 40 O    M    M      0.750 high         9ms 샘플 반출 허가 어디서 받나요?
+ 41 O    E    E      1.000 high         2ms 시식용 식품을 보세전시장에 들여오는 경우 요건확인은 생
+ 42 O    E    E      0.820 high         8ms 시식용 식품 세관장확인 받나요?
+ 43 O    E    E      0.836 high        10ms 식품 시식 요건확인 예외 있나요?
+ 44 O    Y    Y      1.000 high         2ms 시식용 식품은 행사 후 어떻게 처리해야 하나요?
+ 45 O    Y    Y      0.905 high        10ms 남은 시식 식품 폐기 절차가 궁금해요.
+ 46 O    AH   AH     1.000 high         1ms 시식용 식품의 수량 제한이 있나요?
+ 47 O    AH   AH     0.840 high        10ms 시식 식품 얼마나 반입할 수 있나요?
+ 48 O    AI   AI     1.000 high         1ms 시식 행사 사전 신고가 필요한가요?
+ 49 X    AI   AY     0.785 high         9ms 시식 행사 하기 전에 어떤 신고가 필요해요?
+ 50 O    AV   AV     1.000 high         1ms 시식용 식품에 한글 표시 라벨이 필요한가요?
+ 51 O    F    F      1.000 high         1ms 보세전시장 특허기간은 어떻게 되나요?
+ 52 O    F    F      0.843 high        10ms 특허 기간이 얼마나 되나요?
+ 53 O    G    G      1.000 high         2ms 보세전시장 설치·운영 특허를 받으려면 어디를 봐야 하나
+ 54 O    G    G      0.846 high        10ms 보세전시장 특허 신청하려면 어디를 봐야 하나요?
+ 55 O    AA   AA     1.000 high         1ms 보세전시장 특허를 갱신하거나 연장할 수 있나요?
+ 56 O    AA   AA     0.915 high         9ms 특허 연장이 가능한가요?
+ 57 O    AK   AK     1.000 high         1ms 특허 취소 사유는 무엇인가요?
+ 58 X    AK   N      0.590 high         9ms 특허가 취소될 수 있는 경우는?
+ 59 O    AT   AT     1.000 high         0ms 보세전시장 특허 신청 수수료가 있나요?
+ 60 O    AT   AT     0.818 high         9ms 특허 신청 비용이 드나요?
+ 61 O    H    H      1.000 high         2ms 보세전시장에서 전시할 수 있는 물품에 제한이 있나요?
+ 62 O    H    H      0.843 high         8ms 전시할 수 있는 물품 제한이 있을까요?
+ 63 O    I    I      1.000 high         2ms 보세전시장에 장치된 물품의 사용 범위는 어떻게 되나요?
+ 64 O    I    I      0.825 high         8ms 장치된 물품 어디까지 사용할 수 있나요?
+ 65 O    J    J      1.000 high         1ms 보세전시장에서 시연(데모)을 할 수 있나요?
+ 66 O    J    J      0.578 high         9ms 시범 데모 가능한가요?
+ 67 O    AM   AM     1.000 high         0ms 전시 기간 중 물품 교체가 가능한가요?
+ 68 T    AM   D      0.647 high        10ms 전시물을 중간에 바꿀 수 있나요?
+ 69 O    AN   AN     1.000 high         1ms 전시장 내 보관 시 주의사항은?
+ 70 O    AU   AU     1.000 high         1ms 전시장에서 촬영이나 홍보 활동이 가능한가요?
+ 71 O    K    K      1.000 high         0ms 보세전시장 반출입신고서는 어떤 서류인가요?
+ 72 O    K    K      0.898 high         8ms 반출입신고서 양식은 어떻게 되나요?
+ 73 O    L    L      1.000 high         1ms 보세전시장 특허 신청 시 어떤 서류가 필요한가요?
+ 74 O    L    L      0.916 high         8ms 특허 신청 구비서류 알려주세요.
+ 75 O    AO   AO     1.000 high         1ms 수입면허 신청에 필요한 서류는?
+ 76 T    AO   M      0.770 high         9ms 수입신고서 외에 필요한 서류 뭐가 있어요?
+ 77 O    AW   AW     1.000 high         1ms 보세전시장 운영 종료 보고서는 어떻게 제출하나요?
+ 78 O    AW   AW     0.836 high        10ms 운영 종료 결과 보고는 어떻게 하나요?
+ 79 O    AO   AO     0.685 high         9ms 인보이스나 송장도 제출해야 하나요?
+ 80 O    L    L      0.918 high         8ms 특허 신청서 첨부서류 목록이 있나요?
+ 81 O    N    N      1.000 high         2ms 보세전시장에서 허가 없이 물품을 반출하면 어떻게 되나요
+ 82 O    N    N      0.822 high         8ms 무허가 반출 시 처벌이 있나요?
+ 83 O    O    O      1.000 high         2ms 수입면허 없이 판매용 물품을 사용하면 제재가 있나요?
+ 84 O    O    O      0.830 high         9ms 면허 없이 판매하면 어떻게 제재 받나요?
+ 85 O    P    P      1.000 high         2ms 보세전시장 운영인이 의무를 위반하면 어떤 처분을 받나요
+ 86 T    P    BA     0.787 high         8ms 운영인 의무위반시 특허 취소되나요?
+ 87 O    AP   AP     1.000 high         0ms 과태료 금액은 어떻게 결정되나요?
+ 88 O    AP   AP     0.737 high         9ms 과태료가 얼마나 부과되나요?
+ 89 O    N    N      0.589 high         9ms 밀수출입죄가 적용될 수 있나요?
+ 90 O    P    P      0.839 high         8ms 업무 정지 처분 기준이 있나요?
+ 91 O    Q    Q      1.000 high         1ms 보세전시장 관련 문의는 어디에 하면 되나요?
+ 92 O    Q    Q      0.829 high        10ms 관세청 고객지원센터 전화번호가 어떻게 되나요?
+ 93 O    R    R      1.000 high         1ms UNI-PASS 사용 중 오류가 나면 어디에 연락하나요
+ 94 O    R    R      0.681 high        16ms 유니패스 시스템 오류 신고는 어디로 하나요?
+ 95 O    S    S      1.000 high         1ms 보세전시장 특허 관련 담당 부서가 어디인가요?
+ 96 O    S    S      0.617 high         9ms 보세산업과는 무엇을 담당하나요?
+ 97 O    AQ   AQ     1.000 high         1ms 관세 불복 절차는 어떻게 되나요?
+ 98 T    AQ   M      0.550 medium       9ms 이의신청은 어떻게 제기하나요?
+ 99 O    AX   AX     1.000 high         1ms 관세사에게 대행을 맡길 수 있나요?
+100 O    AX   AX     0.516 medium       9ms 관세사 위임이 가능한가요?
