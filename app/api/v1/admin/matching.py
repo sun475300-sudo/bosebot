@@ -1,4 +1,4 @@
-﻿"""매칭 가중치 관리 Admin API."""
+"""매칭 가중치 관리 Admin API."""
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel

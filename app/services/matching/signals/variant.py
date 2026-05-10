@@ -1,4 +1,4 @@
-﻿"""변형 질문 매칭 시그널."""
+"""변형 질문 매칭 시그널."""
 
 import asyncio
 import os

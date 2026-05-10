@@ -1,4 +1,4 @@
-﻿"""한국어 토크나이저 서비스 — src/korean_tokenizer.py 비동기 래퍼."""
+"""한국어 토크나이저 서비스 — src/korean_tokenizer.py 비동기 래퍼."""
 
 import asyncio
 

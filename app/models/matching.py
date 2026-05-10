@@ -1,4 +1,4 @@
-﻿"""FAQ 매칭 결과 Pydantic v2 모델."""
+"""FAQ 매칭 결과 Pydantic v2 모델."""
 
 from typing import Literal
 from pydantic import BaseModel, Field

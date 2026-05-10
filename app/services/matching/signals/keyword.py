@@ -1,4 +1,4 @@
-﻿"""키워드 매칭 시그널."""
+"""키워드 매칭 시그널."""
 
 import asyncio
 from typing import Any

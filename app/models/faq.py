@@ -1,4 +1,4 @@
-﻿"""FAQ 관련 Pydantic v2 모델."""
+"""FAQ 관련 Pydantic v2 모델."""
 
 from enum import StrEnum
 from pydantic import BaseModel, Field

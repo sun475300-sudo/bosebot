@@ -1,4 +1,4 @@
-﻿"""의도 분류 및 엔티티 추출 Pydantic v2 모델."""
+"""의도 분류 및 엔티티 추출 Pydantic v2 모델."""
 
 from pydantic import BaseModel, Field
 from app.models.faq import FAQCategory

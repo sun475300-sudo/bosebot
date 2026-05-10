@@ -1,4 +1,4 @@
-﻿"""사용자 피드백 비동기 repository.
+"""사용자 피드백 비동기 repository.
 
 feedback 스키마:
   id INTEGER PK AUTOINCREMENT
@@ -11,6 +11,10 @@ feedback 스키마:
 from datetime import datetime
 from typing import Any
 from app.repositories.base import AsyncDBPool
+
+import structlog
+
+log = structlog.get_logger(__name__)
 
 
 class FeedbackRepository:

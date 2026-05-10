@@ -1,8 +1,12 @@
-﻿"""aiosqlite 기반 비동기 Repository 기반 클래스."""
+"""aiosqlite 기반 비동기 Repository 기반 클래스."""
 
 import aiosqlite
 import os
 from typing import Any
+
+import structlog
+
+log = structlog.get_logger(__name__)
 
 
 class AsyncDBPool:

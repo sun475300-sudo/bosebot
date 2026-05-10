@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter
+from fastapi import APIRouter
 from app.api.v1 import health, chat, feedback
 from app.api.v1.admin import router as admin_router
 

@@ -1,4 +1,4 @@
-﻿"""엔티티 추출 서비스 — EntityExtractorV2 비동기 래퍼.
+"""엔티티 추출 서비스 — EntityExtractorV2 비동기 래퍼.
 
 EntityExtractorV2.extract(query) -> List[Dict]
 각 Dict: {type, value, span, context, ...}

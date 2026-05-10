@@ -1,9 +1,13 @@
-﻿"""채팅 API 엔드포인트."""
+"""채팅 API 엔드포인트."""
 
 import uuid
 from fastapi import APIRouter, Request
 from app.models.chat import ChatRequest, ChatResponse
 from app.models.common import APIResponse
+
+import structlog
+
+log = structlog.get_logger(__name__)
 
 router = APIRouter(tags=["chat"])
 

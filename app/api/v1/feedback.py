@@ -1,8 +1,12 @@
-﻿"""피드백 API 엔드포인트."""
+"""피드백 API 엔드포인트."""
 
 from fastapi import APIRouter
 from app.models.feedback import FeedbackRequest, FeedbackResponse
 from app.models.common import APIResponse
+
+import structlog
+
+log = structlog.get_logger(__name__)
 
 router = APIRouter(tags=["feedback"])
 

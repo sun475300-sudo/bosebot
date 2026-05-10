@@ -1,7 +1,11 @@
-﻿"""통계 Admin API."""
+"""통계 Admin API."""
 
 from fastapi import APIRouter
 from app.models.common import APIResponse
+
+import structlog
+
+log = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 

@@ -1,4 +1,4 @@
-﻿"""FAQ 데이터 비동기 repository.
+"""FAQ 데이터 비동기 repository.
 
 data/faq.json 구조:
   faq_version: str
@@ -17,6 +17,10 @@ import asyncio
 import hashlib
 import json
 from typing import Any
+
+import structlog
+
+log = structlog.get_logger(__name__)
 
 
 class FAQRepository:

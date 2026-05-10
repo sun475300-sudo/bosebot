@@ -1,4 +1,4 @@
-﻿"""점수 융합 전략.
+"""점수 융합 전략.
 
 WeightedSumFusion: 가중 합산 (기본)
 RRFFusion: Reciprocal Rank Fusion (강건한 대안)
@@ -7,6 +7,10 @@ RRFFusion: Reciprocal Rank Fusion (강건한 대안)
 from __future__ import annotations
 import math
 from typing import Any
+
+import structlog
+
+log = structlog.get_logger(__name__)
 
 
 def _minmax_normalize(scores: dict[str, float]) -> dict[str, float]:

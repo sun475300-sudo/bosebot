@@ -3,6 +3,10 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from app.models.common import APIResponse
 
+import structlog
+
+log = structlog.get_logger(__name__)
+
 router = APIRouter(tags=["health"])
 
 

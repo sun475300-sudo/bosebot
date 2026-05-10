@@ -1,4 +1,4 @@
-﻿"""채팅 오케스트레이터 서비스.
+"""채팅 오케스트레이터 서비스.
 
 파이프라인:
   1. 전처리 (Preprocessor)
@@ -17,6 +17,8 @@ import time
 import uuid
 from typing import Any
 
+import structlog
+
 from app.models.chat import ChatRequest, ChatResponse, EscalationDecision
 from app.models.intent import IntentClassification, EntityExtraction
 from app.models.matching import FAQSearchHit, MatchExplanation
@@ -25,6 +27,8 @@ from app.services.nlp.preprocessor import Preprocessor
 from app.services.nlp.classifier import ClassifierService
 from app.services.nlp.entity_extractor import EntityExtractorService
 from app.services.matching.retriever import FAQRetriever, MEDIUM_CONFIDENCE
+
+log = structlog.get_logger(__name__)
 
 
 class ChatService:
@@ -85,6 +89,15 @@ class ChatService:
         )
 
         latency_ms = int((time.monotonic() - start) * 1000)
+        log.info(
+            "chat_processed",
+            request_id=request_id,
+            query_len=len(req.query),
+            intent=intent.primary_category.value if intent else None,
+            confidence_band=explain.confidence_band,
+            matched_faq=top_hit.faq_id if top_hit else None,
+            latency_ms=latency_ms,
+        )
         return ChatResponse(
             response=response_text,
             intent=intent,
@@ -99,6 +112,7 @@ class ChatService:
     @staticmethod
     def _check_escalation(query: str) -> EscalationDecision:
         from src.escalation import check_escalation, get_escalation_contact
+
         rule = check_escalation(query)
         if not rule:
             return EscalationDecision()
@@ -138,7 +152,6 @@ class ChatService:
         else:
             result = self._response_builder.build(faq_item)
 
-        # format_plain returns the text representation
         try:
             return self._response_builder.format_plain(result)
         except Exception:

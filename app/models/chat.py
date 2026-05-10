@@ -1,4 +1,4 @@
-﻿"""채팅 요청/응답 Pydantic v2 모델."""
+"""채팅 요청/응답 Pydantic v2 모델."""
 
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field

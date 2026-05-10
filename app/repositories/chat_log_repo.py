@@ -1,4 +1,4 @@
-﻿"""챗봇 대화 로그 비동기 repository.
+"""챗봇 대화 로그 비동기 repository.
 
 chat_logs 스키마:
   id INTEGER PK AUTOINCREMENT
@@ -13,6 +13,10 @@ chat_logs 스키마:
 from datetime import datetime
 from typing import Any
 from app.repositories.base import AsyncDBPool
+
+import structlog
+
+log = structlog.get_logger(__name__)
 
 
 class ChatLogRepository:

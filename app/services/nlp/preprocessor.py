@@ -1,4 +1,4 @@
-﻿"""NLP 전처리 서비스 — 맞춤법 교정 + 동의어 확장 + 정규화.
+"""NLP 전처리 서비스 — 맞춤법 교정 + 동의어 확장 + 정규화.
 
 기존 구현 래핑 (재작성 없음):
   src/spell_corrector.py:correct_query -> (corrected: str, corrections: list)
@@ -8,6 +8,10 @@
 
 import asyncio
 from dataclasses import dataclass
+
+import structlog
+
+log = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -37,7 +41,6 @@ class Preprocessor:
         from src.utils import normalize_query
         from src.spell_corrector import correct_query
         from src.synonym_resolver import expand_query
-
         normalized = normalize_query(query)
         # correct_query returns (corrected_str, corrections_list)
         spell_result = correct_query(normalized)

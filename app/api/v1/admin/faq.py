@@ -1,4 +1,4 @@
-﻿"""FAQ 관리 Admin API."""
+"""FAQ 관리 Admin API."""
 
 from fastapi import APIRouter, Request
 from app.models.common import APIResponse

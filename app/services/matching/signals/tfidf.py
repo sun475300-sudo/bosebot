@@ -1,4 +1,4 @@
-﻿"""TF-IDF 매칭 시그널."""
+"""TF-IDF 매칭 시그널."""
 
 import asyncio
 from typing import Any

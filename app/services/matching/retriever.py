@@ -1,4 +1,4 @@
-﻿"""FAQ 앙상블 Retriever — 핵심 매칭 엔진.
+"""FAQ 앙상블 Retriever — 핵심 매칭 엔진.
 
 파이프라인:
   1. 전처리 (preprocessor)
@@ -24,6 +24,10 @@ from app.services.matching.signals.bm25 import Bm25Signal
 from app.services.matching.signals.variant import VariantSignal
 from app.services.matching.signals.vector import VectorSignal
 from app.services.nlp.preprocessor import PreprocessedQuery
+
+import structlog
+
+log = structlog.get_logger(__name__)
 
 HIGH_CONFIDENCE = 0.55
 MEDIUM_CONFIDENCE = 0.35
