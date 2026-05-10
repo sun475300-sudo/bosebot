@@ -1,0 +1,21 @@
+﻿# FAQ 앙상블 매처 가중치 및 임계값 설정
+# POST /api/v1/admin/matching/reload-weights 로 런타임 리로드 가능
+
+fusion_strategy: weighted_sum  # weighted_sum | rrf | hybrid
+
+weights:
+  keyword: 0.15
+  tfidf: 0.20
+  bm25: 0.25
+  variant: 0.15
+  vector: 0.25
+
+thresholds:
+  high_confidence: 0.55    # 직접 답변
+  medium_confidence: 0.35  # 명확화 요청
+  tiebreak_margin: 0.05    # top1-top2 < 이 값이면 명확화 강제
+
+category_bonus:
+  enabled: true
+  multiplier: 1.05
+  min_classifier_confidence: 0.7
