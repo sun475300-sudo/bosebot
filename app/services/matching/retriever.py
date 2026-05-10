@@ -91,6 +91,30 @@ class FAQRetriever:
                 )
                 return [hit], explain
 
+        # 변형 질문 고신뢰도 매치 → hard-lock (variant score ≥ 0.92)
+        variant_hit = await asyncio.to_thread(
+            self._variant._matcher.find_match, pq.original.strip()
+        )
+        if variant_hit is None:
+            variant_hit = await asyncio.to_thread(
+                self._variant._matcher.find_match, pq.expanded.strip()
+            )
+        if variant_hit and variant_hit.get("score", 0.0) >= 0.92:
+            faq_id = variant_hit["faq_id"]
+            item = self._by_id.get(faq_id)
+            if item:
+                score = min(1.0, variant_hit["score"])
+                hit = self._make_hit(item, score)
+                explain = MatchExplanation(
+                    final_score=score,
+                    fusion_strategy="weighted_sum",
+                    confidence_band="high",
+                    chosen_via="exact_alias",
+                    candidate_pool_size=1,
+                    category_filter=category_filter,
+                )
+                return [hit], explain
+
         # 후보 생성 (전체 FAQ 대상)
         candidates = self._items
 
