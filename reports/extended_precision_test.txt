@@ -1,0 +1,197 @@
+======================================================================
+PART 1: 기존 골든셋 (100문항) 회귀 확인
+======================================================================
+Top-1: 97/100 = 97%
+Top-3: 99/100 = 99%
+
+[Top-3 미포함]
+  #100 expected=AX top3=['AU', 'AS', 'AM']  Q=관세사 위임이 가능한가요?
+
+======================================================================
+PART 2: 확장 챌린지셋 (77문항)
+======================================================================
+Top-1: 50/77 = 64.9%
+Top-3: 67/77 = 87.0%
+
+[유형별]
+  Abbrev          6/15 top-1= 40.0%  top-3= 53.3%
+  Edge            7/8  top-1= 87.5%  top-3= 87.5%
+  운영인 Guard       7/9  top-1= 77.8%  top-3=100.0%
+  Paraphrase     30/45 top-1= 66.7%  top-3= 95.6%
+
+[카테고리별]
+  CONTACT                 4/5  top-1= 80.0%  top-3=100.0%
+  DOCUMENTS               2/4  top-1= 50.0%  top-3=100.0%
+  EXHIBITION              4/7  top-1= 57.1%  top-3= 57.1%
+  FOOD_TASTING            4/7  top-1= 57.1%  top-3= 85.7%
+  GENERAL                16/19 top-1= 84.2%  top-3= 94.7%
+  IMPORT_EXPORT           3/8  top-1= 37.5%  top-3= 62.5%
+  INSPECTION              0/1  top-1=  0.0%  top-3=100.0%
+  LICENSE                 4/6  top-1= 66.7%  top-3=100.0%
+  PATENT_INFRINGEMENT     1/2  top-1= 50.0%  top-3=100.0%
+  PENALTIES               6/7  top-1= 85.7%  top-3=100.0%
+  SALES                   3/5  top-1= 60.0%  top-3= 80.0%
+  SAMPLE                  3/6  top-1= 50.0%  top-3= 83.3%
+
+[Top-1 실패 27건]
+  #  2 [GR/GENERAL] expected=AR got=E top3=['E', 'AR', 'I'] (Top3 O)
+        via=ensemble band=high score=0.562  Q=운영인 요건이 어떻게 되나요?
+  #  5 [GR/GENERAL] expected=AR got=E top3=['E', 'AR', 'BA'] (Top3 O)
+        via=ensemble band=medium score=0.524  Q=운영자 요건이 뭔가요
+  # 11 [AB/GENERAL] expected=AJ got=AY top3=['AY', 'AB', 'F'] (Top3 X)
+        via=ensemble band=high score=0.559  Q=행사 주최 시 준비사항
+  # 15 [AB/IMPORT_EXPORT] expected=AS got=AB top3=['AB', 'C', 'AY'] (Top3 X)
+        via=ensemble band=medium score=0.490  Q=전시장 간 물품이동 가능여부 알려주세요
+  # 16 [P/IMPORT_EXPORT] expected=AB got=AY top3=['AY', 'AB', 'B'] (Top3 O)
+        via=ensemble band=high score=0.592  Q=세관 검사 절차가 궁금해요 (보세전시장)
+  # 17 [AB/IMPORT_EXPORT] expected=W got=AC top3=['AC', 'AT', 'P'] (Top3 X)
+        via=ensemble band=medium score=0.450  Q=잔여물품 처리방법
+  # 18 [P/IMPORT_EXPORT] expected=AL got=AC top3=['AC', 'M', 'AL'] (Top3 O)
+        via=ensemble band=high score=0.623  Q=반입물품 가액신고 어떻게 하나요
+  # 23 [AB/SALES] expected=AD got=C top3=['C', 'O', 'AE'] (Top3 X)
+        via=ensemble band=high score=0.560  Q=판매대금 정산 방법
+  # 26 [P/SAMPLE] expected=AG got=Z top3=['Z', 'M', 'AG'] (Top3 O)
+        via=ensemble band=high score=0.575  Q=견본품 반출 후 다시 돌려놔야 하나요
+  # 27 [P/SAMPLE] expected=M got=D top3=['D', 'M', 'N'] (Top3 O)
+        via=ensemble band=high score=0.560  Q=샘플 반출 허가 신청처가 어디인가요
+  # 28 [AB/SAMPLE] expected=AF got=Z top3=['Z', 'M', 'D'] (Top3 X)
+        via=ensemble band=high score=0.561  Q=견본품 수량 한도
+  # 30 [P/FOOD_TASTING] expected=AV got=Y top3=['Y', 'AV', 'AH'] (Top3 O)
+        via=ensemble band=high score=0.614  Q=시식 식품 라벨 표기 의무
+  # 31 [P/FOOD_TASTING] expected=AH got=AI top3=['AI', 'AH', 'E'] (Top3 O)
+        via=ensemble band=medium score=0.532  Q=시식 식품 반입수량 제한 있어요?
+  # 32 [P/FOOD_TASTING] expected=AI got=AE top3=['AE', 'AH', 'Y'] (Top3 X)
+        via=ensemble band=high score=0.556  Q=시식행사 사전신고 의무?
+  # 36 [AB/LICENSE] expected=AK got=BB top3=['BB', 'AK', 'BA'] (Top3 O)
+        via=ensemble band=medium score=0.466  Q=특허취소 사유는?
+  # 38 [P/LICENSE] expected=G got=Q top3=['Q', 'G', 'R'] (Top3 O)
+        via=ensemble band=medium score=0.474  Q=특허신청 근거 어디 봐야하나요
+  # 39 [AB/EXHIBITION] expected=H got=W top3=['W', 'D', 'S'] (Top3 X)
+        via=ensemble band=medium score=0.533  Q=전시품 종류 제한
+  # 40 [AB/EXHIBITION] expected=I got=H top3=['H', 'AS', 'W'] (Top3 X)
+        via=ensemble band=high score=0.591  Q=장치된 물품 사용범위
+  # 47 [AB/DOCUMENTS] expected=AO got=AE top3=['AE', 'AO', 'L'] (Top3 O)
+        via=ensemble band=medium score=0.534  Q=수입면허 신청서류
+  # 48 [P/DOCUMENTS] expected=AW got=K top3=['K', 'AW', 'L'] (Top3 O)
+        via=ensemble band=high score=0.572  Q=운영 종료 보고서 제출 방법
+  # 58 [P/CONTACT] expected=AQ got=AE top3=['AE', 'Z', 'AQ'] (Top3 O)
+        via=ensemble band=high score=0.579  Q=관세 이의신청 절차
+  # 60 [P/INSPECTION] expected=AY got=AB top3=['AB', 'AY', 'A'] (Top3 O)
+        via=ensemble band=high score=0.577  Q=보세전시장 물품검사 진행방식
+  # 62 [P/PATENT_INFRINGEMENT] expected=AZ got=P top3=['P', 'O', 'AZ'] (Top3 O)
+        via=ensemble band=medium score=0.431  Q=모조품 적발시 처리
+  # 67 [EG/IMPORT_EXPORT] expected=W got=AC top3=['AC', 'A', 'Q'] (Top3 X)
+        via=ensemble band=high score=0.594  Q=보세전시장 종료 후 잔여물품
+  # 71 [P/EXHIBITION] expected=AM got=F top3=['F', 'R', 'X'] (Top3 X)
+        via=ensemble band=medium score=0.371  Q=전시기간 중 물품바꿔도 됨?
+  # 72 [P/PENALTIES] expected=O got=C top3=['C', 'O', 'AE'] (Top3 O)
+        via=ensemble band=high score=0.570  Q=면허 없이 판매하면 어떻게됨
+  # 75 [P/SALES] expected=AD got=C top3=['C', 'AD', 'O'] (Top3 O)
+        via=ensemble band=high score=0.583  Q=보세전시장에서 판매한 후 결제는?
+
+======================================================================
+PART 3: 운영인↔시식 디스앰비귀에이션 회귀 가드
+======================================================================
+  O #  1 [ AR<-AR] via=exact_alias band=high   score=1.000  운영인의 요건을 알려줘
+  X #  2 [  E<-AR] via=ensemble    band=high   score=0.562  운영인 요건이 어떻게 되나요?
+  O #  3 [ AR<-AR] via=ensemble    band=medium score=0.526  운영인 자격조건을 알고싶어요
+  O #  4 [ AR<-AR] via=ensemble    band=high   score=0.567  운영인이 되기 위한 자격은?
+  X #  5 [  E<-AR] via=ensemble    band=medium score=0.524  운영자 요건이 뭔가요
+  O #  6 [ AR<-AR] via=ensemble    band=high   score=0.596  보세전시장 운영인 자격 알려주세요
+  O #  7 [ AR<-AR] via=ensemble    band=high   score=0.561  운영인 자격조건 궁금합니다
+  O # 69 [ AR<-AR] via=ensemble    band=high   score=0.589  운영자가 갖춰야 할 조건
+  O # 70 [ AR<-AR] via=ensemble    band=high   score=0.636  운영자의 자격요건
+
+  운영인 Guard: 7/9 = 77.8%
+
+======================================================================
+PART 4: 전체 결과표 (확장셋)
+======================================================================
+    # 결과   유형  기대   실제   스코어     밴드         ms  질문
+    1 O    GR  AR   AR    1.000 high       2ms  운영인의 요건을 알려줘
+    2 X    GR  AR   E     0.562 high       6ms  운영인 요건이 어떻게 되나요?
+    3 O    GR  AR   AR    0.526 medium     4ms  운영인 자격조건을 알고싶어요
+    4 O    GR  AR   AR    0.567 high       6ms  운영인이 되기 위한 자격은?
+    5 X    GR  AR   E     0.524 medium     5ms  운영자 요건이 뭔가요
+    6 O    GR  AR   AR    0.596 high       4ms  보세전시장 운영인 자격 알려주세요
+    7 O    GR  AR   AR    0.561 high       5ms  운영인 자격조건 궁금합니다
+    8 O    P   A    A     0.150 low        4ms  보세전시장이라는게 도대체 뭔지 설명해주세요
+    9 O    P   T    T     0.672 high       5ms  보세창고랑 보세전시장 비교 좀
+   10 O    AB  AC   AC    0.650 high       4ms  내국물품 전시 가능여부
+   11 X    AB  AJ   AY    0.559 high       6ms  행사 주최 시 준비사항
+   12 O    P   BC   BC    0.549 medium     6ms  이 고시 목적이 뭐죠?
+   13 O    P   U    U     0.595 high       5ms  보세전시장 이용 대상자는 누구인가요?
+   14 O    P   V    V     0.576 high       6ms  전시 끝난 물품 해외 재반송하려면?
+   15 X    AB  AS   AB    0.490 medium     7ms  전시장 간 물품이동 가능여부 알려주세요
+   16 X    P   AB   AY    0.592 high       5ms  세관 검사 절차가 궁금해요 (보세전시장)
+   17 X    AB  W    AC    0.450 medium     5ms  잔여물품 처리방법
+   18 X    P   AL   AC    0.623 high       6ms  반입물품 가액신고 어떻게 하나요
+   19 O    P   B    B     0.593 high       6ms  물품 반입 반출 신고 의무가 있나요?
+   20 O    P   C    C     0.650 high       6ms  전시장에서 즉시 판매 가능?
+   21 O    P   X    X     0.585 high       7ms  계약만 먼저 하고 통관은 나중에 가능?
+   22 O    P   AE   AE    0.581 high       4ms  수입면허 신청 절차 (판매전)
+   23 X    AB  AD   C     0.560 high       5ms  판매대금 정산 방법
+   24 O    P   D    D     0.533 medium     5ms  샘플 외부반출 가능여부
+   25 O    P   Z    Z     0.655 high       3ms  견본품 관세 부과되나요?
+   26 X    P   AG   Z     0.575 high       7ms  견본품 반출 후 다시 돌려놔야 하나요
+   27 X    P   M    D     0.560 high       5ms  샘플 반출 허가 신청처가 어디인가요
+   28 X    AB  AF   Z     0.561 high       5ms  견본품 수량 한도
+   29 O    P   E    E     0.565 high       5ms  시식 식품 요건확인 면제되는지
+   30 X    P   AV   Y     0.614 high       6ms  시식 식품 라벨 표기 의무
+   31 X    P   AH   AI    0.532 medium     6ms  시식 식품 반입수량 제한 있어요?
+   32 X    P   AI   AE    0.556 high       6ms  시식행사 사전신고 의무?
+   33 O    P   Y    Y     0.612 high       5ms  시식 후 남은 식품 처리법
+   34 O    AB  F    F     0.570 high       5ms  특허기간 얼마나 되나요
+   35 O    P   AA   AA    0.584 high       4ms  특허 갱신 가능?
+   36 X    AB  AK   BB    0.466 medium     3ms  특허취소 사유는?
+   37 O    P   AT   AT    0.592 high       5ms  특허신청 수수료 있나요
+   38 X    P   G    Q     0.474 medium     6ms  특허신청 근거 어디 봐야하나요
+   39 X    AB  H    W     0.533 medium     5ms  전시품 종류 제한
+   40 X    AB  I    H     0.591 high       5ms  장치된 물품 사용범위
+   41 O    P   J    J     0.561 high       4ms  데모 시연 가능?
+   42 O    P   AM   AM    0.660 high       5ms  전시 중 물품 교체 가능?
+   43 O    AB  AN   AN    0.500 medium     6ms  전시장 보관 주의사항
+   44 O    P   AU   AU    0.350 low        6ms  전시장 사진촬영/홍보 활동 가능?
+   45 O    P   K    K     0.550 medium     5ms  반출입신고서 양식이 뭔가요
+   46 O    P   L    L     0.570 high       6ms  특허신청 시 제출서류 목록
+   47 X    AB  AO   AE    0.534 medium     4ms  수입면허 신청서류
+   48 X    P   AW   K     0.572 high       6ms  운영 종료 보고서 제출 방법
+   49 O    P   N    N     0.569 high       6ms  허가 없이 반출 시 처벌은?
+   50 O    AB  O    O     0.565 high       5ms  수입면허 없이 판매용 사용시 제재
+   51 O    AB  P    P     0.626 high       2ms  운영인 의무위반 처분
+   52 O    P   AP   AP    0.571 high       5ms  과태료 산정 기준
+   53 O    P   BA   BA    0.579 high       4ms  운영인 의무위반시 특허취소 되나요
+   54 O    P   BB   BB    0.394 medium     5ms  보세전시장 폐쇄되는 경우
+   55 O    P   Q    Q     0.595 high       5ms  보세전시장 문의처가 어디?
+   56 O    P   R    R     0.494 medium     5ms  유니패스 장애 신고 어디로?
+   57 O    AB  S    S     0.586 high       4ms  특허 담당부서 알려주세요
+   58 X    P   AQ   AE    0.579 high       4ms  관세 이의신청 절차
+   59 O    P   AX   AX    0.561 high       5ms  관세사 대행 가능?
+   60 X    P   AY   AB    0.577 high       4ms  보세전시장 물품검사 진행방식
+   61 O    P   AZ   AZ    0.595 high       5ms  위조품 발견하면 어떻게?
+   62 X    P   AZ   P     0.431 medium     4ms  모조품 적발시 처리
+   63 O    EG  A    A     1.000 high       1ms  보세전시장이 뭔가요?
+   64 O    EG  A    A     0.595 high       5ms  보세전시장 정의 알려주세요
+   65 O    EG  D    D     0.533 medium     7ms  전시품 외부반출 가능여부
+   66 O    EG  T    T     0.450 medium     5ms  보세창고와의 차이점
+   67 X    EG  W    AC    0.594 high       6ms  보세전시장 종료 후 잔여물품
+   68 O    EG  U    U     0.633 high       4ms  보세전시장 사용 자격
+   69 O    GR  AR   AR    0.589 high       6ms  운영자가 갖춰야 할 조건
+   70 O    GR  AR   AR    0.636 high       5ms  운영자의 자격요건
+   71 X    P   AM   F     0.371 medium     6ms  전시기간 중 물품바꿔도 됨?
+   72 X    P   O    C     0.570 high       6ms  면허 없이 판매하면 어떻게됨
+   73 O    P   AK   AK    0.618 high       5ms  특허 취소될 수 있는 경우들
+   74 O    P   W    W     0.578 high       6ms  전시 종료 후 남은 물건은?
+   75 X    P   AD   C     0.583 high       6ms  보세전시장에서 판매한 후 결제는?
+   76 O    EG  E    E     0.590 high       6ms  시식 식품 요건은 어떻게 되나요?
+   77 O    EG  E    E     0.658 high       4ms  시식용 식품 요건확인 받아야 하나요?
+
+======================================================================
+종합 요약
+======================================================================
+  전체 문항: 177
+  Top-1: 147/177 = 83.1%
+  Top-3: 166/177 = 93.8%
+  - 골든셋(100):  Top-1 97%  Top-3 99%
+  - 확장셋(77):   Top-1 64.9%  Top-3 87.0%
+  - 운영인 Guard: 7/9 = 77.8%
