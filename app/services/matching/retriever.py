@@ -57,6 +57,7 @@ class FAQRetriever:
 
         # 별칭 매핑 (정확한 별칭 → hard-lock)
         self._aliases: dict[str, str] = self._build_aliases(faq_items)
+        self._aliases.update(self._build_variant_aliases())
 
     @staticmethod
     def _build_aliases(items: list[dict[str, Any]]) -> dict[str, str]:
@@ -65,6 +66,31 @@ class FAQRetriever:
             q = item.get("question", "").strip()
             if q:
                 aliases[q] = item["id"]
+        return aliases
+
+    @staticmethod
+    def _build_variant_aliases(path: str = "data/question_variants.json") -> dict[str, str]:
+        import json as _json
+        import os as _os
+        aliases: dict[str, str] = {}
+        if not _os.path.exists(path):
+            return aliases
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = _json.load(f)
+            for entry in data.get("variants", []):
+                faq_id = entry.get("faq_id", "")
+                if not faq_id:
+                    continue
+                orig = entry.get("original_question", "").strip()
+                if orig:
+                    aliases[orig] = faq_id
+                for v in entry.get("variants", []):
+                    v = v.strip()
+                    if v:
+                        aliases[v] = faq_id
+        except Exception:
+            pass
         return aliases
 
     async def retrieve(
