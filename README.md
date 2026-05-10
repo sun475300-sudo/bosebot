@@ -5,6 +5,128 @@
 
 ---
 
+## 실행방법
+
+> 처음 사용하는 분도 이 순서대로 따라 하면 챗봇을 바로 실행할 수 있습니다.
+
+### 1단계 — Python 설치 확인
+
+터미널(명령 프롬프트)을 열고 아래 명령어를 입력합니다.
+
+```sh
+python --version
+```
+
+- **숫자가 나오면** (예: `Python 3.11.2`) → 바로 2단계로 이동하세요.
+- **오류가 나오면** → [python.org](https://www.python.org/downloads/) 에서 Python 3.11 이상을 설치하세요.  
+  설치 화면에서 **"Add Python to PATH"** 체크박스를 반드시 체크하세요.
+
+---
+
+### 2단계 — 소스코드 받기
+
+```sh
+git clone https://github.com/sun475300-sudo/bonded-exhibition-chatbot-data.git
+cd bonded-exhibition-chatbot-data
+```
+
+> Git이 없으면: 위 GitHub 주소에서 **Code > Download ZIP** 으로 다운로드 후 압축 해제하고, 해당 폴더로 이동하세요.
+
+---
+
+### 3단계 — 가상환경 만들기 (최초 1회만)
+
+```sh
+python -m venv .venv
+```
+
+> 이 명령어는 프로젝트 전용 Python 환경을 만드는 것입니다. 한 번만 하면 됩니다.
+
+---
+
+### 4단계 — 가상환경 켜기
+
+**Windows (PowerShell):**
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+**Windows (명령 프롬프트):**
+
+```bat
+.\.venv\Scripts\activate.bat
+```
+
+**Mac / Linux:**
+
+```sh
+source .venv/bin/activate
+```
+
+> 명령어 앞에 `(.venv)` 표시가 나타나면 성공입니다.
+
+---
+
+### 5단계 — 필요한 패키지 설치 (최초 1회만)
+
+```sh
+pip install -r requirements.txt
+```
+
+> 인터넷에서 필요한 프로그램들을 자동으로 설치합니다. 5~10분 정도 걸릴 수 있습니다.
+
+---
+
+### 6단계 — 챗봇 서버 실행
+
+```sh
+uvicorn app.main:app --reload --port 8001
+```
+
+> 아래와 같은 메시지가 나오면 성공입니다.
+>
+> ```
+> INFO:     Uvicorn running on http://127.0.0.1:8001
+> ```
+
+---
+
+### 7단계 — 챗봇 사용
+
+서버가 실행된 상태에서, **새 터미널 창**을 열고 아래 명령어로 질문해 보세요.
+
+**Windows (PowerShell):**
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8001/api/v1/chat" `
+  -Method POST `
+  -ContentType "application/json; charset=utf-8" `
+  -Body '{"query": "보세전시장이 뭔가요?"}'
+```
+
+**Mac / Linux / Windows Git Bash:**
+```bash
+curl -s -X POST http://localhost:8001/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{"query": "보세전시장이 뭔가요?"}' | python -m json.tool
+```
+
+또는 브라우저에서 **http://localhost:8001/docs** 를 열면 화면으로 직접 질문할 수 있습니다.
+
+---
+
+## 자주 하는 실수
+
+| 문제 | 해결 방법 |
+|------|-----------|
+| `python` 명령어를 모른다고 나온다 | Python 설치 시 "Add to PATH" 체크 후 재설치 |
+| `Activate.ps1` 실행이 막힌다 | PowerShell에 `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser` 입력 후 다시 시도 |
+| `pip install` 중간에 멈춘다 | 인터넷 연결 확인 후 다시 실행 |
+| 서버가 이미 실행 중이라고 나온다 | `--port 8002` 로 포트 번호를 바꿔서 실행 |
+| 브라우저에서 아무것도 안 나온다 | 서버가 켜진 터미널을 닫지 않았는지 확인 |
+
+---
+
 ## 주요 수치
 
 | 항목 | 수치 |
