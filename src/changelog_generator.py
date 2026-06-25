@@ -27,7 +27,7 @@ import re
 import subprocess
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence
+from typing import List, Optional, Sequence
 
 
 # (prefix → (display_section, emoji))

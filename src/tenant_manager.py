@@ -22,12 +22,14 @@ class TenantManager:
     각 테넌트에 대해 독립적인 FAQ 및 설정을 제공한다.
     """
 
-    def __init__(self, db_path=None, data_dir=None):
+    def __init__(self, db_path=None, data_dir=None, logs_dir=None):
         self.db_path = db_path or DEFAULT_DB_PATH
         self.data_dir = data_dir or os.path.join(BASE_DIR, "data")
+        self.logs_dir = logs_dir or os.path.join(BASE_DIR, "logs")
         self._local = threading.local()
         os.makedirs(os.path.dirname(os.path.abspath(self.db_path)), exist_ok=True)
         os.makedirs(self.data_dir, exist_ok=True)
+        os.makedirs(self.logs_dir, exist_ok=True)
         self._init_db()
         self._ensure_default_tenant()
 
@@ -37,6 +39,13 @@ class TenantManager:
             self._local.conn = sqlite3.connect(self.db_path)
             self._local.conn.row_factory = sqlite3.Row
         return self._local.conn
+
+    def close(self):
+        """Close the current thread's SQLite connection."""
+        conn = getattr(self._local, "conn", None)
+        if conn is not None:
+            conn.close()
+            self._local.conn = None
 
     def _init_db(self):
         """테넌트 테이블을 초기화한다."""
@@ -79,10 +88,8 @@ class TenantManager:
     def _tenant_log_db_path(self, tenant_id):
         """테넌트별 로그 DB 경로를 반환한다."""
         if tenant_id == "default":
-            return os.path.join(BASE_DIR, "logs", "chat_logs.db")
-        logs_dir = os.path.join(BASE_DIR, "logs")
-        os.makedirs(logs_dir, exist_ok=True)
-        return os.path.join(logs_dir, f"chat_logs_{tenant_id}.db")
+            return os.path.join(self.logs_dir, "chat_logs.db")
+        return os.path.join(self.logs_dir, f"chat_logs_{tenant_id}.db")
 
     def _row_to_dict(self, row):
         """SQLite Row 객체를 딕셔너리로 변환한다."""

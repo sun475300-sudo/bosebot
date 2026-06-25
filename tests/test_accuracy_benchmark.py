@@ -356,6 +356,11 @@ class TestAdminApi:
         for key in ("id", "timestamp", "total", "category_accuracy", "faq_accuracy"):
             assert key in entry
 
+    def test_history_endpoint_rejects_invalid_limit(self, client):
+        res = client.get("/api/admin/benchmark/history?limit=0")
+        assert res.status_code == 400
+        assert "limit" in res.get_json()["error"]
+
 
 def test_default_category_aliases_contains_display_use():
     assert DEFAULT_CATEGORY_ALIASES.get("DISPLAY_USE") == "EXHIBITION"

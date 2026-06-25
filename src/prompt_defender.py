@@ -1,6 +1,6 @@
 """Prompt Injection Defender 모듈 (Phase 63).
 
-사용자의 입력에서 SQL 인젝션, XSS(크로스 사이트 스크립팅), 
+사용자의 입력에서 SQL 인젝션, XSS(크로스 사이트 스크립팅),
 또는 LLM 시스템 프롬프트를 탈취하려는 시도를 감지하여 차단합니다.
 """
 from __future__ import annotations
@@ -17,8 +17,22 @@ class PromptDefender:
         # XSS, SQLi, 시스템 프롬프트 유출 시도 패턴
         self.blacklist_patterns = [
             re.compile(r'(?i)<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>'),  # XSS
-            re.compile(r'(?i)(?:select\|insert\|update\|delete\|drop\|truncate\|union\|exec)\s+.*\s+(?:from\|into\|table)', re.IGNORECASE), # SQLi (기본 형태)
-            re.compile(r'(?i)(--|\bDELETE\b|\bDROP\b|\bINSERT\b|\bUPDATE\b)\s+'), # SQLi (명령어)
+            re.compile(
+                r"(?:\bselect\b.+\bfrom\b"
+                r"|\binsert\s+into\b"
+                r"|\bupdate\b.+\bset\b"
+                r"|\bdelete\s+from\b"
+                r"|\bdrop\s+table\b"
+                r"|\btruncate\s+table\b"
+                r"|\bunion\s+(?:all\s+)?select\b"
+                r"|\bexec(?:ute)?\b)",
+                re.IGNORECASE,
+            ),  # SQLi (기본 형태)
+            re.compile(
+                r"(?:--|;\s*(?:delete|drop|insert|update)\b"
+                r"|\b(?:delete|drop|insert|update)\s+(?:from|table|into)\b)",
+                re.IGNORECASE,
+            ),  # SQLi (주석·파괴 명령)
             re.compile(r'(?i)(ignore previous instructions|너의 지시사항|이전 프롬프트 무시|system prompt|jailbreak|DAN\b|개발자 모드)'), # LLM Prompt Injection
             re.compile(r'(?i)(<\s*(?:iframe|object|embed|applet|meta)[^>]*>)'), # HTML injection
         ]

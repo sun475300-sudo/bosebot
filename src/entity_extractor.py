@@ -4,6 +4,7 @@
 """
 
 import logging
+import os
 import re
 from typing import Optional
 from src.utils import normalize_query, load_json
@@ -14,8 +15,9 @@ logger = logging.getLogger(__name__)
 class EntityExtractor:
     """엔티티 추출기."""
 
-    def __init__(self):
+    def __init__(self, entities_path: str = "data/entities.json"):
         """EntityExtractor를 초기화한다."""
+        self.entities_path = entities_path
         self.entity_types = {}
         self.extraction_patterns = {}
         self._load_entity_definitions()
@@ -23,7 +25,13 @@ class EntityExtractor:
     def _load_entity_definitions(self):
         """data/entities.json에서 엔티티 정의를 로드한다."""
         try:
-            data = load_json("data/entities.json")
+            if os.path.isabs(self.entities_path):
+                with open(self.entities_path, "r", encoding="utf-8") as f:
+                    import json
+
+                    data = json.load(f)
+            else:
+                data = load_json(self.entities_path)
             # entities.json은 list 또는 dict({'entity_types': [...]}) 형식을 모두 지원
             if isinstance(data, list):
                 entity_types = data

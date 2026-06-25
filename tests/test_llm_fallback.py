@@ -1,8 +1,7 @@
 """LLM 폴백 모듈 테스트."""
 
-import pytest
 import time
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 from src.llm_fallback import (
     RateLimiter,
     ResponseCache,
@@ -279,13 +278,16 @@ class TestLLMFallbackProvider:
         with patch("src.llm_fallback.HAS_ANTHROPIC", True):
             with patch("src.llm_fallback.anthropic.Anthropic") as mock_anthropic:
                 import anthropic
+                import httpx
 
                 mock_client = MagicMock()
                 mock_anthropic.return_value = mock_client
 
                 # API 오류 발생
                 mock_client.messages.create.side_effect = anthropic.APIError(
-                    "API Error", request=None, response=None
+                    "API Error",
+                    request=httpx.Request("POST", "https://api.anthropic.com/v1/messages"),
+                    body=None,
                 )
 
                 provider = LLMFallbackProvider()

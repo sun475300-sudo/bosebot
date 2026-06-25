@@ -1,6 +1,10 @@
 # Auto detect text files and perform LF normalization
 * text=auto
 
+# This legacy monolith is stored with CRLF in the repository. Disabling
+# conversion prevents whole-file diffs when a small section is edited.
+web_server.py -text whitespace=cr-at-eol
+
 # Force LF for shell scripts, Dockerfiles, Makefiles (would break on Windows checkout otherwise)
 *.sh        text eol=lf
 Makefile    text eol=lf

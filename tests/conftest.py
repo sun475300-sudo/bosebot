@@ -2,12 +2,13 @@
 
 import os
 import shutil
-
-import pytest
+import tempfile
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 FAQ_PATH = os.path.join(DATA_DIR, "faq.json")
 _faq_backup_content = None
+_runtime_dir = tempfile.mkdtemp(prefix="bonded-chatbot-tests-")
+os.environ["CHATBOT_RUNTIME_DIR"] = _runtime_dir
 
 
 def pytest_configure(config):
@@ -47,3 +48,8 @@ def pytest_runtest_teardown(item, nextitem):
         if current != _faq_backup_content:
             with open(FAQ_PATH, "w", encoding="utf-8") as f:
                 f.write(_faq_backup_content)
+
+
+def pytest_unconfigure(config):
+    """Remove worker-local runtime databases and logs after the session."""
+    shutil.rmtree(_runtime_dir, ignore_errors=True)

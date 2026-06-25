@@ -19,10 +19,10 @@ RE_ASK_PENALTY = 0.3
 
 
 class SatisfactionTracker:
-    def __init__(self):
-        db_dir = "logs"
+    def __init__(self, db_path: str | None = None):
+        self.db_path = db_path or os.path.join("logs", "satisfaction.db")
+        db_dir = os.path.dirname(os.path.abspath(self.db_path))
         os.makedirs(db_dir, exist_ok=True)
-        self.db_path = os.path.join(db_dir, "satisfaction.db")
         self._init_db()
 
     def _init_db(self):

@@ -14,8 +14,6 @@
 """
 
 import logging
-import re
-from typing import Optional
 
 from src.utils import normalize_query, load_json
 

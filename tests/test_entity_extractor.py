@@ -5,9 +5,7 @@ and graceful handling of missing data.
 """
 
 import logging
-import os
-import tempfile
-from pathlib import Path
+import json
 
 import pytest
 
@@ -41,8 +39,8 @@ class TestEntityExtractorInitialization:
         assert extractor.extraction_patterns is not None
         # extraction_patterns는 entities.json에 extraction_patterns 필드가 있는 경우에만 존재
         # entities.json에 해당 필드가 없으면 extraction_patterns는 비어 있을 수 있음
-        import json
-        entities_data = json.load(open("data/entities.json"))
+        with open("data/entities.json", "r", encoding="utf-8") as f:
+            entities_data = json.load(f)
         entities_list = entities_data if isinstance(entities_data, list) else entities_data.get("entity_types", [])
         has_patterns = any("extraction_patterns" in e for e in entities_list)
         if has_patterns:
@@ -51,27 +49,16 @@ class TestEntityExtractorInitialization:
             # extraction_patterns 필드가 없으면 비어 있어도 정상
             assert isinstance(extractor.extraction_patterns, dict)
 
-    def test_graceful_degradation_missing_entities_file(self):
+    def test_graceful_degradation_missing_entities_file(self, tmp_path):
         """Test graceful degradation when entities.json is missing."""
-        # Temporarily rename entities file
-        entities_path = Path("data/entities.json")
-        backup_path = Path("data/entities.json.backup")
-
-        if entities_path.exists():
-            entities_path.rename(backup_path)
-
-        try:
-            extractor = EntityExtractor()
-            # Should have empty types due to missing file
-            assert extractor.entity_types == {}
-            assert extractor.extraction_patterns == {}
-            # But extraction should return empty dict gracefully
-            result = extractor.extract("some query")
-            assert result == {}
-        finally:
-            # Restore file
-            if backup_path.exists():
-                backup_path.rename(entities_path)
+        missing_path = tmp_path / "missing-entities.json"
+        extractor = EntityExtractor(entities_path=str(missing_path))
+        # Should have empty types due to missing file
+        assert extractor.entity_types == {}
+        assert extractor.extraction_patterns == {}
+        # But extraction should return empty dict gracefully
+        result = extractor.extract("some query")
+        assert result == {}
 
 
 class TestUserTypeExtraction:

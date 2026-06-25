@@ -25,7 +25,6 @@ from typing import Callable, Optional
 from src.law_auto_updater import (
     LawAutoUpdater,
     get_auto_updater,
-    start_auto_updater,
 )
 
 

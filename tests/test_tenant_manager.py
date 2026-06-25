@@ -25,12 +25,11 @@ def tenant_mgr(temp_dir):
     db_path = os.path.join(temp_dir, "tenants.db")
     data_dir = os.path.join(temp_dir, "data")
     os.makedirs(data_dir, exist_ok=True)
-    # 기본 faq.json 생성 (default 테넌트용)
-    default_faq_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "faq.json"
-    )
     mgr = TenantManager(db_path=db_path, data_dir=data_dir)
-    return mgr
+    try:
+        yield mgr
+    finally:
+        mgr.close()
 
 
 class TestDefaultTenant:

@@ -7,7 +7,6 @@ Flask 기반 REST API + 웹 UI를 제공한다.
     python web_server.py --port 8080  # 포트 지정
 """
 
-import argparse
 import hashlib
 import logging
 import os
@@ -15,8 +14,6 @@ import sys
 import time
 from datetime import datetime
 from collections import defaultdict
-from functools import wraps
-import json as json_module
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -59,7 +56,7 @@ from src.tenant_manager import TenantManager
 from src.webhook_manager import WebhookManager
 from src.audit_logger import AuditLogger
 from src.alert_center import AlertCenter, AlertRuleEngine
-from src.profiler import Profiler, RequestProfiler, ComponentBenchmark
+from src.profiler import RequestProfiler, ComponentBenchmark
 from src.health_monitor import HealthMonitor
 from src.i18n import I18nManager
 from src.db_migration import MigrationManager
@@ -68,31 +65,35 @@ from src.user_recommender import UserRecommender
 from src.flow_analyzer import FlowAnalyzer
 from src.sentiment_analyzer import SentimentAnalyzer
 from src.question_cluster import QuestionClusterer, DuplicateDetector
-from src.task_scheduler import TaskScheduler, create_default_scheduler
+from src.task_scheduler import create_default_scheduler
 from src.knowledge_graph import KnowledgeGraph
 from src.template_engine import TemplateEngine, ResponseFormatter
 from src.context_memory import ContextMemory, ConversationMemoryManager
-from src.conversation_manager_v3 import ConversationManagerV3, TopicTracker
+from src.conversation_manager_v3 import ConversationManagerV3
 from src.user_segment import UserSegmenter
 from src.domain_config import DomainConfig, DomainInitializer
 from src.utils import load_json
 from src.api_gateway import APIGateway, PaginationHelper, SortHelper
 from src.quality_scorer import ResponseQualityScorer, QualityReport
 from src.conversation_analytics import ConversationAnalytics
-from src.error_recovery import ErrorRecovery, CircuitBreakerOpenError
+from src.error_recovery import ErrorRecovery
 from src.smart_suggestions import SmartSuggestionEngine
-from src.entity_extractor_v2 import EntityExtractorV2, get_entity_extractor_v2
+from src.entity_extractor_v2 import get_entity_extractor_v2
 from src.hybrid_search_v3 import HybridSearchV3
-from src.policy_engine_v2 import PolicyEngineV2, get_policy_engine_v2
-from src.response_builder_v2 import ResponseBuilderV2, get_response_builder_v2
+from src.policy_engine_v2 import get_policy_engine_v2
+from src.response_builder_v2 import get_response_builder_v2
 from src.accuracy_benchmark import AccuracyBenchmark
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+RUNTIME_DIR = os.path.abspath(os.environ.get("CHATBOT_RUNTIME_DIR", BASE_DIR))
+RUNTIME_DATA_DIR = os.path.join(RUNTIME_DIR, "data")
+RUNTIME_LOG_DIR = os.path.join(RUNTIME_DIR, "logs")
 MAX_QUERY_LENGTH = 500  # Production: reduced from 2000 to 500 chars for better security
 APP_VERSION = "4.0.0"
 
 # logs 디렉토리 자동 생성
-os.makedirs(os.path.join(BASE_DIR, "logs"), exist_ok=True)
+os.makedirs(RUNTIME_DATA_DIR, exist_ok=True)
+os.makedirs(RUNTIME_LOG_DIR, exist_ok=True)
 
 app = Flask(__name__, static_folder=os.path.join(BASE_DIR, "web"), static_url_path="/static")
 
@@ -108,7 +109,7 @@ logging.basicConfig(
 logger = logging.getLogger("chatbot")
 
 # Production request logging setup
-_request_log_handler = logging.FileHandler(os.path.join(BASE_DIR, "logs", "requests.log"))
+_request_log_handler = logging.FileHandler(os.path.join(RUNTIME_LOG_DIR, "requests.log"))
 _request_log_handler.setFormatter(logging.Formatter(
     "%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
@@ -118,8 +119,8 @@ _request_logger.addHandler(_request_log_handler)
 _request_logger.setLevel(logging.INFO)
 
 chatbot = BondedExhibitionChatbot()
-chat_logger = ChatLogger(db_path=os.path.join(BASE_DIR, "logs", "chat_logs.db"))
-feedback_manager = FeedbackManager(db_path=os.path.join(BASE_DIR, "logs", "feedback.db"))
+chat_logger = ChatLogger(db_path=os.path.join(RUNTIME_LOG_DIR, "chat_logs.db"))
+feedback_manager = FeedbackManager(db_path=os.path.join(RUNTIME_LOG_DIR, "feedback.db"))
 translator = SimpleTranslator()
 i18n_manager = I18nManager()
 faq_recommender = FAQRecommender(chat_logger)
@@ -137,7 +138,10 @@ rate_limiter = RateLimiter(max_requests=rate_limit_value)
 advanced_rate_limiter = AdvancedRateLimiter()
 
 # 답변 정확도 벤치마크 초기화 (골든 테스트셋 기반)
-accuracy_benchmark = AccuracyBenchmark(chatbot=chatbot)
+accuracy_benchmark = AccuracyBenchmark(
+    chatbot=chatbot,
+    history_db=os.path.join(RUNTIME_LOG_DIR, "accuracy_benchmark.db"),
+)
 
 # Phase 13-18 모듈 초기화
 realtime_monitor = RealtimeMonitor()
@@ -145,7 +149,9 @@ conversation_exporter = ConversationExporter()
 conversation_summarizer = ConversationSummarizer(chatbot.session_manager)
 legal_refs = load_json("data/legal_references.json")
 faq_quality_checker = FAQQualityChecker(chatbot.faq_items, legal_refs)
-satisfaction_tracker = SatisfactionTracker()
+satisfaction_tracker = SatisfactionTracker(
+    db_path=os.path.join(RUNTIME_LOG_DIR, "satisfaction.db")
+)
 
 # 응답 품질 스코어러 초기화
 quality_scorer = ResponseQualityScorer(chat_logger)
@@ -155,30 +161,46 @@ quality_report = QualityReport(quality_scorer)
 jwt_auth = JWTAuth()
 
 # 법령 업데이트 모듈 초기화
-law_version_tracker = LawVersionTracker()
-faq_update_notifier = FAQUpdateNotifier()
+law_version_db = os.path.join(RUNTIME_DATA_DIR, "law_versions.db")
+law_version_tracker = LawVersionTracker(db_path=law_version_db)
+faq_update_notifier = FAQUpdateNotifier(
+    faq_path=os.path.join(BASE_DIR, "data", "faq.json"),
+    db_path=law_version_db,
+)
 law_update_scheduler = LawUpdateScheduler(law_version_tracker, faq_update_notifier)
 
 # 백업 관리자 초기화
-backup_manager = BackupManager()
+backup_manager = BackupManager(base_dir=RUNTIME_DIR)
 
 # 웹훅 관리자 초기화
-webhook_manager = WebhookManager()
+webhook_manager = WebhookManager(
+    db_path=os.path.join(RUNTIME_DATA_DIR, "webhooks.db")
+)
 
 # 멀티 테넌트 관리자 초기화
-tenant_manager = TenantManager()
+tenant_manager = TenantManager(
+    db_path=os.path.join(RUNTIME_DATA_DIR, "tenants.db"),
+    data_dir=RUNTIME_DATA_DIR,
+    logs_dir=RUNTIME_LOG_DIR,
+)
 
 # FAQ 관리자 초기화
-faq_manager = FAQManager()
+faq_manager = FAQManager(
+    faq_path=os.path.join(BASE_DIR, "data", "faq.json"),
+    history_db_path=os.path.join(RUNTIME_LOG_DIR, "faq_history.db"),
+)
 faq_importer = FAQImporter(faq_manager)
 faq_exporter = FAQExporter(faq_manager)
-faq_diff_engine = FAQDiffEngine(faq_manager)
+faq_diff_engine = FAQDiffEngine(
+    faq_manager,
+    snapshot_db_path=os.path.join(RUNTIME_DATA_DIR, "faq_snapshots.db"),
+)
 
 # 감사 로거 초기화
-audit_logger = AuditLogger()
+audit_logger = AuditLogger(db_path=os.path.join(RUNTIME_DATA_DIR, "audit.db"))
 
 # 알림 센터 초기화
-alert_center = AlertCenter()
+alert_center = AlertCenter(db_path=os.path.join(RUNTIME_DATA_DIR, "alerts.db"))
 alert_rule_engine = AlertRuleEngine(
     alert_center,
     realtime_monitor=realtime_monitor,
@@ -191,7 +213,9 @@ request_profiler = RequestProfiler()
 component_benchmark = ComponentBenchmark()
 
 # 마이그레이션 관리자 초기화
-migration_manager = MigrationManager()
+migration_manager = MigrationManager(
+    db_path=os.path.join(RUNTIME_DATA_DIR, "migrations.db")
+)
 
 # 헬스 모니터 초기화
 health_monitor = HealthMonitor(
@@ -201,19 +225,22 @@ health_monitor = HealthMonitor(
 )
 
 # A/B 테스트 관리자 초기화
-ab_test_manager = ABTestManager()
+ab_test_manager = ABTestManager(
+    db_path=os.path.join(RUNTIME_DATA_DIR, "ab_tests.db"),
+    faq_path=os.path.join(BASE_DIR, "data", "faq.json"),
+)
 
 # 대화 흐름 분석기 초기화
-flow_analyzer = FlowAnalyzer(db_path=os.path.join(BASE_DIR, "logs", "flow_analysis.db"))
+flow_analyzer = FlowAnalyzer(db_path=os.path.join(RUNTIME_LOG_DIR, "flow_analysis.db"))
 
 # 사용자 추천 시스템 초기화
 user_recommender = UserRecommender(
-    db_path=os.path.join(BASE_DIR, "data", "user_profiles.db")
+    db_path=os.path.join(RUNTIME_DATA_DIR, "user_profiles.db")
 )
 
 # 감정 분석기 초기화
 sentiment_analyzer = SentimentAnalyzer(
-    db_path=os.path.join(BASE_DIR, "data", "sentiment.db")
+    db_path=os.path.join(RUNTIME_DATA_DIR, "sentiment.db")
 )
 
 # 질문 클러스터링 초기화
@@ -221,7 +248,9 @@ question_clusterer = QuestionClusterer(chatbot.faq_items)
 duplicate_detector = DuplicateDetector(chatbot.faq_items)
 
 # 작업 스케줄러 초기화
-task_scheduler = create_default_scheduler()
+task_scheduler = create_default_scheduler(
+    db_path=os.path.join(RUNTIME_DATA_DIR, "scheduler.db")
+)
 
 # 템플릿 엔진 초기화
 template_engine = TemplateEngine()
@@ -239,16 +268,16 @@ smart_suggestion_engine = SmartSuggestionEngine(
 )
 
 # 컨텍스트 메모리 초기화
-context_memory = ContextMemory(db_path=os.path.join(BASE_DIR, "data", "memory.db"))
+context_memory = ContextMemory(db_path=os.path.join(RUNTIME_DATA_DIR, "memory.db"))
 conversation_memory_manager = ConversationMemoryManager(context_memory)
 
 # 고급 다중턴 대화 관리자 (v3) 초기화
 conversation_manager_v3 = ConversationManagerV3(
-    db_path=os.path.join(BASE_DIR, "data", "conversation_v3.db"),
+    db_path=os.path.join(RUNTIME_DATA_DIR, "conversation_v3.db"),
 )
 
 # 사용자 세분화 초기화
-user_segmenter = UserSegmenter(db_path=os.path.join(BASE_DIR, "data", "segments.db"))
+user_segmenter = UserSegmenter(db_path=os.path.join(RUNTIME_DATA_DIR, "segments.db"))
 
 # 도메인 설정 초기화
 domain_initializer = DomainInitializer()
@@ -271,7 +300,7 @@ hybrid_search_v3 = HybridSearchV3(
 )
 
 # 에러 복구 시스템 초기화
-error_recovery = ErrorRecovery(db_path=os.path.join(BASE_DIR, "logs", "error_logs.db"))
+error_recovery = ErrorRecovery(db_path=os.path.join(RUNTIME_LOG_DIR, "error_logs.db"))
 
 # --- Production: Simple in-memory rate limiter (60 requests/min per IP) ---
 class ProductionRateLimiter:
@@ -1118,7 +1147,6 @@ def faq_reload():
         # 6. SmartSuggestionEngine 재구축
         from src.knowledge_graph import KnowledgeGraph
         _new_kg = KnowledgeGraph.build_from_faq(chatbot.faq_items, chatbot.legal_refs)
-        from src.smart_suggestions import SmartSuggestionEngine
         smart_suggestion_engine.__init__(
             faq_items=chatbot.faq_items,
             knowledge_graph=_new_kg,
@@ -1913,10 +1941,11 @@ def admin_law_updates_acknowledge():
 
 
 # --- 국가법령정보센터 API 동기화 ---
-from src.law_api_sync import LawSyncManager
-from src.law_api_admrul import AdmRulSyncManager, MONITORED_ADMRULS
-law_sync_manager = LawSyncManager()
-admrul_sync_manager = AdmRulSyncManager()
+from src.law_api_sync import LawSyncManager  # noqa: E402
+from src.law_api_admrul import AdmRulSyncManager  # noqa: E402
+law_sync_db = os.path.join(RUNTIME_DATA_DIR, "law_sync.db")
+law_sync_manager = LawSyncManager(db_path=law_sync_db)
+admrul_sync_manager = AdmRulSyncManager(db_path=law_sync_db)
 
 
 @app.route("/api/admin/law-sync/check", methods=["POST"])
@@ -2030,7 +2059,9 @@ def admin_restore():
         return jsonify({"error": "filename 필드가 필요합니다."}), 400
 
     filename = data["filename"]
-    backup_path = os.path.join(BASE_DIR, "backups", filename)
+    if not isinstance(filename, str) or os.path.basename(filename) != filename:
+        return jsonify({"error": "유효하지 않은 백업 파일명입니다."}), 400
+    backup_path = os.path.join(backup_manager.base_dir, "backups", filename)
 
     if not os.path.isfile(backup_path):
         return jsonify({"error": "백업 파일을 찾을 수 없습니다."}), 404
@@ -2054,7 +2085,9 @@ def admin_restore():
 @jwt_auth.require_auth()
 def admin_backup_delete(backup_id):
     """특정 백업을 삭제한다."""
-    backup_path = os.path.join(BASE_DIR, "backups", backup_id)
+    if os.path.basename(backup_id) != backup_id:
+        return jsonify({"error": "유효하지 않은 백업 파일명입니다."}), 400
+    backup_path = os.path.join(backup_manager.base_dir, "backups", backup_id)
 
     if not os.path.isfile(backup_path):
         return jsonify({"error": "백업 파일을 찾을 수 없습니다."}), 404
@@ -3672,7 +3705,7 @@ def get_domain_template_api():
 
 
 # --- Chart Data API ---
-from src.chart_data import ChartDataGenerator
+from src.chart_data import ChartDataGenerator  # noqa: E402
 chart_data_gen = ChartDataGenerator(
     logger_db=chat_logger,
     feedback_db=feedback_manager,
@@ -3690,7 +3723,6 @@ def chart_categories():
 @app.route("/api/admin/charts/trends", methods=["GET"])
 @jwt_auth.require_auth()
 def chart_trends():
-    metric = request.args.get("metric", "queries")
     days = int(request.args.get("days", 30))
     return jsonify(chart_data_gen.daily_query_trend(days=days))
 
@@ -4092,4 +4124,17 @@ def api_admin_benchmark_run():
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         logger.error(f"정확도 벤치마크 실행 실패: {e}", exc_info=True)
-        return jsonify({"error": "벤치마크 실행 중 오류가 발생했습니다."}), 500
+        return jsonify({"error": "벤치마크 실행 중 오류가 발생했습니다."}), 500
+
+
+@app.route("/api/admin/benchmark/history", methods=["GET"])
+@jwt_auth.require_auth()
+def api_admin_benchmark_history():
+    """최근 답변 정확도 벤치마크 실행 이력을 반환한다."""
+    limit = request.args.get("limit", default=20, type=int)
+    if limit is None or limit < 1:
+        return jsonify({"error": "limit은 1 이상의 정수여야 합니다."}), 400
+
+    limit = min(limit, 100)
+    history = accuracy_benchmark.get_history(limit=limit)
+    return jsonify({"history": history, "count": len(history)})

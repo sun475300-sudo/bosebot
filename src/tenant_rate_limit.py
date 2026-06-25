@@ -56,8 +56,11 @@ class TenantConfigCache:
             if tenant_id is None:
                 self._entries.clear()
                 return
+            target = os.path.normcase(
+                os.path.normpath(os.path.join(self.base_dir, tenant_id, "config.json"))
+            )
             for k in list(self._entries):
-                if k.endswith(f"/{tenant_id}/config.json"):
+                if os.path.normcase(os.path.normpath(k)) == target:
                     self._entries.pop(k, None)
 
 
